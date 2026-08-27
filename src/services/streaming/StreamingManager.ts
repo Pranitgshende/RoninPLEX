@@ -236,12 +236,14 @@ export class StreamingManager {
             timestamp: Date.now(),
           });
 
-          // Ensure stream result carries active provider metadata
+          // Ensure stream result carries active provider metadata & embed policy
           const enrichedMovie: StreamingMovie = {
             ...movie,
             stream: {
               ...movie.stream,
               providerName: pName,
+              providerId: pId,
+              embedPolicy: movie.stream?.embedPolicy || provider.getEmbedPolicy?.(),
             },
           };
 
@@ -332,6 +334,8 @@ export class StreamingManager {
             stream: {
               ...ep.stream,
               providerName: pName,
+              providerId: pId,
+              embedPolicy: ep.stream?.embedPolicy || provider.getEmbedPolicy?.(),
             },
           };
 
@@ -359,6 +363,58 @@ export class StreamingManager {
     }
 
     this.availabilityCache.set(cacheKey, { available: false, timestamp: Date.now() });
+    return null;
+  }
+
+  /**
+   * Directly resolves the next alternative stream in the fallback chain
+   * when a player encounters a runtime embed or buffer failure.
+   */
+  public async getNextStream(
+    tmdbId: number,
+    mediaType: 'movie' | 'tv',
+    failedProviderId?: string,
+    season?: number,
+    episode?: number
+  ): Promise<StreamingMovie | StreamingEpisode | null> {
+    const providers = this.getEligibleProviders();
+    const candidates = failedProviderId
+      ? providers.filter(p => p.getId() !== failedProviderId)
+      : providers;
+
+    for (const provider of candidates) {
+      try {
+        if (mediaType === 'movie') {
+          const movie = await provider.getMovie(tmdbId);
+          if (movie && movie.available && movie.stream?.url) {
+            return {
+              ...movie,
+              stream: {
+                ...movie.stream,
+                providerName: provider.getName(),
+                providerId: provider.getId(),
+                embedPolicy: movie.stream?.embedPolicy || provider.getEmbedPolicy?.(),
+              },
+            };
+          }
+        } else if (season !== undefined && episode !== undefined) {
+          const ep = await provider.getTVEpisode(tmdbId, season, episode);
+          if (ep && ep.available && ep.stream?.url) {
+            return {
+              ...ep,
+              stream: {
+                ...ep.stream,
+                providerName: provider.getName(),
+                providerId: provider.getId(),
+                embedPolicy: ep.stream?.embedPolicy || provider.getEmbedPolicy?.(),
+              },
+            };
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
     return null;
   }
 

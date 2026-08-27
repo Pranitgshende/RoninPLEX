@@ -140,6 +140,29 @@ export const Watch: React.FC = () => {
      (tvShow?.seasons && tvShow.seasons.some(s => s.season_number === seasonNumber + 1)))
   );
 
+  const handleTryNextProvider = async () => {
+    setIsLoading(true);
+    try {
+      const nextStream = await streamingManager.getNextStream(
+        mediaId,
+        isTV ? 'tv' : 'movie',
+        streamResult?.providerId,
+        seasonNumber,
+        episodeNumber
+      );
+      if (nextStream?.stream && nextStream.available) {
+        setStreamResult(nextStream.stream);
+      } else {
+        setStreamResult(null);
+      }
+    } catch (e) {
+      console.error('Failed to switch to alternative provider:', e);
+      setStreamResult(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const trailerKey = isTV
     ? extractBestTrailerKey(tvShow?.videos?.results)
     : extractBestTrailerKey(movie?.videos?.results);
@@ -173,6 +196,7 @@ export const Watch: React.FC = () => {
           onNextEpisode={handleNextEpisode}
           hasNextEpisode={hasNextEpisode}
           onOpenEpisodeDrawer={() => setIsEpisodeDrawerOpen(true)}
+          onTryNextProvider={handleTryNextProvider}
         />
 
         {/* TV Episode Selector Drawer Overlay */}

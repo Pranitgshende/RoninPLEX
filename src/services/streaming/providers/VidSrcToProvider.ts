@@ -1,5 +1,5 @@
 import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode } from '../types';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy } from '../types';
 
 export class VidSrcToProvider implements StreamingProvider {
   private readonly id = 'vidsrc-to';
@@ -12,6 +12,17 @@ export class VidSrcToProvider implements StreamingProvider {
 
   getId(): string {
     return this.id;
+  }
+
+  getEmbedPolicy(): EmbedPolicy {
+    return {
+      // vidsrc.to embeds vsembed.ru which runs sbx.js (anti-sandbox detection).
+      // Omitting the sandbox attribute allows the legitimate streaming player to initialize
+      // while top-level navigation is securely prevented by Tauri's native navigation guard.
+      sandbox: null,
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
   }
 
   async testConnection(): Promise<boolean> {
@@ -41,7 +52,9 @@ export class VidSrcToProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }
@@ -74,7 +87,9 @@ export class VidSrcToProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }

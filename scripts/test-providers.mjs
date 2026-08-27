@@ -14,8 +14,12 @@ async function runTests() {
   const movieTo = await vidSrcToProvider.getMovie(693134); // Dune: Part Two
   console.log('Movie Available:', movieTo?.available);
   console.log('Movie URL:', movieTo?.stream?.url);
+  console.log('Embed Policy Sandbox:', movieTo?.stream?.embedPolicy?.sandbox);
   if (!movieTo?.stream?.url?.includes('vidsrc.to')) {
     throw new Error('VidSrc To returned invalid URL: ' + movieTo?.stream?.url);
+  }
+  if (movieTo?.stream?.embedPolicy?.sandbox !== null) {
+    throw new Error('VidSrc To must have sandbox: null to prevent sbx.js anti-sandbox blocker regression');
   }
   const epTo = await vidSrcToProvider.getTVEpisode(1399, 1, 1);
   console.log('TV S1E1 URL:', epTo?.stream?.url);
@@ -28,8 +32,12 @@ async function runTests() {
   const movieMe = await vidSrcMeProvider.getMovie(693134);
   console.log('Movie Available:', movieMe?.available);
   console.log('Movie URL:', movieMe?.stream?.url);
+  console.log('Embed Policy Sandbox:', movieMe?.stream?.embedPolicy?.sandbox);
   if (!movieMe?.stream?.url?.includes('vidsrcme.ru')) {
     throw new Error('VidSrc Me returned invalid URL: ' + movieMe?.stream?.url);
+  }
+  if (movieMe?.stream?.embedPolicy?.sandbox !== null) {
+    throw new Error('VidSrc Me must have sandbox: null to prevent sbx.js anti-sandbox blocker regression');
   }
   const epMe = await vidSrcMeProvider.getTVEpisode(1399, 1, 1);
   console.log('TV S1E1 URL:', epMe?.stream?.url);
@@ -56,8 +64,15 @@ async function runTests() {
   const movieLink = await vidLinkProProvider.getMovie(693134);
   console.log('Movie Available:', movieLink?.available);
   console.log('Movie URL:', movieLink?.stream?.url);
+  console.log('Embed Policy Sandbox:', movieLink?.stream?.embedPolicy?.sandbox);
   if (!movieLink?.stream?.url?.includes('vidlink.pro/movie/693134')) {
     throw new Error('VidLink Pro returned invalid URL: ' + movieLink?.stream?.url);
+  }
+  if (!movieLink?.stream?.embedPolicy?.sandbox?.includes('allow-scripts')) {
+    throw new Error('VidLink Pro must have sandbox allow-scripts');
+  }
+  if (movieLink?.stream?.embedPolicy?.sandbox?.includes('allow-top-navigation')) {
+    throw new Error('Security Invariant Violated: allow-top-navigation must NEVER be granted!');
   }
   const epLink = await vidLinkProProvider.getTVEpisode(1399, 1, 1);
   console.log('TV S1E1 URL:', epLink?.stream?.url);
@@ -65,8 +80,27 @@ async function runTests() {
     throw new Error('VidLink Pro TV returned invalid URL');
   }
 
-  // TEST 5: StreamingManager Multi-Provider Fallback
-  console.log('\n--- TEST 5: StreamingManager Provider Fallback Simulation ---');
+  // TEST 5: Embed Security Invariants across all providers
+  console.log('\n--- TEST 5: Verification of Security Invariants ---');
+  const allProviders = [vidSrcToProvider, vidSrcMeProvider, vidSrcDevProvider, vidLinkProProvider];
+  for (const prov of allProviders) {
+    const policy = prov.getEmbedPolicy?.();
+    if (policy) {
+      if (policy.sandbox?.includes('allow-top-navigation')) {
+        throw new Error(`Provider ${prov.getName()} violates security: contains allow-top-navigation`);
+      }
+      if (policy.sandbox?.includes('allow-top-navigation-by-user-activation')) {
+        throw new Error(`Provider ${prov.getName()} violates security: contains allow-top-navigation-by-user-activation`);
+      }
+      if (!policy.allow?.includes('autoplay')) {
+        throw new Error(`Provider ${prov.getName()} must include autoplay in allow policy`);
+      }
+      console.log(`✓ ${prov.getName()}: Embed policy verified (sandbox: ${policy.sandbox || 'omitted (anti-sandbox protected)'}, allow: ${policy.allow})`);
+    }
+  }
+
+  // TEST 6: StreamingManager Multi-Provider Fallback
+  console.log('\n--- TEST 6: StreamingManager Provider Fallback Simulation ---');
   console.log('Initial Active Provider:', streamingManager.getActiveProviderName());
   console.log('Eligible Providers Count:', streamingManager.getEligibleProviders().length);
 
@@ -108,12 +142,20 @@ async function runTests() {
     throw new Error('Fallback attempt log did not record successful provider attempt!');
   }
 
+  // TEST 7: In-Player Alternative Provider Resolution (getNextStream)
+  console.log('\n--- TEST 7: getNextStream In-Player Provider Switching ---');
+  const nextStream = await streamingManager.getNextStream(693134, 'movie', resolvedMovie.stream.providerId);
+  console.log('Next Provider Stream:', nextStream?.stream?.providerName, '->', nextStream?.stream?.url);
+  if (!nextStream?.stream?.url || nextStream.stream.providerId === resolvedMovie.stream.providerId) {
+    throw new Error('getNextStream failed to switch away from the current provider');
+  }
+
   // Clean up mock provider and restore default
   streamingManager.unregisterProvider('mock-failing');
   streamingManager.setActiveProviderId('vidsrc-to');
   streamingManager.clearCache();
 
-  console.log('\n--- TEST 6: All-Provider Failure Handled Gracefully ---');
+  console.log('\n--- TEST 8: All-Provider Failure Handled Gracefully ---');
   // Passing an invalid 0 ID should cleanly return null without unhandled rejections
   const invalidMovie = await streamingManager.getMovie(0);
   console.log('Invalid Media Result (expected null):', invalidMovie);

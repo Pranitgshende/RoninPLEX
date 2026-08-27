@@ -1,5 +1,5 @@
 import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode } from '../types';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy } from '../types';
 
 export class VidLinkProProvider implements StreamingProvider {
   private readonly id = 'vidlink';
@@ -25,6 +25,14 @@ export class VidLinkProProvider implements StreamingProvider {
     }
   }
 
+  getEmbedPolicy(): EmbedPolicy {
+    return {
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
+  }
+
   async getMovie(tmdbId: number): Promise<StreamingMovie | null> {
     if (!tmdbId || isNaN(tmdbId)) return null;
 
@@ -41,7 +49,9 @@ export class VidLinkProProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }
@@ -74,7 +84,9 @@ export class VidLinkProProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }

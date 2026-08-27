@@ -40,4 +40,10 @@ export interface StreamingProvider {
    * Optional search for TV shows available on this provider
    */
   searchTVShows?(query: string): Promise<StreamingTVShow[]>;
+
+  /**
+   * Optional provider-aware iframe embed policy.
+   * Defines sandbox tokens, feature policy permissions, and referrer policy.
+   */
+  getEmbedPolicy?(): import('./types').EmbedPolicy;
 }

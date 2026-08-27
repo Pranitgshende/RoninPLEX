@@ -1,5 +1,5 @@
 import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode } from '../types';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy } from '../types';
 
 export class VidSrcDevProvider implements StreamingProvider {
   private readonly id = 'vidsrc-dev';
@@ -14,9 +14,23 @@ export class VidSrcDevProvider implements StreamingProvider {
     return this.id;
   }
 
+  getEmbedPolicy(): EmbedPolicy {
+    return {
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
+  }
+
   async testConnection(): Promise<boolean> {
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return false;
+      }
+      const res = await fetch(this.baseUrl, { method: 'GET' });
+      if (!res.ok) return false;
+      const text = await res.text();
+      if (text.includes('for sale') || text.includes('abovedomains')) {
         return false;
       }
       return true;
@@ -41,7 +55,9 @@ export class VidSrcDevProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }
@@ -74,7 +90,9 @@ export class VidSrcDevProvider implements StreamingProvider {
         type: 'embed',
         url: streamUrl,
         providerName: this.name,
+        providerId: this.id,
         quality: 'Auto HD',
+        embedPolicy: this.getEmbedPolicy(),
       },
     };
   }

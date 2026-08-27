@@ -42,6 +42,7 @@ export interface VideoPlayerProps {
   onNextEpisode?: () => void;
   hasNextEpisode?: boolean;
   onOpenEpisodeDrawer?: () => void;
+  onTryNextProvider?: () => void;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -60,6 +61,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onNextEpisode,
   hasNextEpisode = false,
   onOpenEpisodeDrawer,
+  onTryNextProvider,
 }) => {
   const { savePlaybackProgress } = useUser();
 
@@ -95,6 +97,38 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showSlowBufferHelp, setShowSlowBufferHelp] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [fallbackHistory, setFallbackHistory] = useState<FallbackAttempt[]>([]);
+
+  // Provider-aware iframe embed policy resolution
+  const resolvedEmbedPolicy = React.useMemo(() => {
+    if (stream.embedPolicy) {
+      return stream.embedPolicy;
+    }
+    // Infer policy based on provider / URL if not explicitly attached
+    const url = stream.url?.toLowerCase() || '';
+    const isAntiSandbox = url.includes('vidsrc') || url.includes('vsembed');
+    if (isAntiSandbox) {
+      return {
+        sandbox: null,
+        allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+        referrerPolicy: 'origin' as const,
+      };
+    }
+    return {
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin' as const,
+    };
+  }, [stream.embedPolicy, stream.url]);
+
+  // Prevent unwanted top-level window navigation away from RoninPLEX
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      return (e.returnValue = '');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // Auto-hide controls timer
   const resetControlsTimer = useCallback(() => {
@@ -551,7 +585,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
               <span className="text-slate-400">IFrame Sandboxing:</span>
-              <span className="text-emerald-400">allow-scripts allow-same-origin</span>
+              <span className={resolvedEmbedPolicy.sandbox ? 'text-emerald-400 font-mono text-[10px]' : 'text-amber-400'}>
+                {resolvedEmbedPolicy.sandbox || 'Standard (Anti-Sandbox Protected)'}
+              </span>
+            </div>
+            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+              <span className="text-slate-400">Top Window Navigation:</span>
+              <span className="text-emerald-400 font-semibold">Blocked (Native OS Guard Active)</span>
             </div>
             <div className="p-2 rounded bg-surface-100 border border-white/5 break-all">
               <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
@@ -560,6 +600,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+            {onTryNextProvider && (
+              <button
+                onClick={() => {
+                  setShowDiagnostics(false);
+                  onTryNextProvider();
+                }}
+                className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Try Next Provider</span>
+              </button>
+            )}
             {stream.type === 'embed' && (
               <button
                 onClick={handleReloadIframe}
@@ -645,6 +697,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
 
+            {/* Next Provider Button */}
+            {onTryNextProvider && (
+              <button
+                onClick={onTryNextProvider}
+                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-brand-400 hover:text-brand-300 border border-white/10 shadow-lg transition-colors"
+                title="Switch to Next Streaming Provider"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Diagnostics HUD */}
             <button
               onClick={() => setShowDiagnostics(true)}
@@ -691,6 +754,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {showSlowBufferHelp && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2.5 rounded-2xl bg-surface-100/95 backdrop-blur-md border border-white/10 shadow-2xl flex items-center gap-3 text-xs text-slate-300 animate-slide-up player-control-surface">
             <span>Slow buffer?</span>
+            {onTryNextProvider && (
+              <button
+                onClick={onTryNextProvider}
+                className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Next Provider</span>
+              </button>
+            )}
             <button
               onClick={handleReloadIframe}
               className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold flex items-center gap-1 transition-colors"
@@ -700,7 +772,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </button>
             <button
               onClick={() => window.open(stream.url, '_blank')}
-              className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1 rounded-lg bg-surface-100 hover:bg-white/10 text-slate-300 hover:text-white font-semibold flex items-center gap-1 transition-colors border border-white/5"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Open Window</span>
@@ -715,16 +787,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         )}
 
-        {/* The Embed Player Iframe with Sandboxing */}
+        {/* The Embed Player Iframe with Provider-Aware Policy */}
         <iframe
           key={iframeKey}
           src={stream.url}
           title={title}
           className="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          {...(resolvedEmbedPolicy.sandbox ? { sandbox: resolvedEmbedPolicy.sandbox } : {})}
+          allow={resolvedEmbedPolicy.allow || 'autoplay; fullscreen; encrypted-media; picture-in-picture'}
           allowFullScreen
-          referrerPolicy="origin"
+          referrerPolicy={resolvedEmbedPolicy.referrerPolicy || 'origin'}
           onLoad={() => {
             setIsIframeLoading(false);
           }}

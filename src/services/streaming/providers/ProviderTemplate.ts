@@ -58,6 +58,20 @@ export class ProviderTemplate implements StreamingProvider {
   }
 
   /**
+   * 3b. PROVIDER-AWARE IFRAME EMBED POLICY
+   * Customize sandbox tokens, feature policy permissions, and referrer policy.
+   * Return sandbox: null if the provider explicitly forbids iframe sandboxing (e.g. anti-sandbox scripts).
+   * Note: Top-level navigation permissions (allow-top-navigation) are strictly prohibited.
+   */
+  getEmbedPolicy(): import('../types').EmbedPolicy {
+    return {
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
+  }
+
+  /**
    * 4. MOVIE LOOKUP
    * Looks up a movie by TMDB ID and returns the streaming source
    */

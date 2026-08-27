@@ -51,6 +51,15 @@ export class CustomConfigProvider implements StreamingProvider {
     });
   }
 
+  getEmbedPolicy(): import('../types').EmbedPolicy {
+    const isAntiSandbox = this.config.baseUrl.includes('vidsrc') || this.config.baseUrl.includes('vsembed');
+    return {
+      sandbox: isAntiSandbox ? null : 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
+  }
+
   async getMovie(tmdbId: number): Promise<StreamingMovie | null> {
     if (!tmdbId || isNaN(tmdbId) || tmdbId <= 0) return null;
     if (!this.config.baseUrl || !this.config.movieEndpoint) return null;
@@ -72,6 +81,8 @@ export class CustomConfigProvider implements StreamingProvider {
             url,
             quality: 'Auto HD',
             providerName: this.getName(),
+            providerId: this.getId(),
+            embedPolicy: this.getEmbedPolicy(),
           },
         };
       }
@@ -174,6 +185,8 @@ export class CustomConfigProvider implements StreamingProvider {
             url,
             quality: 'Auto HD',
             providerName: this.getName(),
+            providerId: this.getId(),
+            embedPolicy: this.getEmbedPolicy(),
           },
         };
       }
@@ -208,6 +221,8 @@ export class CustomConfigProvider implements StreamingProvider {
           quality: data.quality || 'HD',
           subtitles: data.subtitles || data.stream?.subtitles,
           providerName: this.getName(),
+          providerId: this.getId(),
+          embedPolicy: this.getEmbedPolicy(),
         },
       };
     } catch (err) {
