@@ -5,26 +5,23 @@
 **RoninPLEX** delivers a clean, high-performance, Netflix-inspired desktop experience for discovering, tracking, and watching movies and TV series on your Windows laptop. It combines rich metadata from The Movie Database (TMDB), YouTube trailer previews, playback history ("Continue Watching"), mood-based recommendations, and a completely modular **Streaming Provider Architecture**.
 
 ---
-
 ## 📸 Interface Preview
 
-```
-+-----------------------------------------------------------------------------------+
-|  [>] RONINPLEX     Home   Movies   TV Shows   Library   Tonight?     [Search] [*] |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|   ===================== FEATURED TITLE: DUNE: PART TWO =====================      |
-|   Paul Atreides unites with Chani and the Fremen while seeking revenge...         |
-|   [ > Stream Now ]   [ Play Trailer ]   [ + Watchlist ]                           |
-|                                                                                   |
-+-----------------------------------------------------------------------------------+
-|  CONTINUE WATCHING                                                                |
-|  [ Card 1 (68%) ]      [ Card 2 (14%) ]      [ Card 3 (92%) ]                     |
-|                                                                                   |
-|  TRENDING MOVIES                                                                  |
-|  [ Poster A ]   [ Poster B (Hover Trailer Playing) ]   [ Poster C ]   [ Poster D] |
-+-----------------------------------------------------------------------------------+
-```
+A look at RoninPLEX in action.
+
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="RoninPLEX Home" width="48%">
+  <img src="docs/screenshots/recommendations.png" alt="RoninPLEX Recommendations" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/search.png" alt="RoninPLEX Search" width="48%">
+  <img src="docs/screenshots/movie-details.png" alt="RoninPLEX Movie Details" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/settings.png" alt="RoninPLEX Settings" width="48%">
+</p>
 
 ---
 
