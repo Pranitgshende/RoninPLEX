@@ -6,6 +6,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-08-27 — Complete Development, Performance, Player & Multi-Streaming Upgrade
+
+### Added
+- **Multi-Provider Streaming Architecture & Automatic Fallback**:
+  - Integrated **VidSrc Me** (`https://vidsrcme.ru/`).
+  - Integrated **VidSrc Dev** (`https://vidsrc.dev/`).
+  - Integrated **VidLink Pro** (`https://vidlink.pro/`).
+  - Preserved **VidSrc To** (`https://vidsrc.to/`) and user-configurable Custom Provider.
+  - Removed mock demo provider.
+  - Implemented automatic fallback chain in `StreamingManager`: sequentially attempts configured/registered providers when one is unavailable, ensuring seamless playback without interrupting the user.
+  - Added fallback attempts tracking to the Streaming Diagnostics HUD (`D` key).
+- **Video Player UX Overhaul**:
+  - **Single-Click Play/Pause**: Fixed viewport letterboxing and overlay click blocking; single click anywhere on native player reliably toggles play/pause.
+  - **Interactive Scrubbing Timeline**: Added smooth drag-to-seek scrub bar with buffer progress and hover timestamp tooltips, clamped between 0 and duration.
+  - **-10s / +10s Seek Controls**: Quick seek buttons added to player control bar with keyboard ArrowLeft/ArrowRight support.
+  - **Picture-in-Picture (PiP)**: Added PiP button with standard HTML5 PiP and Chromium/WebView2 Document Picture-in-Picture support for resizable player windows.
+  - **TV Episode Navigation**: Added "Previous Episode" navigation alongside "Next Episode" and auto-prompt on episode completion.
+  - **Iframe Sandboxing & Redirect Prevention**: Applied sandboxing (`sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`) to block malicious top-level redirects and unwanted external tab popups from third-party embed providers.
+- **Continue Watching Improvements**:
+  - Consolidated TV series on the Home shelf to display only the most recent episode watched, eliminating duplicate series cards.
+  - Per-episode progress persistence and resume position tracking across sessions.
+- **TMDB & API Performance**:
+  - Implemented in-flight request deduplication to prevent redundant concurrent network calls.
+  - Dynamic cache invalidation on TMDB API key updates.
+  - Request race condition cancellation in `Watch.tsx` when rapidly switching episodes.
+- **Complete Rebrand & Legacy Storage Migration**:
+  - Fully eliminated legacy CinePulse branding across icons, capabilities, configs, and UI.
+  - Safe one-time legacy storage migration migrating existing `cinepulse_*` keys to `roninplex_*` keys without data loss.
+
+---
+
 ## [1.0.0] - 2026-08-27 — Initial Release
 
 ### Added

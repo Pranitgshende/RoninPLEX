@@ -113,7 +113,7 @@ export const Settings: React.FC = () => {
   const handleResetProvider = () => {
     const defaultCfg = providerConfigService.resetConfig();
     setProviderConfig(defaultCfg);
-    setActiveProviderId('vidsrc');
+    setActiveProviderId('vidsrc-to');
     setConnectionStatus('idle');
     setConnectionMessage('');
     showToast('info', 'Reset Provider', 'Restored VidSrc default provider.');
@@ -254,25 +254,32 @@ export const Settings: React.FC = () => {
 
               {/* Active Provider Selector */}
               <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-3">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Select Active Streaming Provider:
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Preferred Streaming Provider:
+                  </label>
+                  <span className="text-[10px] text-brand-400 font-medium">
+                    Automatic multi-provider fallback active
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveProviderId('vidsrc');
+                      setActiveProviderId('vidsrc-to');
                       setProviderConfig(prev => ({ ...prev, isEnabled: true }));
                     }}
                     className={`p-3.5 rounded-xl border text-left transition-all ${
-                      activeProviderId === 'vidsrc' && providerConfig.isEnabled
+                      (activeProviderId === 'vidsrc-to' || activeProviderId === 'vidsrc') && providerConfig.isEnabled
                         ? 'bg-brand-600/20 border-brand-500 text-white'
                         : 'bg-surface-200/50 border-white/5 text-slate-400 hover:bg-surface-200'
                     }`}
                   >
                     <div className="font-bold text-xs flex items-center justify-between">
-                      <span>VidSrc</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Active</span>
+                      <span>VidSrc (to)</span>
+                      {(activeProviderId === 'vidsrc-to' || activeProviderId === 'vidsrc') && providerConfig.isEnabled && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Preferred</span>
+                      )}
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">vidsrc.to streaming API</div>
                   </button>
@@ -280,17 +287,64 @@ export const Settings: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveProviderId('demo');
+                      setActiveProviderId('vidsrc-me');
                       setProviderConfig(prev => ({ ...prev, isEnabled: true }));
                     }}
                     className={`p-3.5 rounded-xl border text-left transition-all ${
-                      activeProviderId === 'demo' && providerConfig.isEnabled
+                      activeProviderId === 'vidsrc-me' && providerConfig.isEnabled
                         ? 'bg-brand-600/20 border-brand-500 text-white'
                         : 'bg-surface-200/50 border-white/5 text-slate-400 hover:bg-surface-200'
                     }`}
                   >
-                    <div className="font-bold text-xs">Demo Provider</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">Public domain test streams</div>
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>VidSrc Me</span>
+                      {activeProviderId === 'vidsrc-me' && providerConfig.isEnabled && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Preferred</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">vidsrcme.ru streaming API</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveProviderId('vidsrc-dev');
+                      setProviderConfig(prev => ({ ...prev, isEnabled: true }));
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
+                      activeProviderId === 'vidsrc-dev' && providerConfig.isEnabled
+                        ? 'bg-brand-600/20 border-brand-500 text-white'
+                        : 'bg-surface-200/50 border-white/5 text-slate-400 hover:bg-surface-200'
+                    }`}
+                  >
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>VidSrc Dev</span>
+                      {activeProviderId === 'vidsrc-dev' && providerConfig.isEnabled && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Preferred</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">vidsrc.dev streaming API</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveProviderId('vidlink');
+                      setProviderConfig(prev => ({ ...prev, isEnabled: true }));
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
+                      activeProviderId === 'vidlink' && providerConfig.isEnabled
+                        ? 'bg-brand-600/20 border-brand-500 text-white'
+                        : 'bg-surface-200/50 border-white/5 text-slate-400 hover:bg-surface-200'
+                    }`}
+                  >
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>VidLink Pro</span>
+                      {activeProviderId === 'vidlink' && providerConfig.isEnabled && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Preferred</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">vidlink.pro streaming API</div>
                   </button>
 
                   <button
@@ -305,7 +359,12 @@ export const Settings: React.FC = () => {
                         : 'bg-surface-200/50 border-white/5 text-slate-400 hover:bg-surface-200'
                     }`}
                   >
-                    <div className="font-bold text-xs">Custom API</div>
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>Custom API</span>
+                      {activeProviderId === 'custom' && providerConfig.isEnabled && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/30 text-brand-300">Preferred</span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">Configured endpoints below</div>
                   </button>
 
@@ -777,7 +836,7 @@ export const Settings: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Version:</span>
-                    <span className="text-brand-400 font-bold">1.0.0</span>
+                    <span className="text-brand-400 font-bold">1.1.0</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Desktop Engine:</span>

@@ -10,14 +10,43 @@ const STORAGE_KEYS = {
 } as const;
 
 class StorageService {
+  constructor() {
+    this.migrateLegacyStorage();
+  }
+
+  /**
+   * Safe one-time legacy storage migration:
+   * Copies any CinePulse-era keys over to RoninPLEX keys if they don't already exist.
+   */
+  public migrateLegacyStorage(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+
+    try {
+      const mappings: Array<[string, string]> = [
+        ['cinepulse_watchlist', STORAGE_KEYS.WATCHLIST],
+        ['cinepulse_watched', STORAGE_KEYS.WATCHED],
+        ['cinepulse_preferences', STORAGE_KEYS.PREFERENCES],
+        ['cinepulse_tmdb_api_key', STORAGE_KEYS.API_KEY],
+        ['cinepulse_playback_progress', STORAGE_KEYS.PLAYBACK_PROGRESS],
+        ['cinepulse_streaming_provider_config', STORAGE_KEYS.PROVIDER_CONFIG],
+        ['cinepulse_active_streaming_provider_id', 'roninplex_active_streaming_provider_id'],
+      ];
+
+      for (const [legacyKey, newKey] of mappings) {
+        const legacyVal = localStorage.getItem(legacyKey);
+        const currentVal = localStorage.getItem(newKey);
+        if (legacyVal && !currentVal) {
+          localStorage.setItem(newKey, legacyVal);
+        }
+      }
+    } catch (e) {
+      console.warn('Storage migration check encountered an error:', e);
+    }
+  }
+
   private get<T>(key: string, defaultValue: T): T {
     try {
-      let item = localStorage.getItem(key);
-      if (!item && key.startsWith('roninplex_')) {
-        // Backward-compatible fallback for previous CinePulse data
-        const legacyKey = key.replace('roninplex_', 'cinepulse_');
-        item = localStorage.getItem(legacyKey);
-      }
+      const item = localStorage.getItem(key);
       if (!item) return defaultValue;
       return JSON.parse(item) as T;
     } catch (e) {
@@ -30,7 +59,6 @@ class StorageService {
     try {
       localStorage.setItem(key, JSON.stringify(value));
       window.dispatchEvent(new Event('roninplex_storage_change'));
-      window.dispatchEvent(new Event('cinepulse_storage_change'));
       return true;
     } catch (e) {
       console.error(`Failed to save ${key} to localStorage:`, e);
@@ -109,15 +137,39 @@ class StorageService {
   }
 
   // --- Playback Progress & Continue Watching ---
-  getContinueWatchingList(): PlaybackProgress[] {
+  /**
+   * Returns all stored playback progress records, sorted descending by lastWatchedAt
+   */
+  getAllPlaybackProgress(): PlaybackProgress[] {
     const all = this.get<PlaybackProgress[]>(STORAGE_KEYS.PLAYBACK_PROGRESS, []);
-    // Sort descending by lastWatchedAt
     return all.sort((a, b) => new Date(b.lastWatchedAt).getTime() - new Date(a.lastWatchedAt).getTime());
   }
 
+  /**
+   * Returns deduplicated items for the Continue Watching shelf.
+   * For TV shows, only the single most recently watched episode is shown to prevent duplicate cards.
+   */
+  getContinueWatchingList(): PlaybackProgress[] {
+    const all = this.getAllPlaybackProgress();
+    const seen = new Set<string>();
+    const deduplicated: PlaybackProgress[] = [];
+
+    for (const item of all) {
+      const key = `${item.mediaType}-${item.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicated.push(item);
+      }
+    }
+    return deduplicated;
+  }
+
+  /**
+   * Looks up playback progress for a specific movie or TV episode
+   */
   getPlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): PlaybackProgress | null {
-    const list = this.getContinueWatchingList();
-    const match = list.find(item => {
+    const all = this.getAllPlaybackProgress();
+    const match = all.find(item => {
       if (item.id !== id || item.mediaType !== mediaType) return false;
       if (mediaType === 'tv') {
         return item.seasonNumber === season && item.episodeNumber === episode;
@@ -128,8 +180,8 @@ class StorageService {
   }
 
   savePlaybackProgress(progress: PlaybackProgress): boolean {
-    const list = this.getContinueWatchingList();
-    const filtered = list.filter(item => {
+    const all = this.getAllPlaybackProgress();
+    const filtered = all.filter(item => {
       if (item.id !== progress.id || item.mediaType !== progress.mediaType) return true;
       if (progress.mediaType === 'tv') {
         return !(item.seasonNumber === progress.seasonNumber && item.episodeNumber === progress.episodeNumber);
@@ -161,12 +213,13 @@ class StorageService {
   }
 
   removePlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): boolean {
-    const list = this.getContinueWatchingList();
-    const updated = list.filter(item => {
+    const all = this.getAllPlaybackProgress();
+    const updated = all.filter(item => {
       if (item.id !== id || item.mediaType !== mediaType) return true;
-      if (mediaType === 'tv') {
+      if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
         return !(item.seasonNumber === season && item.episodeNumber === episode);
       }
+      // If season/episode not specified, remove all progress for this show/movie
       return false;
     });
     return this.set(STORAGE_KEYS.PLAYBACK_PROGRESS, updated);
@@ -213,7 +266,6 @@ class StorageService {
         localStorage.setItem(STORAGE_KEYS.API_KEY, key.trim());
       }
       window.dispatchEvent(new Event('roninplex_api_key_change'));
-      window.dispatchEvent(new Event('cinepulse_api_key_change'));
     } catch (e) {
       console.error('Failed to save TMDB API key to localStorage:', e);
     }
@@ -228,6 +280,7 @@ class StorageService {
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
       localStorage.removeItem(STORAGE_KEYS.PLAYBACK_PROGRESS);
       localStorage.removeItem(STORAGE_KEYS.PROVIDER_CONFIG);
+      localStorage.removeItem('roninplex_active_streaming_provider_id');
       // Also clear legacy keys
       localStorage.removeItem('cinepulse_watchlist');
       localStorage.removeItem('cinepulse_watched');
@@ -235,10 +288,9 @@ class StorageService {
       localStorage.removeItem('cinepulse_tmdb_api_key');
       localStorage.removeItem('cinepulse_playback_progress');
       localStorage.removeItem('cinepulse_streaming_provider_config');
+      localStorage.removeItem('cinepulse_active_streaming_provider_id');
       window.dispatchEvent(new Event('roninplex_storage_change'));
-      window.dispatchEvent(new Event('cinepulse_storage_change'));
       window.dispatchEvent(new Event('roninplex_api_key_change'));
-      window.dispatchEvent(new Event('cinepulse_api_key_change'));
     } catch (e) {
       console.error('Failed to clear all data:', e);
     }

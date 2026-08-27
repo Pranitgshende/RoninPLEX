@@ -12,6 +12,20 @@ interface CacheEntry<T> {
 
 class TMDBService {
   private cache = new Map<string, CacheEntry<unknown>>();
+  private inFlightRequests = new Map<string, Promise<unknown>>();
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('roninplex_api_key_change', () => {
+        this.clearCache();
+      });
+    }
+  }
+
+  public clearCache(): void {
+    this.cache.clear();
+    this.inFlightRequests.clear();
+  }
 
   public getApiKey(): string {
     const customKey = storage.getCustomApiKey();
@@ -42,29 +56,41 @@ class TMDBService {
 
     const url = `${BASE_URL}${endpoint}?${queryParams.toString()}`;
 
-    // Cache lookup
+    // 1. Memory Cache lookup
     const cached = this.cache.get(url);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       return cached.data as T;
     }
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.warn('TMDB API Key is invalid or unauthorized.');
-        } else {
-          console.warn(`TMDB request failed with status: ${response.status}`);
-        }
-        return null;
-      }
-      const data = (await response.json()) as T;
-      this.cache.set(url, { data, timestamp: Date.now() });
-      return data;
-    } catch (error) {
-      console.warn(`Network error fetching from TMDB (${endpoint}):`, error);
-      return null;
+    // 2. In-flight request deduplication
+    if (this.inFlightRequests.has(url)) {
+      return this.inFlightRequests.get(url) as Promise<T | null>;
     }
+
+    const fetchPromise = (async (): Promise<T | null> => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.warn('TMDB API Key is invalid or unauthorized.');
+          } else {
+            console.warn(`TMDB request failed with status: ${response.status}`);
+          }
+          return null;
+        }
+        const data = (await response.json()) as T;
+        this.cache.set(url, { data, timestamp: Date.now() });
+        return data;
+      } catch (error) {
+        console.warn(`Network error fetching from TMDB (${endpoint}):`, error);
+        return null;
+      } finally {
+        this.inFlightRequests.delete(url);
+      }
+    })();
+
+    this.inFlightRequests.set(url, fetchPromise);
+    return fetchPromise;
   }
 
   // --- Trending ---

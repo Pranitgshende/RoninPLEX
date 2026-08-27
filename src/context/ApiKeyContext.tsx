@@ -47,10 +47,8 @@ export const ApiKeyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     window.addEventListener('roninplex_api_key_change', handleKeyChange);
-    window.addEventListener('cinepulse_api_key_change', handleKeyChange);
     return () => {
       window.removeEventListener('roninplex_api_key_change', handleKeyChange);
-      window.removeEventListener('cinepulse_api_key_change', handleKeyChange);
     };
   }, [validateKey]);
 

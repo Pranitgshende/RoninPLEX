@@ -71,8 +71,8 @@ function makeChunk(type, data) {
   return Buffer.concat([len, typeAndData, crcBuf]);
 }
 
-// Icon Drawer: CinePulse emblem with dark circle, glowing magenta/violet to cyan pulse waveform and play triangle
-function cinePulsePixel(x, y, w, h) {
+// Icon Drawer: RoninPLEX emblem with dark circle, glowing magenta/violet to cyan pulse waveform and play triangle
+function roninPlexPixel(x, y, w, h) {
   const cx = w / 2;
   const cy = h / 2;
   const r = w * 0.46;
@@ -158,9 +158,9 @@ function createICO(pngBuffers) {
 const iconsDir = path.resolve('src-tauri/icons');
 fs.mkdirSync(iconsDir, { recursive: true });
 
-const png32 = createPNG(32, 32, cinePulsePixel);
-const png128 = createPNG(128, 128, cinePulsePixel);
-const png256 = createPNG(256, 256, cinePulsePixel);
+const png32 = createPNG(32, 32, roninPlexPixel);
+const png128 = createPNG(128, 128, roninPlexPixel);
+const png256 = createPNG(256, 256, roninPlexPixel);
 
 fs.writeFileSync(path.join(iconsDir, '32x32.png'), png32);
 fs.writeFileSync(path.join(iconsDir, '128x128.png'), png128);
@@ -174,4 +174,4 @@ const icoBuffer = createICO([
 ]);
 fs.writeFileSync(path.join(iconsDir, 'icon.ico'), icoBuffer);
 
-console.log('Successfully generated CinePulse Tauri desktop icons!');
+console.log('Successfully generated RoninPLEX Tauri desktop icons!');

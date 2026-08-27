@@ -52,6 +52,7 @@ export class CustomConfigProvider implements StreamingProvider {
   }
 
   async getMovie(tmdbId: number): Promise<StreamingMovie | null> {
+    if (!tmdbId || isNaN(tmdbId) || tmdbId <= 0) return null;
     if (!this.config.baseUrl || !this.config.movieEndpoint) return null;
 
     try {
@@ -116,6 +117,7 @@ export class CustomConfigProvider implements StreamingProvider {
   }
 
   async getTVShow(tmdbId: number): Promise<StreamingTVShow | null> {
+    if (!tmdbId || isNaN(tmdbId) || tmdbId <= 0) return null;
     if (!this.config.baseUrl || !this.config.tvEndpoint) return null;
 
     try {
@@ -154,6 +156,7 @@ export class CustomConfigProvider implements StreamingProvider {
   }
 
   async getTVEpisode(tmdbId: number, season: number, episode: number): Promise<StreamingEpisode | null> {
+    if (!tmdbId || isNaN(tmdbId) || tmdbId <= 0) return null;
     if (!this.config.baseUrl || !this.config.episodeEndpoint) return null;
 
     try {

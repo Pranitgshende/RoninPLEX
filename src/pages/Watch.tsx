@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, Film, Tv, PlayCircle, X, Layers } from 'lucide-react';
+import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, RefreshCw, PlayCircle, X, Layers, Terminal } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
 import { Movie, TVShow, Season, Episode } from '../types/tmdb';
 import { streamingManager } from '../services/streaming/StreamingManager';
@@ -31,23 +31,28 @@ export const Watch: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Cancellation token counter to eliminate race conditions on fast route/episode switches
+  const requestIdRef = useRef<number>(0);
 
   useEffect(() => {
     if (!mediaId) return;
 
-    let isMounted = true;
+    const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
 
     const loadContent = async () => {
       try {
         if (!isTV) {
-          // Load Movie
+          // Load Movie: Concurrently request TMDB metadata + multi-provider stream
           const [movieData, streamData] = await Promise.all([
             tmdb.getMovieDetails(mediaId),
             streamingManager.getMovie(mediaId),
           ]);
 
-          if (!isMounted) return;
+          if (currentRequestId !== requestIdRef.current) return;
+
           setMovie(movieData);
           if (streamData?.stream && streamData.available) {
             setStreamResult(streamData.stream);
@@ -55,14 +60,15 @@ export const Watch: React.FC = () => {
             setStreamResult(null);
           }
         } else {
-          // Load TV Show & Episode
+          // Load TV Show: Concurrently request TV Details, Season data & Episode stream
           const [tvData, seasonData, epStream] = await Promise.all([
             tmdb.getTVDetails(mediaId),
             tmdb.getTVSeason(mediaId, seasonNumber),
             streamingManager.getTVEpisode(mediaId, seasonNumber, episodeNumber),
           ]);
 
-          if (!isMounted) return;
+          if (currentRequestId !== requestIdRef.current) return;
+
           setTvShow(tvData);
           setCurrentSeason(seasonData);
 
@@ -76,9 +82,12 @@ export const Watch: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Failed to load stream or metadata:', err);
+        if (currentRequestId === requestIdRef.current) {
+          console.error('Failed to resolve stream or metadata:', err);
+          setStreamResult(null);
+        }
       } finally {
-        if (isMounted) {
+        if (currentRequestId === requestIdRef.current) {
           setIsLoading(false);
         }
       }
@@ -87,9 +96,25 @@ export const Watch: React.FC = () => {
     loadContent();
 
     return () => {
-      isMounted = false;
+      // Invalidate on route / param change
+      requestIdRef.current++;
     };
-  }, [mediaId, isTV, seasonNumber, episodeNumber]);
+  }, [mediaId, isTV, seasonNumber, episodeNumber, retryCount]);
+
+  const handlePrevEpisode = () => {
+    if (!currentSeason) return;
+    const prevEpNum = episodeNumber - 1;
+    const hasPrevInSeason = currentSeason.episodes?.some(e => e.episode_number === prevEpNum) ?? false;
+
+    if (hasPrevInSeason) {
+      navigate(`/watch/tv/${mediaId}/${seasonNumber}/${prevEpNum}`);
+    } else if (seasonNumber > 1 && tvShow?.seasons) {
+      const prevSeason = tvShow.seasons.find(s => s.season_number === seasonNumber - 1);
+      if (prevSeason) {
+        navigate(`/watch/tv/${mediaId}/${seasonNumber - 1}/${prevSeason.episode_count || 1}`);
+      }
+    }
+  };
 
   const handleNextEpisode = () => {
     if (!currentSeason) return;
@@ -99,10 +124,15 @@ export const Watch: React.FC = () => {
     if (hasNextInSeason) {
       navigate(`/watch/tv/${mediaId}/${seasonNumber}/${nextEpNum}`);
     } else if (tvShow?.seasons && tvShow.seasons.some(s => s.season_number === seasonNumber + 1)) {
-      // Jump to episode 1 of next season
       navigate(`/watch/tv/${mediaId}/${seasonNumber + 1}/1`);
     }
   };
+
+  const hasPrevEpisode = Boolean(
+    currentSeason &&
+    (currentSeason.episodes?.some(e => e.episode_number === episodeNumber - 1) ||
+     (seasonNumber > 1 && tvShow?.seasons?.some(s => s.season_number === seasonNumber - 1)))
+  );
 
   const hasNextEpisode = Boolean(
     currentSeason &&
@@ -118,7 +148,7 @@ export const Watch: React.FC = () => {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-white">
         <div className="w-12 h-12 border-4 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
-        <p className="text-sm text-slate-400 font-medium">Resolving authorized stream...</p>
+        <p className="text-sm text-slate-400 font-medium">Resolving authorized stream from providers...</p>
       </div>
     );
   }
@@ -138,6 +168,8 @@ export const Watch: React.FC = () => {
           posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
           backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
           onBack={() => navigate(isTV ? `/tv/${mediaId}` : `/movie/${mediaId}`)}
+          onPrevEpisode={handlePrevEpisode}
+          hasPrevEpisode={hasPrevEpisode}
           onNextEpisode={handleNextEpisode}
           hasNextEpisode={hasNextEpisode}
           onOpenEpisodeDrawer={() => setIsEpisodeDrawerOpen(true)}
@@ -204,7 +236,7 @@ export const Watch: React.FC = () => {
     );
   }
 
-  // Stream Unavailable on Provider State
+  // Stream Unavailable on All Providers State
   const title = isTV ? (tvShow?.name || 'TV Series') : (movie?.title || 'Movie');
   const backdrop = isTV ? tvShow?.backdrop_path : movie?.backdrop_path;
   const poster = isTV ? tvShow?.poster_path : movie?.poster_path;
@@ -229,24 +261,35 @@ export const Watch: React.FC = () => {
             Stream Unavailable
           </h2>
           <p className="text-xs sm:text-sm text-slate-300">
-            "{title}" {isTV && `(S${seasonNumber} E${episodeNumber})`} is not currently available from your active streaming provider (<strong>{streamingManager.getActiveProviderName()}</strong>).
+            Unable to find a working stream for "{title}" {isTV && `(S${seasonNumber} E${episodeNumber})`} across the configured streaming providers.
           </p>
         </div>
 
         <div className="p-3.5 rounded-xl bg-surface-100/80 border border-white/5 text-left text-xs text-slate-400 space-y-1.5">
-          <div className="font-semibold text-slate-200">How to resolve:</div>
+          <div className="font-semibold text-slate-200">Recommended actions:</div>
           <ul className="list-disc list-inside space-y-1 text-[11px]">
-            <li>Configure a custom streaming API in <strong>Settings &rarr; Streaming Provider</strong>.</li>
-            <li>Switch to the <strong>Demo Provider</strong> to test video playback with sample streams.</li>
-            <li>Watch the official trailer on YouTube right now below.</li>
+            <li>Click <strong>Retry Stream</strong> to re-attempt the multi-provider fallback chain.</li>
+            <li>Switch preferred provider or add custom endpoints in <strong>Settings &rarr; Streaming Provider</strong>.</li>
+            <li>Watch the official trailer on YouTube below.</li>
           </ul>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => {
+              streamingManager.clearCache();
+              setRetryCount(c => c + 1);
+            }}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Retry Stream</span>
+          </button>
+
           {trailerKey && (
             <button
               onClick={() => setIsTrailerModalOpen(true)}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/10 flex items-center justify-center gap-2 transition-all"
             >
               <PlayCircle className="w-4 h-4" />
               <span>Watch Trailer</span>
@@ -255,10 +298,10 @@ export const Watch: React.FC = () => {
 
           <Link
             to="/settings"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/10 flex items-center justify-center gap-2 transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface-100 hover:bg-surface-50 text-slate-300 text-xs font-semibold border border-white/5 flex items-center justify-center gap-2 transition-colors"
           >
             <SettingsIcon className="w-4 h-4" />
-            <span>Open Settings</span>
+            <span>Settings</span>
           </Link>
 
           <button

@@ -81,10 +81,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     window.addEventListener('roninplex_storage_change', handleStorageChange);
-    window.addEventListener('cinepulse_storage_change', handleStorageChange);
     return () => {
       window.removeEventListener('roninplex_storage_change', handleStorageChange);
-      window.removeEventListener('cinepulse_storage_change', handleStorageChange);
     };
   }, []);
 

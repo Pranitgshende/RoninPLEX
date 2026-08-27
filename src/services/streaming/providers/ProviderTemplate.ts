@@ -194,3 +194,23 @@ export class ProviderTemplate implements StreamingProvider {
     }
   }
 }
+
+/**
+ * ============================================================================
+ * REGISTRATION IN STREAMING MANAGER
+ * ============================================================================
+ *
+ * To register your provider so it automatically participates in multi-provider fallback:
+ * 1. Open `src/services/streaming/StreamingManager.ts`
+ * 2. Import your provider instance:
+ *      import { myCustomProvider } from './providers/MyCustomProvider';
+ * 3. In the constructor, add:
+ *      this.registerProvider(myCustomProvider);
+ *
+ * It will immediately:
+ * - Appear in Settings > Streaming Provider selector
+ * - Participate in the automatic fallback sequence (tried in order if earlier providers fail)
+ * - Be included in Streaming Diagnostics HUD (`D` key)
+ */
+export const providerTemplate = new ProviderTemplate();
+

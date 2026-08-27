@@ -12,18 +12,21 @@ import {
   Subtitles,
   ChevronLeft,
   SkipForward,
+  SkipBack,
   Layers,
   AlertCircle,
   ExternalLink,
   RefreshCw,
   Terminal,
-  X
+  X,
+  PictureInPicture,
 } from 'lucide-react';
 import { StreamingResult, SubtitleTrack } from '../../services/streaming/types';
 import { useUser } from '../../context/UserContext';
-import { formatRuntime } from '../../utils/formatting';
+import { storage } from '../../services/storage';
+import { streamingManager, FallbackAttempt } from '../../services/streaming/StreamingManager';
 
-interface VideoPlayerProps {
+export interface VideoPlayerProps {
   stream: StreamingResult;
   title: string;
   mediaType: 'movie' | 'tv';
@@ -34,6 +37,8 @@ interface VideoPlayerProps {
   posterPath?: string | null;
   backdropPath?: string | null;
   onBack?: () => void;
+  onPrevEpisode?: () => void;
+  hasPrevEpisode?: boolean;
   onNextEpisode?: () => void;
   hasNextEpisode?: boolean;
   onOpenEpisodeDrawer?: () => void;
@@ -50,6 +55,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   posterPath,
   backdropPath,
   onBack,
+  onPrevEpisode,
+  hasPrevEpisode = false,
   onNextEpisode,
   hasNextEpisode = false,
   onOpenEpisodeDrawer,
@@ -58,9 +65,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scrubBarRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hideControlsTimeoutRef = useRef<number | null>(null);
+  const isDraggingScrubRef = useRef<boolean>(false);
 
+  // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -68,6 +78,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPip, setIsPip] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [selectedSubtitle, setSelectedSubtitle] = useState<string>('off');
@@ -83,8 +94,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [iframeKey, setIframeKey] = useState(0);
   const [showSlowBufferHelp, setShowSlowBufferHelp] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [fallbackHistory, setFallbackHistory] = useState<FallbackAttempt[]>([]);
 
-  // Auto-hide controls handler
+  // Auto-hide controls timer
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeoutRef.current) {
@@ -99,34 +111,55 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [isPlaying]);
 
-  // Initial resume position from localStorage
+  // Load fallback history for diagnostics
+  useEffect(() => {
+    setFallbackHistory(streamingManager.getLastFallbackAttempts());
+  }, [stream.url]);
+
+  // Initial resume position from unified storage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('roninplex_playback_progress') || localStorage.getItem('cinepulse_playback_progress');
-      if (stored) {
-        const list = JSON.parse(stored);
-        const match = list.find((item: any) => {
-          if (item.id !== mediaId || item.mediaType !== mediaType) return false;
-          if (mediaType === 'tv') {
-            return item.seasonNumber === seasonNumber && item.episodeNumber === episodeNumber;
-          }
-          return true;
-        });
-
-        if (match && match.currentTime > 15 && match.progressPercent < 92) {
-          if (videoRef.current) {
-            videoRef.current.currentTime = match.currentTime;
-          }
-          const mins = Math.floor(match.currentTime / 60);
-          const secs = Math.floor(match.currentTime % 60);
-          setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-          setTimeout(() => setResumeNotification(null), 5000);
+      const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
+      if (match && match.currentTime > 15 && match.progressPercent < 92) {
+        if (videoRef.current) {
+          videoRef.current.currentTime = match.currentTime;
         }
+        const mins = Math.floor(match.currentTime / 60);
+        const secs = Math.floor(match.currentTime % 60);
+        setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+        const timer = setTimeout(() => setResumeNotification(null), 5000);
+        return () => clearTimeout(timer);
       }
     } catch (e) {
       console.warn('Could not read resume position:', e);
     }
   }, [mediaId, mediaType, seasonNumber, episodeNumber]);
+
+  // Picture-in-Picture event listeners
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleEnterPip = () => setIsPip(true);
+    const handleLeavePip = () => setIsPip(false);
+
+    video.addEventListener('enterpictureinpicture', handleEnterPip);
+    video.addEventListener('leavepictureinpicture', handleLeavePip);
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnterPip);
+      video.removeEventListener('leavepictureinpicture', handleLeavePip);
+    };
+  }, []);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // HLS.js or native video stream setup
   useEffect(() => {
@@ -152,7 +185,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native Safari HLS
+        // Safari native HLS
         video.src = stream.url;
       } else {
         setVideoError('Your browser does not support HLS streaming.');
@@ -237,14 +270,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => clearInterval(interval);
   }, [isPlaying, currentTime, duration, mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type]);
 
-  const togglePlay = () => {
+  // Single Click Play/Pause toggle
+  const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
     if (isPlaying) {
       videoRef.current.pause();
+      setIsPlaying(false);
     } else {
       videoRef.current.play().catch(e => console.warn('Play interrupted:', e));
+      setIsPlaying(true);
       setHasStartedPlaying(true);
     }
+  }, [isPlaying]);
+
+  // Container click handler: toggles play/pause unless clicking inside controls
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, [role="button"], .player-control-surface')) {
+      return;
+    }
+    togglePlay();
+    resetControlsTimer();
   };
 
   const toggleMute = () => {
@@ -256,30 +302,57 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleVolumeChange = (newVolume: number) => {
     if (!videoRef.current) return;
-    videoRef.current.volume = newVolume;
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
+    const clamped = Math.max(0, Math.min(1, newVolume));
+    videoRef.current.volume = clamped;
+    setVolume(clamped);
+    setIsMuted(clamped === 0);
   };
 
+  // Reliable seeking with boundary clamping
   const seekRelative = (seconds: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+    if (!videoRef.current || isNaN(duration) || duration <= 0) return;
+    const target = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+    videoRef.current.currentTime = target;
+    setCurrentTime(target);
   };
 
-  const handleScrub = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || duration === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
+  // Drag / Scrub Seeking Handlers
+  const handleScrubPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!videoRef.current || isNaN(duration) || duration <= 0) return;
+    isDraggingScrubRef.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+
+    const rect = scrubBarRef.current?.getBoundingClientRect();
+    if (rect && rect.width > 0) {
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const targetTime = Math.max(0, Math.min(duration, pos * duration));
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    }
+  };
+
+  const handleScrubPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!scrubBarRef.current || isNaN(duration) || duration <= 0) return;
+    const rect = scrubBarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const targetTime = Math.max(0, Math.min(duration, pos * duration));
-    videoRef.current.currentTime = targetTime;
-    setCurrentTime(targetTime);
+    setHoverPosition(targetTime);
+
+    if (isDraggingScrubRef.current && videoRef.current) {
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    }
   };
 
-  const handleScrubHover = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (duration === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    setHoverPosition(Math.max(0, Math.min(duration, pos * duration)));
+  const handleScrubPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingScrubRef.current) {
+      isDraggingScrubRef.current = false;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+      } catch {}
+    }
   };
 
   const toggleFullscreen = () => {
@@ -294,6 +367,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         console.warn('Could not exit fullscreen:', err);
       });
       setIsFullscreen(false);
+    }
+  };
+
+  // Picture-in-Picture toggle (supports Document PiP & standard HTML5 video PiP)
+  const togglePictureInPicture = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        setIsPip(false);
+        return;
+      }
+
+      // 1. Standard HTML5 Video PiP
+      if (videoRef.current && document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+        setIsPip(true);
+        return;
+      }
+
+      // 2. Document Picture-in-Picture (Chromium / WebView2)
+      if ('documentPictureInPicture' in window) {
+        const pipWin = await (window as any).documentPictureInPicture.requestWindow({
+          width: 640,
+          height: 360,
+        });
+        setIsPip(true);
+        pipWin.addEventListener('pagehide', () => setIsPip(false));
+      }
+    } catch (err) {
+      console.warn('Could not toggle Picture-in-Picture:', err);
     }
   };
 
@@ -368,16 +471,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           e.preventDefault();
           toggleMute();
           break;
+        case 'p':
+          e.preventDefault();
+          togglePictureInPicture();
+          break;
       }
       resetControlsTimer();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [volume, isMuted, isPlaying, resetControlsTimer]);
+  }, [volume, isMuted, isPlaying, resetControlsTimer, togglePlay]);
 
   const formatTime = (seconds: number) => {
-    if (isNaN(seconds)) return '00:00';
+    if (isNaN(seconds) || seconds < 0) return '00:00';
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
@@ -393,7 +500,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!showDiagnostics) return null;
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in player-control-surface">
         <div className="w-full max-w-lg bg-surface-200 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-xs">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
@@ -410,8 +517,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           <div className="space-y-2 font-mono text-[11px]">
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
-              <span className="text-slate-400">Provider:</span>
-              <span className="text-white font-semibold">{stream.providerName || 'VidSrc (vidsrc.to)'}</span>
+              <span className="text-slate-400">Active Provider:</span>
+              <span className="text-white font-semibold">{stream.providerName || streamingManager.getActiveProviderName()}</span>
             </div>
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
               <span className="text-slate-400">Stream Type:</span>
@@ -429,13 +536,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   : (isPlaying ? 'Playing' : 'Paused / Ready')}
               </span>
             </div>
+            {fallbackHistory.length > 0 && (
+              <div className="p-2 rounded bg-surface-100 border border-white/5 space-y-1">
+                <span className="text-slate-400 block">Fallback Attempts:</span>
+                {fallbackHistory.map((att, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px]">
+                    <span className="text-slate-300">{att.providerName}</span>
+                    <span className={att.status === 'success' ? 'text-emerald-400 font-bold' : 'text-rose-400'}>
+                      {att.status}{att.reason ? ` (${att.reason})` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
-              <span className="text-slate-400">Permissions:</span>
-              <span className="text-slate-300">accelerometer; autoplay; fullscreen</span>
-            </div>
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
-              <span className="text-slate-400">Referrer Policy:</span>
-              <span className="text-slate-300">origin</span>
+              <span className="text-slate-400">IFrame Sandboxing:</span>
+              <span className="text-emerald-400">allow-scripts allow-same-origin</span>
             </div>
             <div className="p-2 rounded bg-surface-100 border border-white/5 break-all">
               <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
@@ -468,12 +584,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     );
   };
 
-  // EMBED PLAYER IMPLEMENTATION
+  // ============================================================================
+  // EMBED PLAYER IMPLEMENTATION (VidSrc, VidLink, etc.)
+  // ============================================================================
   if (stream.type === 'embed' && stream.url) {
     return (
       <div className="relative w-full h-screen bg-black flex flex-col overflow-hidden select-none">
         {/* Top Floating Control Bar */}
-        <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between gap-3 pointer-events-auto">
+        <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between gap-3 pointer-events-auto player-control-surface">
           <div className="flex items-center gap-3">
             {onBack && (
               <button
@@ -494,6 +612,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2">
+            {/* TV Prev Episode */}
+            {mediaType === 'tv' && hasPrevEpisode && onPrevEpisode && (
+              <button
+                onClick={onPrevEpisode}
+                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+                title="Play Previous Episode"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* TV Next Episode */}
+            {mediaType === 'tv' && hasNextEpisode && onNextEpisode && (
+              <button
+                onClick={onNextEpisode}
+                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-brand-400 hover:text-brand-300 border border-white/10 shadow-lg transition-colors"
+                title="Play Next Episode"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            )}
+
             {/* TV Episode Selector */}
             {mediaType === 'tv' && onOpenEpisodeDrawer && (
               <button
@@ -502,17 +642,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 title="Select Episode"
               >
                 <Layers className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Next Episode */}
-            {mediaType === 'tv' && hasNextEpisode && onNextEpisode && (
-              <button
-                onClick={onNextEpisode}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-brand-400 hover:text-brand-300 border border-white/10 shadow-lg transition-colors"
-                title="Play Next Episode"
-              >
-                <SkipForward className="w-4 h-4" />
               </button>
             )}
 
@@ -552,7 +681,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="text-center space-y-1">
               <h3 className="text-base font-bold text-white font-display">Connecting to Stream...</h3>
               <p className="text-xs text-slate-400">
-                Provider: <span className="text-brand-400">{stream.providerName || 'VidSrc'}</span>
+                Provider: <span className="text-brand-400">{stream.providerName || streamingManager.getActiveProviderName()}</span>
               </p>
             </div>
           </div>
@@ -560,7 +689,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         {/* Slow Buffer Assistance Banner */}
         {showSlowBufferHelp && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2.5 rounded-2xl bg-surface-100/95 backdrop-blur-md border border-white/10 shadow-2xl flex items-center gap-3 text-xs text-slate-300 animate-slide-up">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2.5 rounded-2xl bg-surface-100/95 backdrop-blur-md border border-white/10 shadow-2xl flex items-center gap-3 text-xs text-slate-300 animate-slide-up player-control-surface">
             <span>Slow buffer?</span>
             <button
               onClick={handleReloadIframe}
@@ -586,13 +715,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         )}
 
-        {/* The Embed Player Iframe */}
+        {/* The Embed Player Iframe with Sandboxing */}
         <iframe
           key={iframeKey}
           src={stream.url}
           title={title}
           className="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
           referrerPolicy="origin"
           onLoad={() => {
@@ -606,23 +736,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     );
   }
 
+  // ============================================================================
   // HTML5 / HLS NATIVE VIDEO PLAYER
+  // ============================================================================
   return (
     <div
       ref={containerRef}
       onMouseMove={resetControlsTimer}
-      onClick={resetControlsTimer}
-      className="relative w-full h-screen bg-black select-none overflow-hidden flex items-center justify-center group font-sans"
+      onClick={handleContainerClick}
+      className="relative w-full h-screen bg-black select-none overflow-hidden flex items-center justify-center group font-sans cursor-default"
     >
       {/* Video Element */}
       <video
         ref={videoRef}
         className="w-full h-full object-contain cursor-pointer"
-        onClick={togglePlay}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={() => {
-          if (videoRef.current) {
+          if (videoRef.current && !isDraggingScrubRef.current) {
             setCurrentTime(videoRef.current.currentTime);
             if (videoRef.current.buffered.length > 0) {
               setBuffered(videoRef.current.buffered.end(videoRef.current.buffered.length - 1));
@@ -660,7 +791,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Error Overlay */}
       {videoError && (
-        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center gap-4 z-40 p-6 text-center">
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center gap-4 z-40 p-6 text-center player-control-surface">
           <AlertCircle className="w-12 h-12 text-rose-500" />
           <h2 className="text-xl font-bold text-white">Playback Error</h2>
           <p className="text-sm text-slate-400 max-w-md">{videoError}</p>
@@ -677,7 +808,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Resume Notification */}
       {resumeNotification && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl bg-surface-100/90 backdrop-blur-md border border-white/10 text-xs font-semibold text-white shadow-2xl flex items-center gap-2 animate-slide-up">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl bg-surface-100/90 backdrop-blur-md border border-white/10 text-xs font-semibold text-white shadow-2xl flex items-center gap-2 animate-slide-up pointer-events-none">
           <RotateCcw className="w-3.5 h-3.5 text-brand-400" />
           <span>{resumeNotification}</span>
         </div>
@@ -685,35 +816,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Center Big Play Button when paused */}
       {!isPlaying && hasStartedPlaying && !videoError && (
-        <button
+        <div
           onClick={togglePlay}
-          className="absolute z-20 w-20 h-20 rounded-full bg-brand-600/90 hover:bg-brand-500 text-white flex items-center justify-center shadow-2xl transform hover:scale-110 transition-all cursor-pointer"
+          className="absolute inset-0 z-20 flex items-center justify-center cursor-pointer pointer-events-auto"
         >
-          <Play className="w-8 h-8 fill-current ml-1" />
-        </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay();
+            }}
+            className="w-20 h-20 rounded-full bg-brand-600/90 hover:bg-brand-500 text-white flex items-center justify-center shadow-2xl transform hover:scale-110 transition-all cursor-pointer player-control-surface"
+            title="Play"
+          >
+            <Play className="w-8 h-8 fill-current ml-1" />
+          </button>
+        </div>
       )}
 
-      {/* Initial Play Button */}
+      {/* Initial Play Screen: Click anywhere to start */}
       {!hasStartedPlaying && !videoError && (
-        <div className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+        <div
+          onClick={togglePlay}
+          className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-4 cursor-pointer"
+        >
           <button
-            onClick={togglePlay}
-            className="w-24 h-24 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-brand-600/50 transform hover:scale-105 transition-all cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay();
+            }}
+            className="w-24 h-24 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-brand-600/50 transform hover:scale-105 transition-all cursor-pointer player-control-surface"
+            title="Start Playback"
           >
             <Play className="w-10 h-10 fill-current ml-1.5" />
           </button>
-          <div className="text-center space-y-1">
+          <div className="text-center space-y-1 select-none">
             <h2 className="text-xl font-bold text-white font-display">{title}</h2>
             {episodeTitle && (
               <p className="text-xs text-slate-300 font-medium">S{seasonNumber} E{episodeNumber}: {episodeTitle}</p>
             )}
+            <p className="text-[11px] text-slate-400 pt-1">Click anywhere to play</p>
           </div>
         </div>
       )}
 
-      {/* Top Bar Header */}
+      {/* Top Controls Header */}
       <div
-        className={`absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-30 transition-opacity duration-300 ${
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-30 transition-opacity duration-300 player-control-surface ${
           showControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -752,36 +901,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Bottom Controls Bar */}
       <div
-        className={`absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-30 transition-opacity duration-300 space-y-3 ${
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-30 transition-opacity duration-300 space-y-3 player-control-surface ${
           showControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Scrub Bar */}
+        {/* Interactive Scrub Bar with Drag Support */}
         <div
-          onClick={handleScrub}
-          onMouseMove={handleScrubHover}
+          ref={scrubBarRef}
+          onPointerDown={handleScrubPointerDown}
+          onPointerMove={handleScrubPointerMove}
+          onPointerUp={handleScrubPointerUp}
           onMouseLeave={() => setHoverPosition(null)}
-          className="relative w-full h-1.5 hover:h-3 bg-white/20 rounded-full cursor-pointer transition-all group/scrub"
+          className="relative w-full h-2 hover:h-3.5 bg-white/20 rounded-full cursor-pointer transition-all group/scrub touch-none"
         >
           {/* Buffered Progress */}
           <div
-            className="absolute top-0 left-0 h-full bg-white/30 rounded-full"
-            style={{ width: `${duration > 0 ? (buffered / duration) * 100 : 0}%` }}
+            className="absolute top-0 left-0 h-full bg-white/30 rounded-full pointer-events-none"
+            style={{ width: `${duration > 0 ? Math.min(100, (buffered / duration) * 100) : 0}%` }}
           />
 
           {/* Current Progress */}
           <div
-            className="absolute top-0 left-0 h-full bg-brand-500 rounded-full"
-            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            className="absolute top-0 left-0 h-full bg-brand-500 rounded-full pointer-events-none"
+            style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
           >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md scale-0 group-hover/scrub:scale-100 transition-transform" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-md scale-0 group-hover/scrub:scale-100 transition-transform" />
           </div>
 
           {/* Hover Time Tooltip */}
           {hoverPosition !== null && (
             <div
-              className="absolute -top-7 -translate-x-1/2 px-2 py-0.5 rounded bg-surface-200 text-[10px] font-mono text-white border border-white/10 shadow-lg pointer-events-none"
-              style={{ left: `${(hoverPosition / duration) * 100}%` }}
+              className="absolute -top-8 -translate-x-1/2 px-2 py-0.5 rounded bg-surface-200 text-[10px] font-mono text-white border border-white/10 shadow-lg pointer-events-none"
+              style={{ left: `${duration > 0 ? (hoverPosition / duration) * 100 : 0}%` }}
             >
               {formatTime(hoverPosition)}
             </div>
@@ -790,7 +942,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         {/* Control Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Play/Pause */}
             <button
               onClick={togglePlay}
@@ -803,19 +955,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Rewind 10s */}
             <button
               onClick={() => seekRelative(-10)}
-              className="text-slate-300 hover:text-white transition-colors p-1"
+              className="text-slate-300 hover:text-white transition-colors p-1 flex items-center gap-0.5"
               title="Rewind 10s (Left Arrow)"
             >
               <RotateCcw className="w-4 h-4" />
+              <span className="text-[10px] font-bold font-mono">10</span>
             </button>
 
             {/* Forward 10s */}
             <button
               onClick={() => seekRelative(10)}
-              className="text-slate-300 hover:text-white transition-colors p-1"
+              className="text-slate-300 hover:text-white transition-colors p-1 flex items-center gap-0.5"
               title="Forward 10s (Right Arrow)"
             >
               <RotateCw className="w-4 h-4" />
+              <span className="text-[10px] font-bold font-mono">10</span>
             </button>
 
             {/* Volume Control */}
@@ -848,15 +1002,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2 sm:gap-3 relative">
+            {/* TV Show: Prev Episode */}
+            {mediaType === 'tv' && hasPrevEpisode && onPrevEpisode && (
+              <button
+                onClick={onPrevEpisode}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                title="Play Previous Episode"
+              >
+                <SkipBack className="w-4 h-4" />
+                <span className="hidden sm:inline">Prev</span>
+              </button>
+            )}
+
             {/* TV Show: Next Episode */}
             {mediaType === 'tv' && hasNextEpisode && onNextEpisode && (
               <button
                 onClick={onNextEpisode}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600/30 border border-brand-500/40 hover:bg-brand-600 text-xs font-semibold text-white transition-colors"
                 title="Play Next Episode"
               >
                 <SkipForward className="w-4 h-4" />
-                <span className="hidden sm:inline">Next Episode</span>
+                <span className="hidden sm:inline">Next</span>
               </button>
             )}
 
@@ -936,6 +1102,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Picture-in-Picture */}
+            <button
+              onClick={togglePictureInPicture}
+              className={`p-1.5 rounded transition-colors ${
+                isPip ? 'text-brand-400 bg-brand-500/20' : 'text-slate-300 hover:text-white'
+              }`}
+              title="Picture-in-Picture (P)"
+            >
+              <PictureInPicture className="w-5 h-5" />
+            </button>
 
             {/* Fullscreen Toggle */}
             <button

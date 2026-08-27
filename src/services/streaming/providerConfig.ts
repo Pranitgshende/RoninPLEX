@@ -6,60 +6,106 @@ const ACTIVE_PROVIDER_KEY = 'roninplex_active_streaming_provider_id';
 const LEGACY_ACTIVE_PROVIDER_KEY = 'cinepulse_active_streaming_provider_id';
 
 export class ProviderConfigService {
+  private inMemoryConfig: ProviderConfig = { ...DEFAULT_PROVIDER_CONFIG };
+  private inMemoryActiveId: string = 'vidsrc-to';
+
   getConfig(): ProviderConfig {
+    if (typeof localStorage === 'undefined') {
+      return this.inMemoryConfig;
+    }
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (!stored) return DEFAULT_PROVIDER_CONFIG;
+      let stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored && localStorage.getItem(LEGACY_STORAGE_KEY)) {
+        stored = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (stored) {
+          localStorage.setItem(STORAGE_KEY, stored);
+        }
+      }
+      if (!stored) return this.inMemoryConfig;
       return {
         ...DEFAULT_PROVIDER_CONFIG,
         ...JSON.parse(stored),
       };
     } catch {
-      return DEFAULT_PROVIDER_CONFIG;
+      return this.inMemoryConfig;
     }
   }
 
   saveConfig(config: Partial<ProviderConfig>): ProviderConfig {
-    try {
-      const current = this.getConfig();
-      const updated: ProviderConfig = {
-        ...current,
-        ...config,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      window.dispatchEvent(new Event('roninplex_provider_change'));
-      window.dispatchEvent(new Event('cinepulse_provider_change'));
-      return updated;
-    } catch (e) {
-      console.error('Failed to save provider config:', e);
-      return DEFAULT_PROVIDER_CONFIG;
+    const current = this.getConfig();
+    const updated: ProviderConfig = {
+      ...current,
+      ...config,
+    };
+    this.inMemoryConfig = updated;
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save provider config to localStorage:', e);
+      }
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_provider_change'));
+    }
+    return updated;
   }
 
   getActiveProviderId(): string {
+    if (typeof localStorage === 'undefined') {
+      return this.inMemoryActiveId;
+    }
+
     try {
-      return localStorage.getItem(ACTIVE_PROVIDER_KEY) || localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY) || 'vidsrc';
+      const val = localStorage.getItem(ACTIVE_PROVIDER_KEY);
+      if (val) return val;
+      const legacyVal = localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY);
+      if (legacyVal) {
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, legacyVal);
+        return legacyVal;
+      }
+      return this.inMemoryActiveId;
     } catch {
-      return 'vidsrc';
+      return this.inMemoryActiveId;
     }
   }
 
   setActiveProviderId(id: string): void {
-    try {
-      localStorage.setItem(ACTIVE_PROVIDER_KEY, id);
+    this.inMemoryActiveId = id;
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, id);
+      } catch (e) {
+        console.error('Failed to set active provider ID:', e);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('roninplex_provider_change'));
-      window.dispatchEvent(new Event('cinepulse_provider_change'));
-    } catch (e) {
-      console.error('Failed to set active provider ID:', e);
     }
   }
 
   resetConfig(): ProviderConfig {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-    localStorage.setItem(ACTIVE_PROVIDER_KEY, 'vidsrc');
-    window.dispatchEvent(new Event('roninplex_provider_change'));
-    window.dispatchEvent(new Event('cinepulse_provider_change'));
+    this.inMemoryConfig = { ...DEFAULT_PROVIDER_CONFIG };
+    this.inMemoryActiveId = 'vidsrc-to';
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, 'vidsrc-to');
+      } catch (e) {
+        console.error('Failed to reset provider config:', e);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_provider_change'));
+    }
     return DEFAULT_PROVIDER_CONFIG;
   }
 }

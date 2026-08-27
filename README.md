@@ -1,4 +1,4 @@
-# 🎬 RoninPLEX (v1.0.0)
+# 🎬 RoninPLEX (v1.1.0)
 
 > **A premium, personal cinema discovery & streaming desktop application for Windows.**
 
@@ -52,8 +52,8 @@ A look at RoninPLEX in action.
 You do **not** need Node.js, Rust, Git, or any coding tools to install and run RoninPLEX.
 
 ### Option A: Graphical Setup Installer (Recommended)
-1. Go to the [**GitHub Releases**](../../releases/tag/v1.0.0) page.
-2. Download **`RoninPLEX_1.0.0_x64-setup.exe`**.
+1. Go to the [**GitHub Releases**](../../releases/tag/v1.1.0) page.
+2. Download **`RoninPLEX_1.1.0_x64-setup.exe`**.
 3. Double-click the downloaded setup file.
 4. *(Optional)* Click **Browse...** on the installation folder screen if you want to install RoninPLEX on a secondary drive (e.g., `D:\Applications\RoninPLEX` or `C:\Program Files\RoninPLEX`).
 5. Complete the installation wizard.
@@ -61,7 +61,7 @@ You do **not** need Node.js, Rust, Git, or any coding tools to install and run R
 
 ### Option B: MSI Installer
 If you prefer Windows Installer packages for managed installations:
-1. Download **`RoninPLEX_1.0.0_x64_en-US.msi`** from the Releases tab.
+1. Download **`RoninPLEX_1.1.0_x64_en-US.msi`** from the Releases tab.
 2. Double-click to install.
 
 ### Option C: Portable Release
@@ -175,8 +175,8 @@ This compiles the Rust backend and opens the native Windows desktop window with 
 npm run tauri:build
 ```
 Generated artifacts will be created in:
-- Setup Installer: `src-tauri/target/release/bundle/nsis/RoninPLEX_1.0.0_x64-setup.exe`
-- MSI Package: `src-tauri/target/release/bundle/msi/RoninPLEX_1.0.0_x64_en-US.msi`
+- Setup Installer: `src-tauri/target/release/bundle/nsis/RoninPLEX_1.1.0_x64-setup.exe`
+- MSI Package: `src-tauri/target/release/bundle/msi/RoninPLEX_1.1.0_x64_en-US.msi`
 - Portable `.exe`: `src-tauri/target/release/roninplex.exe`
 
 ---

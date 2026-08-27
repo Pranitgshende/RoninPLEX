@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for CinePulse desktop window",
+  "description": "Default capability for RoninPLEX desktop window",
   "windows": ["main"],
   "permissions": [
     "core:default"
