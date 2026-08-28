@@ -7,7 +7,7 @@ const LEGACY_ACTIVE_PROVIDER_KEY = 'cinepulse_active_streaming_provider_id';
 
 export class ProviderConfigService {
   private inMemoryConfig: ProviderConfig = { ...DEFAULT_PROVIDER_CONFIG };
-  private inMemoryActiveId: string = 'vidsrc-to';
+  private inMemoryActiveId: string = 'vidsrc-me';
 
   getConfig(): ProviderConfig {
     if (typeof localStorage === 'undefined') {
@@ -61,13 +61,13 @@ export class ProviderConfigService {
 
     try {
       const val = localStorage.getItem(ACTIVE_PROVIDER_KEY);
-      if (val) return val;
+      if (val && val !== 'vidsrc' && val !== 'vidsrc-to' && val !== 'vidlink') return val;
       const legacyVal = localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY);
-      if (legacyVal) {
+      if (legacyVal && legacyVal !== 'vidsrc' && legacyVal !== 'vidsrc-to' && legacyVal !== 'vidlink') {
         localStorage.setItem(ACTIVE_PROVIDER_KEY, legacyVal);
         return legacyVal;
       }
-      return this.inMemoryActiveId;
+      return 'vidsrc-me';
     } catch {
       return this.inMemoryActiveId;
     }
@@ -91,13 +91,13 @@ export class ProviderConfigService {
 
   resetConfig(): ProviderConfig {
     this.inMemoryConfig = { ...DEFAULT_PROVIDER_CONFIG };
-    this.inMemoryActiveId = 'vidsrc-to';
+    this.inMemoryActiveId = 'vidsrc-me';
 
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(LEGACY_STORAGE_KEY);
-        localStorage.setItem(ACTIVE_PROVIDER_KEY, 'vidsrc-to');
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, 'vidsrc-me');
       } catch (e) {
         console.error('Failed to reset provider config:', e);
       }

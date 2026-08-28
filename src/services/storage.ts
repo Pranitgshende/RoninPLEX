@@ -1,4 +1,12 @@
-import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress, DEFAULT_USER_PREFERENCES } from '../types/user';
+import {
+  WatchlistItem,
+  WatchedItem,
+  UserPreferences,
+  PlaybackProgress,
+  DEFAULT_USER_PREFERENCES,
+  HomeSectionItem,
+  DEFAULT_HOME_SECTIONS,
+} from '../types/user';
 
 const STORAGE_KEYS = {
   WATCHLIST: 'roninplex_watchlist',
@@ -7,6 +15,7 @@ const STORAGE_KEYS = {
   API_KEY: 'roninplex_tmdb_api_key',
   PLAYBACK_PROGRESS: 'roninplex_playback_progress',
   PROVIDER_CONFIG: 'roninplex_streaming_provider_config',
+  HOME_LAYOUT: 'roninplex_home_layout',
 } as const;
 
 class StorageService {
@@ -231,7 +240,11 @@ class StorageService {
 
   // --- User Preferences ---
   getPreferences(): UserPreferences {
-    return this.get<UserPreferences>(STORAGE_KEYS.PREFERENCES, DEFAULT_USER_PREFERENCES);
+    const stored = this.get<Partial<UserPreferences>>(STORAGE_KEYS.PREFERENCES, {});
+    return {
+      ...DEFAULT_USER_PREFERENCES,
+      ...stored,
+    };
   }
 
   savePreferences(prefs: Partial<UserPreferences>): UserPreferences {
@@ -247,6 +260,36 @@ class StorageService {
   resetPreferences(): UserPreferences {
     this.set(STORAGE_KEYS.PREFERENCES, DEFAULT_USER_PREFERENCES);
     return DEFAULT_USER_PREFERENCES;
+  }
+
+  // --- Home Page Layout ---
+  getHomeLayout(): HomeSectionItem[] {
+    const stored = this.get<HomeSectionItem[] | null>(STORAGE_KEYS.HOME_LAYOUT, null);
+    if (!stored || !Array.isArray(stored) || stored.length === 0) {
+      return [...DEFAULT_HOME_SECTIONS];
+    }
+    // Merge any missing default sections (forward compatibility)
+    const existingIds = new Set(stored.map(s => s.id));
+    const merged = [...stored];
+    for (const defSection of DEFAULT_HOME_SECTIONS) {
+      if (!existingIds.has(defSection.id)) {
+        merged.push(defSection);
+      }
+    }
+    return merged;
+  }
+
+  saveHomeLayout(layout: HomeSectionItem[]): boolean {
+    const success = this.set(STORAGE_KEYS.HOME_LAYOUT, layout);
+    if (success && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_home_layout_change'));
+    }
+    return success;
+  }
+
+  resetHomeLayout(): HomeSectionItem[] {
+    this.saveHomeLayout(DEFAULT_HOME_SECTIONS);
+    return [...DEFAULT_HOME_SECTIONS];
   }
 
   // --- TMDB API Key Override ---
@@ -280,6 +323,7 @@ class StorageService {
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
       localStorage.removeItem(STORAGE_KEYS.PLAYBACK_PROGRESS);
       localStorage.removeItem(STORAGE_KEYS.PROVIDER_CONFIG);
+      localStorage.removeItem(STORAGE_KEYS.HOME_LAYOUT);
       localStorage.removeItem('roninplex_active_streaming_provider_id');
       // Also clear legacy keys
       localStorage.removeItem('cinepulse_watchlist');

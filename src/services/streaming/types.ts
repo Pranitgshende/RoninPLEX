@@ -104,9 +104,9 @@ export interface ProviderConfig {
 }
 
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
-  id: 'vidsrc',
-  name: 'VidSrc (vidsrc.to)',
-  baseUrl: 'https://vidsrc.to',
+  id: 'vidsrc-me',
+  name: 'VidSrc Me (vidsrcme.ru)',
+  baseUrl: 'https://vidsrcme.ru',
   apiKey: '',
   apiToken: '',
   movieEndpoint: '/embed/movie/{tmdbId}',

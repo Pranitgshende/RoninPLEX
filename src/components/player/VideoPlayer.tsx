@@ -21,10 +21,20 @@ import {
   X,
   PictureInPicture,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { StreamingResult, SubtitleTrack } from '../../services/streaming/types';
 import { useUser } from '../../context/UserContext';
 import { storage } from '../../services/storage';
 import { streamingManager, FallbackAttempt } from '../../services/streaming/StreamingManager';
+import { getStillUrl } from '../../utils/helpers';
+import { logPlayback, logVlc } from '../../utils/logger';
+
+export interface NextEpisodeInfo {
+  seasonNumber: number;
+  episodeNumber: number;
+  title: string;
+  stillPath?: string | null;
+}
 
 export interface VideoPlayerProps {
   stream: StreamingResult;
@@ -41,8 +51,27 @@ export interface VideoPlayerProps {
   hasPrevEpisode?: boolean;
   onNextEpisode?: () => void;
   hasNextEpisode?: boolean;
+  nextEpisodeInfo?: NextEpisodeInfo | null;
   onOpenEpisodeDrawer?: () => void;
   onTryNextProvider?: () => void;
+  onPlaybackError?: (error: string) => void;
+}
+
+export function isVlcCandidate(stream?: StreamingResult | null): boolean {
+  if (!stream?.url) return false;
+  if (stream.type === 'hls' || stream.type === 'mp4' || (stream.type as string) === 'dash') return true;
+  const lower = stream.url.toLowerCase();
+  if (
+    lower.endsWith('.m3u8') ||
+    lower.endsWith('.mp4') ||
+    lower.endsWith('.mkv') ||
+    lower.endsWith('.webm') ||
+    lower.includes('.m3u8?') ||
+    lower.includes('.mp4?')
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -60,10 +89,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   hasPrevEpisode = false,
   onNextEpisode,
   hasNextEpisode = false,
+  nextEpisodeInfo,
   onOpenEpisodeDrawer,
   onTryNextProvider,
+  onPlaybackError,
 }) => {
-  const { savePlaybackProgress } = useUser();
+  const { preferences, savePlaybackProgress } = useUser();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -91,21 +122,47 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
+  // v1.2.0 Seeking & Gesture state
+  const seekStep = preferences.seekAmount || 10;
+  const [seekFeedback, setSeekFeedback] = useState<{
+    direction: 'forward' | 'backward';
+    amount: number;
+    id: number;
+  } | null>(null);
+  const seekFeedbackTimeoutRef = useRef<number | null>(null);
+  const singleClickTimerRef = useRef<number | null>(null);
+  const lastClickTimeRef = useRef<number>(0);
+  const lastClickRegionRef = useRef<'left' | 'center' | 'right' | null>(null);
+
+  // v1.2.0 TV Auto-Next state
+  const [showNextEpisodeCard, setShowNextEpisodeCard] = useState(false);
+  const [nextCountdown, setNextCountdown] = useState(preferences.autoNextCountdown || 10);
+  const nextCountdownTimerRef = useRef<number | null>(null);
+
+  // v1.2.0 VLC state
+  const [showVlcMissingModal, setShowVlcMissingModal] = useState(false);
+  const [vlcLaunchMessage, setVlcLaunchMessage] = useState<string | null>(null);
+  const [isVlcActive, setIsVlcActive] = useState(false);
+
   // Embed specific state
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
   const [showSlowBufferHelp, setShowSlowBufferHelp] = useState(false);
+  const [embedStallDetected, setEmbedStallDetected] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [fallbackHistory, setFallbackHistory] = useState<FallbackAttempt[]>([]);
 
+  const [diagnosticStream, setDiagnosticStream] = useState<StreamingResult | null>(null);
+  const effectiveStream = diagnosticStream || stream;
+
   // Provider-aware iframe embed policy resolution
   const resolvedEmbedPolicy = React.useMemo(() => {
-    if (stream.embedPolicy) {
-      return stream.embedPolicy;
+    if (effectiveStream.embedPolicy) {
+      return effectiveStream.embedPolicy;
     }
     // Infer policy based on provider / URL if not explicitly attached
-    const url = stream.url?.toLowerCase() || '';
-    const isAntiSandbox = url.includes('vidsrc') || url.includes('vsembed');
+    const url = effectiveStream.url?.toLowerCase() || '';
+    const isAntiSandbox = url.includes('vidsrc') || url.includes('vsembed') || url.includes('2embed') || url.includes('cloudorchestra');
     if (isAntiSandbox) {
       return {
         sandbox: null,
@@ -114,11 +171,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       };
     }
     return {
-      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      sandbox: null,
       allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
       referrerPolicy: 'origin' as const,
     };
-  }, [stream.embedPolicy, stream.url]);
+  }, [effectiveStream.embedPolicy, effectiveStream.url]);
 
   // Prevent unwanted top-level window navigation away from RoninPLEX
   useEffect(() => {
@@ -195,38 +252,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Master unmount timer cleanup
+  useEffect(() => {
+    return () => {
+      if (singleClickTimerRef.current) window.clearTimeout(singleClickTimerRef.current);
+      if (seekFeedbackTimeoutRef.current) window.clearTimeout(seekFeedbackTimeoutRef.current);
+      if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+      if (hideControlsTimeoutRef.current) window.clearTimeout(hideControlsTimeoutRef.current);
+    };
+  }, []);
+
   // HLS.js or native video stream setup
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !stream.url || stream.type === 'embed') return;
+    if (!video || !effectiveStream.url || effectiveStream.type === 'embed') return;
 
+    logPlayback(`Player initialization started: type=${effectiveStream.type}, url=${effectiveStream.url}`);
+    logPlayback('Player initialized');
     setVideoError(null);
 
-    if (stream.type === 'hls') {
+    if (effectiveStream.type === 'hls') {
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
         });
         hlsRef.current = hls;
-        hls.loadSource(stream.url);
+        hls.loadSource(effectiveStream.url);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
-            console.error('Fatal HLS error:', data);
+            logPlayback(`playback error: fatal HLS error ${data.type} ${data.details}`);
             setVideoError('Unable to stream HLS video source.');
+            onPlaybackError?.(`HLS fatal error: ${data.details}`);
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari native HLS
-        video.src = stream.url;
+        // Native HLS
+        video.src = effectiveStream.url;
       } else {
+        logPlayback('playback error: HLS not supported');
         setVideoError('Your browser does not support HLS streaming.');
+        onPlaybackError?.('HLS not supported');
       }
     } else {
       // Standard MP4 video
-      video.src = stream.url;
+      video.src = effectiveStream.url;
     }
 
     return () => {
@@ -235,11 +307,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [stream.url, stream.type]);
+  }, [effectiveStream.url, effectiveStream.type]);
 
   // Reset embed loading state when stream URL changes
   useEffect(() => {
-    if (stream.type === 'embed') {
+    if (effectiveStream.type === 'embed') {
+      logPlayback(`Player initialization started: type=embed, url=${effectiveStream.url}`);
+      logPlayback('Player initialized');
       setIsIframeLoading(true);
       setShowSlowBufferHelp(false);
       const timer = window.setTimeout(() => {
@@ -247,7 +321,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }, 7000);
       return () => window.clearTimeout(timer);
     }
-  }, [stream.url, stream.type, iframeKey]);
+  }, [effectiveStream.url, effectiveStream.type, iframeKey]);
 
   // Periodic Continue Watching tracking for embed streams
   useEffect(() => {
@@ -317,15 +391,139 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [isPlaying]);
 
-  // Container click handler: toggles play/pause unless clicking inside controls
+  // Trigger temporary animated seek badge
+  const triggerSeekFeedback = useCallback((direction: 'forward' | 'backward', amount: number) => {
+    if (seekFeedbackTimeoutRef.current) {
+      window.clearTimeout(seekFeedbackTimeoutRef.current);
+    }
+    setSeekFeedback({ direction, amount, id: Date.now() });
+    seekFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setSeekFeedback(null);
+    }, 750);
+  }, []);
+
+  // Central seek implementation with boundary clamping & feedback
+  const seekRelative = useCallback((seconds: number) => {
+    if (!videoRef.current || isNaN(duration) || duration <= 0) return;
+    const target = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+    videoRef.current.currentTime = target;
+    setCurrentTime(target);
+    triggerSeekFeedback(seconds > 0 ? 'forward' : 'backward', Math.abs(seconds));
+  }, [duration, triggerSeekFeedback]);
+
+  // Container click handler: double-click seeking on left/right thirds, single-click togglePlay
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button, input, [role="button"], .player-control-surface')) {
+    if (target.closest('button, input, a, [role="button"], .player-control-surface')) {
       return;
     }
-    togglePlay();
-    resetControlsTimer();
+
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const region: 'left' | 'center' | 'right' =
+      clickX < width * 0.33 ? 'left' : clickX > width * 0.67 ? 'right' : 'center';
+
+    const now = Date.now();
+    const isDouble = (now - lastClickTimeRef.current < 280) && (lastClickRegionRef.current === region);
+    lastClickTimeRef.current = now;
+    lastClickRegionRef.current = region;
+
+    if (isDouble) {
+      // Cancel any pending single-click play/pause
+      if (singleClickTimerRef.current) {
+        window.clearTimeout(singleClickTimerRef.current);
+        singleClickTimerRef.current = null;
+      }
+      if (region === 'left') {
+        seekRelative(-seekStep);
+      } else if (region === 'right') {
+        seekRelative(seekStep);
+      }
+      // Center double-click: do NOT seek
+      resetControlsTimer();
+    } else {
+      // Single click: schedule responsive play/pause toggle
+      if (singleClickTimerRef.current) {
+        window.clearTimeout(singleClickTimerRef.current);
+      }
+      singleClickTimerRef.current = window.setTimeout(() => {
+        togglePlay();
+        resetControlsTimer();
+        singleClickTimerRef.current = null;
+      }, 250);
+    }
   };
+
+  // Launch stream in external VLC
+  const handleOpenInVlc = async () => {
+    if (!effectiveStream.url) return;
+    logVlc(`preference: ${preferences.useVlc}`);
+    logVlc(`launch requested: ${effectiveStream.url}`);
+    try {
+      const vlcInfo: { installed: boolean; executable: string | null } = await invoke('get_vlc_info');
+      logVlc(`installed: ${vlcInfo.installed}`);
+      logVlc(`executable: ${vlcInfo.executable || 'none'}`);
+      if (!vlcInfo.installed) {
+        logVlc('launch failed: VLC is not detected on this system');
+        setShowVlcMissingModal(true);
+        return;
+      }
+
+      if (!isVlcCandidate(effectiveStream)) {
+        logVlc(`launch warning: stream type is "${effectiveStream.type}" (embed webpage). VLC requires direct media (.m3u8 / .mp4).`);
+        setVideoError('VLC requires a direct media stream (.m3u8 / .mp4). This provider serves an interactive web embed player. You can test direct VLC playback using Diagnostics (Press D).');
+        return;
+      }
+
+      setVlcLaunchMessage('Launching stream in VLC...');
+      await invoke('open_stream_in_vlc', { url: effectiveStream.url });
+      logVlc('process started successfully');
+      setVlcLaunchMessage(null);
+      setIsVlcActive(true);
+      if (videoRef.current) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    } catch (err: any) {
+      logVlc(`process error: ${err}`);
+      setVlcLaunchMessage(null);
+      const errStr = String(err);
+      if (errStr.includes('VLC_NOT_FOUND')) {
+        setShowVlcMissingModal(true);
+      } else {
+        setVideoError(`VLC Launch: ${errStr}`);
+      }
+    }
+  };
+
+  // Auto-launch VLC if preference is enabled
+  useEffect(() => {
+    if (preferences.useVlc && effectiveStream.url && !isVlcActive) {
+      if (isVlcCandidate(effectiveStream)) {
+        handleOpenInVlc();
+      } else {
+        logVlc(`Auto-launch skipped: source is an interactive embed webpage (${effectiveStream.url}), playing in built-in player`);
+      }
+    }
+  }, [preferences.useVlc, effectiveStream.url, effectiveStream.type]);
+
+  // Embed watchdog: Detect stalled or unplayable embeds after 7 seconds
+  useEffect(() => {
+    if (effectiveStream.type === 'embed') {
+      setEmbedStallDetected(false);
+      const watchdog = window.setTimeout(() => {
+        logPlayback(`watchdog triggered: embed unresponsive after 7s for provider ${effectiveStream.providerId || 'unknown'}`);
+        setEmbedStallDetected(true);
+        if (effectiveStream.providerId) {
+          streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected unresponsive embed');
+        }
+      }, 7000);
+      return () => window.clearTimeout(watchdog);
+    }
+  }, [effectiveStream.url, effectiveStream.type, iframeKey]);
 
   const toggleMute = () => {
     if (!videoRef.current) return;
@@ -340,14 +538,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     videoRef.current.volume = clamped;
     setVolume(clamped);
     setIsMuted(clamped === 0);
-  };
-
-  // Reliable seeking with boundary clamping
-  const seekRelative = (seconds: number) => {
-    if (!videoRef.current || isNaN(duration) || duration <= 0) return;
-    const target = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
-    videoRef.current.currentTime = target;
-    setCurrentTime(target);
   };
 
   // Drag / Scrub Seeking Handlers
@@ -483,11 +673,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           break;
         case 'arrowleft':
           e.preventDefault();
-          seekRelative(-10);
+          seekRelative(-seekStep);
           break;
         case 'arrowright':
           e.preventDefault();
-          seekRelative(10);
+          seekRelative(seekStep);
           break;
         case 'arrowup':
           e.preventDefault();
@@ -515,7 +705,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [volume, isMuted, isPlaying, resetControlsTimer, togglePlay]);
+  }, [volume, isMuted, isPlaying, resetControlsTimer, togglePlay, seekRelative, seekStep]);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds < 0) return '00:00';
@@ -556,16 +746,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
               <span className="text-slate-400">Stream Type:</span>
-              <span className="text-brand-400 uppercase font-semibold">{stream.type || 'embed'}</span>
+              <span className="text-brand-400 uppercase font-semibold">{effectiveStream.type || 'embed'}</span>
             </div>
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
               <span className="text-slate-400">Quality:</span>
-              <span className="text-white">{stream.quality || 'Auto HD'}</span>
+              <span className="text-white">{effectiveStream.quality || 'Auto HD'}</span>
             </div>
             <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
               <span className="text-slate-400">Player State:</span>
-              <span className={isIframeLoading && stream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
-                {stream.type === 'embed'
+              <span className={isIframeLoading && effectiveStream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
+                {effectiveStream.type === 'embed'
                   ? (isIframeLoading ? 'Connecting / Loading IFrame...' : 'IFrame Loaded & Active')
                   : (isPlaying ? 'Playing' : 'Paused / Ready')}
               </span>
@@ -595,7 +785,67 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
             <div className="p-2 rounded bg-surface-100 border border-white/5 break-all">
               <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
-              <div className="text-cyan-400 font-semibold">{stream.url}</div>
+              <div className="text-cyan-400 font-semibold">{effectiveStream.url}</div>
+            </div>
+
+            {/* Phase 6 Diagnostic Isolation Tests */}
+            <div className="p-3 rounded-xl bg-surface-100 border border-brand-500/20 space-y-2">
+              <div className="text-xs font-bold text-white flex items-center justify-between">
+                <span>Diagnostic Test Media (Phase 6 Isolation)</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300">Verified Test Source</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Test known legitimate direct streams to verify the internal HTML5 player engine and external VLC independently of web embed providers.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    logPlayback('Testing diagnostic direct HLS stream (Big Buck Bunny)');
+                    setDiagnosticStream({
+                      available: true,
+                      type: 'hls',
+                      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+                      providerName: 'Mux Big Buck Bunny (Direct HLS)',
+                      providerId: 'diagnostic-hls',
+                      quality: '1080p HLS',
+                    });
+                    setShowDiagnostics(false);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+                >
+                  <Play className="w-3 h-3 fill-white" />
+                  <span>Play Direct HLS in App</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    logVlc('Testing diagnostic VLC stream (Big Buck Bunny)');
+                    try {
+                      await invoke('open_stream_in_vlc', { url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' });
+                      logVlc('Diagnostic VLC stream started');
+                    } catch (e: any) {
+                      logVlc(`Diagnostic VLC stream error: ${e?.message || e}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Play Direct HLS in VLC</span>
+                </button>
+                {diagnosticStream && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiagnosticStream(null);
+                      setShowDiagnostics(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-semibold text-xs transition-colors"
+                  >
+                    Reset to Original Stream
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -637,9 +887,59 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   // ============================================================================
+  // EXTERNAL VLC PLAYBACK ACTIVE INTERFACE
+  // ============================================================================
+  if (isVlcActive) {
+    return (
+      <div className="relative w-full h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center animate-fade-in select-none">
+        <div className="max-w-md w-full p-8 rounded-3xl bg-surface-200/95 border border-amber-500/20 shadow-2xl backdrop-blur-xl flex flex-col items-center gap-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <ExternalLink className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white font-display">Playing in External VLC</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Playback is currently active in VLC Media Player for <span className="text-white font-semibold">{title}</span>.
+            </p>
+          </div>
+          <div className="w-full flex flex-col gap-2.5">
+            <button
+              onClick={() => setIsVlcActive(false)}
+              className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>Resume in RoninPLEX Player</span>
+            </button>
+            {onTryNextProvider && (
+              <button
+                onClick={() => {
+                  setIsVlcActive(false);
+                  onTryNextProvider();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-medium text-sm transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Switch to Next Provider</span>
+              </button>
+            )}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-full py-2.5 px-4 rounded-xl border border-white/10 hover:bg-white/5 text-slate-400 hover:text-white font-medium text-sm transition-colors"
+              >
+                Back to Details
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================================
   // EMBED PLAYER IMPLEMENTATION (VidSrc, VidLink, etc.)
   // ============================================================================
-  if (stream.type === 'embed' && stream.url) {
+  if (effectiveStream.type === 'embed' && effectiveStream.url) {
     return (
       <div className="relative w-full h-screen bg-black flex flex-col overflow-hidden select-none">
         {/* Top Floating Control Bar */}
@@ -708,6 +1008,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
 
+            {/* External VLC Stream Launch */}
+            <button
+              onClick={handleOpenInVlc}
+              className="p-2.5 rounded-full bg-black/70 hover:bg-black text-amber-400 hover:text-amber-300 border border-amber-500/30 shadow-lg transition-colors"
+              title="Open stream in external VLC Media Player"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-400" />
+            </button>
+
             {/* Diagnostics HUD */}
             <button
               onClick={() => setShowDiagnostics(true)}
@@ -728,7 +1037,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             {/* Open in Window */}
             <button
-              onClick={() => window.open(stream.url, '_blank')}
+              onClick={() => window.open(effectiveStream.url, '_blank')}
               className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
               title="Open stream in external window"
             >
@@ -744,42 +1053,45 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="text-center space-y-1">
               <h3 className="text-base font-bold text-white font-display">Connecting to Stream...</h3>
               <p className="text-xs text-slate-400">
-                Provider: <span className="text-brand-400">{stream.providerName || streamingManager.getActiveProviderName()}</span>
+                Provider: <span className="text-brand-400">{effectiveStream.providerName || streamingManager.getActiveProviderName()}</span>
               </p>
             </div>
           </div>
         )}
 
-        {/* Slow Buffer Assistance Banner */}
-        {showSlowBufferHelp && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2.5 rounded-2xl bg-surface-100/95 backdrop-blur-md border border-white/10 shadow-2xl flex items-center gap-3 text-xs text-slate-300 animate-slide-up player-control-surface">
-            <span>Slow buffer?</span>
+        {/* Playback Assistance Banner */}
+        {(embedStallDetected || showSlowBufferHelp) && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-5 py-3 rounded-2xl bg-surface-100/95 backdrop-blur-md border border-amber-500/30 shadow-2xl flex items-center gap-3 text-xs text-slate-200 animate-slide-up player-control-surface">
+            <span className="font-medium text-amber-300">Stalled or black screen?</span>
             {onTryNextProvider && (
               <button
                 onClick={onTryNextProvider}
-                className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Next Provider</span>
+                <span>Try Next Provider</span>
               </button>
             )}
             <button
+              onClick={handleOpenInVlc}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open in VLC</span>
+            </button>
+            <button
               onClick={handleReloadIframe}
-              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold flex items-center gap-1 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Reload</span>
             </button>
             <button
-              onClick={() => window.open(stream.url, '_blank')}
-              className="px-2.5 py-1 rounded-lg bg-surface-100 hover:bg-white/10 text-slate-300 hover:text-white font-semibold flex items-center gap-1 transition-colors border border-white/5"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open Window</span>
-            </button>
-            <button
-              onClick={() => setShowSlowBufferHelp(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-white"
+              onClick={() => {
+                setEmbedStallDetected(false);
+                setShowSlowBufferHelp(false);
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-white ml-1"
               title="Dismiss"
             >
               <X className="w-3.5 h-3.5" />
@@ -790,7 +1102,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {/* The Embed Player Iframe with Provider-Aware Policy */}
         <iframe
           key={iframeKey}
-          src={stream.url}
+          src={effectiveStream.url}
           title={title}
           className="w-full h-full border-0"
           {...(resolvedEmbedPolicy.sandbox ? { sandbox: resolvedEmbedPolicy.sandbox } : {})}
@@ -798,6 +1110,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           allowFullScreen
           referrerPolicy={resolvedEmbedPolicy.referrerPolicy || 'origin'}
           onLoad={() => {
+            logPlayback('iframe/video load event');
             setIsIframeLoading(false);
           }}
         />
@@ -839,8 +1152,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }}
         onEnded={() => {
           setIsPlaying(false);
-          if (onNextEpisode && hasNextEpisode) {
-            onNextEpisode();
+          if (mediaType === 'tv' && hasNextEpisode && onNextEpisode) {
+            setShowNextEpisodeCard(true);
+            if (preferences.autoNextEpisode !== false) {
+              const countdownStart = preferences.autoNextCountdown || 10;
+              setNextCountdown(countdownStart);
+              if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+              nextCountdownTimerRef.current = window.setInterval(() => {
+                setNextCountdown(prev => {
+                  if (prev <= 1) {
+                    if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                    setShowNextEpisodeCard(false);
+                    onNextEpisode();
+                    return 0;
+                  }
+                  return prev - 1;
+                });
+              }, 1000);
+            }
           }
         }}
         playsInline
@@ -960,6 +1289,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* External VLC Stream Launch */}
+            <button
+              onClick={handleOpenInVlc}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors"
+              title="Play Stream in External VLC Media Player"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Play in VLC</span>
+            </button>
+
             <button
               onClick={() => setShowDiagnostics(true)}
               className="p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white transition-colors"
@@ -1024,24 +1363,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
             </button>
 
-            {/* Rewind 10s */}
+            {/* Rewind seekStep */}
             <button
-              onClick={() => seekRelative(-10)}
+              onClick={() => seekRelative(-seekStep)}
               className="text-slate-300 hover:text-white transition-colors p-1 flex items-center gap-0.5"
-              title="Rewind 10s (Left Arrow)"
+              title={`Rewind ${seekStep}s (Left Arrow / Double-click Left)`}
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="text-[10px] font-bold font-mono">10</span>
+              <span className="text-[10px] font-bold font-mono">{seekStep}</span>
             </button>
 
-            {/* Forward 10s */}
+            {/* Forward seekStep */}
             <button
-              onClick={() => seekRelative(10)}
+              onClick={() => seekRelative(seekStep)}
               className="text-slate-300 hover:text-white transition-colors p-1 flex items-center gap-0.5"
-              title="Forward 10s (Right Arrow)"
+              title={`Forward ${seekStep}s (Right Arrow / Double-click Right)`}
             >
               <RotateCw className="w-4 h-4" />
-              <span className="text-[10px] font-bold font-mono">10</span>
+              <span className="text-[10px] font-bold font-mono">{seekStep}</span>
             </button>
 
             {/* Volume Control */}
@@ -1197,6 +1536,153 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Animated Seek Feedback Badge Overlay */}
+      {seekFeedback && (
+        <div
+          key={seekFeedback.id}
+          className={`absolute top-1/2 -translate-y-1/2 z-30 pointer-events-none flex items-center justify-center animate-fade-in ${
+            seekFeedback.direction === 'backward' ? 'left-16 sm:left-24' : 'right-16 sm:right-24'
+          }`}
+        >
+          <div className="flex flex-col items-center justify-center w-24 h-24 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-white shadow-2xl transform scale-105 transition-all">
+            {seekFeedback.direction === 'backward' ? (
+              <RotateCcw className="w-8 h-8 text-brand-400 animate-pulse" />
+            ) : (
+              <RotateCw className="w-8 h-8 text-brand-400 animate-pulse" />
+            )}
+            <span className="text-sm font-bold font-mono mt-1">
+              {seekFeedback.direction === 'backward' ? `−${seekFeedback.amount}s` : `+${seekFeedback.amount}s`}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* TV Auto-Next Episode Overlay Card */}
+      {showNextEpisodeCard && (
+        <div className="absolute bottom-24 right-8 z-40 max-w-sm w-full bg-surface-200/95 backdrop-blur-xl border border-white/20 rounded-2xl p-5 shadow-2xl space-y-3.5 animate-slide-up player-control-surface">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-brand-600/30 text-brand-400 font-bold text-[10px] uppercase tracking-wider">
+                  Up Next
+                </span>
+                {preferences.autoNextEpisode !== false && (
+                  <span className="text-xs text-slate-400 font-mono">in {nextCountdown}s</span>
+                )}
+              </div>
+              <h3 className="text-sm font-bold text-white leading-tight">
+                {nextEpisodeInfo
+                  ? `S${nextEpisodeInfo.seasonNumber} E${nextEpisodeInfo.episodeNumber}: ${nextEpisodeInfo.title}`
+                  : 'Next Episode'}
+              </h3>
+            </div>
+            <button
+              onClick={() => {
+                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                setShowNextEpisodeCard(false);
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
+              title="Cancel Autoplay"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {nextEpisodeInfo?.stillPath && (
+            <div className="w-full aspect-video rounded-xl overflow-hidden bg-surface-300 relative">
+              <img
+                src={getStillUrl(nextEpisodeInfo.stillPath, 'medium')}
+                alt={nextEpisodeInfo.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {preferences.autoNextEpisode !== false && (
+            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand-500 transition-all duration-1000 ease-linear"
+                style={{
+                  width: `${(nextCountdown / (preferences.autoNextCountdown || 10)) * 100}%`,
+                }}
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => {
+                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                setShowNextEpisodeCard(false);
+                onNextEpisode?.();
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Play Now</span>
+            </button>
+            <button
+              onClick={() => {
+                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                setShowNextEpisodeCard(false);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-surface-100 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VLC Not Found Modal */}
+      {showVlcMissingModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in player-control-surface">
+          <div className="w-full max-w-md bg-surface-200 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-white">VLC Media Player Not Detected</h3>
+              <p className="text-xs text-slate-300">
+                RoninPLEX could not find VLC installed on your PC. You can stream right here with the built-in player or install VLC.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowVlcMissingModal(false);
+                  togglePlay();
+                }}
+                className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-colors"
+              >
+                Use Built-in Player
+              </button>
+              <button
+                onClick={() => window.open('https://www.videolan.org/vlc/', '_blank')}
+                className="w-full py-2.5 rounded-xl bg-surface-100 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Download VLC from VideoLAN</span>
+              </button>
+              <button
+                onClick={() => setShowVlcMissingModal(false)}
+                className="w-full py-2 rounded-xl text-slate-400 hover:text-white text-xs"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VLC Launch in Progress Toast */}
+      {vlcLaunchMessage && (
+        <div className="absolute top-20 right-8 z-40 px-4 py-2 rounded-xl bg-amber-500/90 text-white font-medium text-xs shadow-xl animate-fade-in flex items-center gap-2">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          <span>{vlcLaunchMessage}</span>
+        </div>
+      )}
 
       {/* Diagnostics Modal */}
       {renderDiagnostics()}

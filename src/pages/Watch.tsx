@@ -9,6 +9,7 @@ import { VideoPlayer } from '../components/player/VideoPlayer';
 import { TrailerModal } from '../components/common/TrailerModal';
 import { extractBestTrailerKey, getStillUrl, getPosterUrl, getBackdropUrl } from '../utils/helpers';
 import { formatRuntime } from '../utils/formatting';
+import { logPlayback, logVlc } from '../utils/logger';
 
 export const Watch: React.FC = () => {
   const { id, season: seasonParam, episode: episodeParam } = useParams<{
@@ -36,6 +37,30 @@ export const Watch: React.FC = () => {
   // Cancellation token counter to eliminate race conditions on fast route/episode switches
   const requestIdRef = useRef<number>(0);
 
+  // Compute next episode metadata for auto-countdown card
+  const nextEpisodeInfo = React.useMemo(() => {
+    if (!isTV || !currentSeason) return null;
+    const nextEpNum = episodeNumber + 1;
+    const nextInSeason = currentSeason.episodes?.find(e => e.episode_number === nextEpNum);
+    if (nextInSeason) {
+      return {
+        seasonNumber,
+        episodeNumber: nextEpNum,
+        title: nextInSeason.name,
+        stillPath: nextInSeason.still_path || null,
+      };
+    }
+    if (tvShow?.seasons && tvShow.seasons.some(s => s.season_number === seasonNumber + 1)) {
+      return {
+        seasonNumber: seasonNumber + 1,
+        episodeNumber: 1,
+        title: `Season ${seasonNumber + 1} Episode 1`,
+        stillPath: null,
+      };
+    }
+    return null;
+  }, [isTV, currentSeason, episodeNumber, seasonNumber, tvShow]);
+
   useEffect(() => {
     if (!mediaId) return;
 
@@ -43,6 +68,9 @@ export const Watch: React.FC = () => {
     setIsLoading(true);
 
     const loadContent = async () => {
+      logPlayback(`User requested playback: id=${mediaId}, isTV=${isTV}`);
+      logPlayback(`Media type: ${isTV ? 'tv' : 'movie'}`);
+      logPlayback(`Provider resolution started`);
       try {
         if (!isTV) {
           // Load Movie: Concurrently request TMDB metadata + multi-provider stream
@@ -54,6 +82,13 @@ export const Watch: React.FC = () => {
           if (currentRequestId !== requestIdRef.current) return;
 
           setMovie(movieData);
+          logPlayback(`Title: ${movieData?.title || 'Unknown'}`);
+          logPlayback(`Provider resolution completed: available=${Boolean(streamData?.available)}`);
+          logPlayback(`Provider selected: ${streamData?.stream?.providerName || 'none'} (${streamData?.stream?.providerId || 'none'})`);
+          logPlayback(`Source returned: ${streamData?.stream ? 'yes' : 'no'}`);
+          logPlayback(`Source type: ${streamData?.stream?.type || 'none'}`);
+          logPlayback(`Source URL: ${streamData?.stream?.url || 'none'}`);
+
           if (streamData?.stream && streamData.available) {
             setStreamResult(streamData.stream);
           } else {
@@ -75,15 +110,22 @@ export const Watch: React.FC = () => {
           const ep = seasonData?.episodes?.find(e => e.episode_number === episodeNumber) || null;
           setCurrentEpisode(ep);
 
+          logPlayback(`Title: ${tvData?.name || 'Unknown'} S${seasonNumber}E${episodeNumber}: ${ep?.name || ''}`);
+          logPlayback(`Provider resolution completed: available=${Boolean(epStream?.available)}`);
+          logPlayback(`Provider selected: ${epStream?.stream?.providerName || 'none'} (${epStream?.stream?.providerId || 'none'})`);
+          logPlayback(`Source returned: ${epStream?.stream ? 'yes' : 'no'}`);
+          logPlayback(`Source type: ${epStream?.stream?.type || 'none'}`);
+          logPlayback(`Source URL: ${epStream?.stream?.url || 'none'}`);
+
           if (epStream?.stream && epStream.available) {
             setStreamResult(epStream.stream);
           } else {
             setStreamResult(null);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         if (currentRequestId === requestIdRef.current) {
-          console.error('Failed to resolve stream or metadata:', err);
+          logPlayback(`Provider resolution error: ${err?.message || err}`);
           setStreamResult(null);
         }
       } finally {
@@ -141,6 +183,7 @@ export const Watch: React.FC = () => {
   );
 
   const handleTryNextProvider = async () => {
+    logPlayback(`Fallback requested. Current provider: ${streamResult?.providerId || 'none'}`);
     setIsLoading(true);
     try {
       const nextStream = await streamingManager.getNextStream(
@@ -150,13 +193,16 @@ export const Watch: React.FC = () => {
         seasonNumber,
         episodeNumber
       );
+      logPlayback(`Next provider: ${nextStream?.stream?.providerName || 'none'} (${nextStream?.stream?.providerId || 'none'})`);
+      logPlayback(`Source type: ${nextStream?.stream?.type || 'none'}`);
+      logPlayback(`Source URL: ${nextStream?.stream?.url || 'none'}`);
       if (nextStream?.stream && nextStream.available) {
         setStreamResult(nextStream.stream);
       } else {
         setStreamResult(null);
       }
-    } catch (e) {
-      console.error('Failed to switch to alternative provider:', e);
+    } catch (e: any) {
+      logPlayback(`Fallback failed: ${e?.message || e}`);
       setStreamResult(null);
     } finally {
       setIsLoading(false);
@@ -195,8 +241,10 @@ export const Watch: React.FC = () => {
           hasPrevEpisode={hasPrevEpisode}
           onNextEpisode={handleNextEpisode}
           hasNextEpisode={hasNextEpisode}
+          nextEpisodeInfo={nextEpisodeInfo}
           onOpenEpisodeDrawer={() => setIsEpisodeDrawerOpen(true)}
           onTryNextProvider={handleTryNextProvider}
+          onPlaybackError={() => handleTryNextProvider()}
         />
 
         {/* TV Episode Selector Drawer Overlay */}

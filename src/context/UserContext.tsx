@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress } from '../types/user';
+import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress, HomeSectionItem } from '../types/user';
 import { storage } from '../services/storage';
 
 export interface ToastMessage {
@@ -14,6 +14,7 @@ interface UserContextType {
   watched: WatchedItem[];
   continueWatching: PlaybackProgress[];
   preferences: UserPreferences;
+  homeLayout: HomeSectionItem[];
   isOnboardingOpen: boolean;
   isPreferencesOpen: boolean;
   toasts: ToastMessage[];
@@ -39,6 +40,9 @@ interface UserContextType {
   // Preferences Actions
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
   resetPreferences: () => void;
+  // Home Layout Actions
+  updateHomeLayout: (layout: HomeSectionItem[]) => void;
+  resetHomeLayout: () => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
   openPreferences: () => void;
@@ -55,6 +59,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [watched, setWatched] = useState<WatchedItem[]>(() => storage.getWatched());
   const [continueWatching, setContinueWatching] = useState<PlaybackProgress[]>(() => storage.getContinueWatchingList());
   const [preferences, setPreferences] = useState<UserPreferences>(() => storage.getPreferences());
+  const [homeLayout, setHomeLayout] = useState<HomeSectionItem[]>(() => storage.getHomeLayout());
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => !preferences.onboardingCompleted);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -78,11 +83,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setWatched(storage.getWatched());
       setContinueWatching(storage.getContinueWatchingList());
       setPreferences(storage.getPreferences());
+      setHomeLayout(storage.getHomeLayout());
+    };
+
+    const handleHomeLayoutChange = () => {
+      setHomeLayout(storage.getHomeLayout());
     };
 
     window.addEventListener('roninplex_storage_change', handleStorageChange);
+    window.addEventListener('roninplex_home_layout_change', handleHomeLayoutChange);
     return () => {
       window.removeEventListener('roninplex_storage_change', handleStorageChange);
+      window.removeEventListener('roninplex_home_layout_change', handleHomeLayoutChange);
     };
   }, []);
 
@@ -245,6 +257,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('info', 'Preferences Reset', 'Restored default settings.');
   };
 
+  // Home Layout methods
+  const updateHomeLayout = (layout: HomeSectionItem[]) => {
+    storage.saveHomeLayout(layout);
+    setHomeLayout(layout);
+    showToast('success', 'Home Layout Updated', 'Home page sections re-ordered.');
+  };
+
+  const resetHomeLayout = () => {
+    const reset = storage.resetHomeLayout();
+    setHomeLayout(reset);
+    showToast('info', 'Layout Reset', 'Restored default Home page layout.');
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -252,6 +277,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         watched,
         continueWatching,
         preferences,
+        homeLayout,
         isOnboardingOpen,
         isPreferencesOpen,
         toasts,
@@ -273,6 +299,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearContinueWatching,
         updatePreferences,
         resetPreferences,
+        updateHomeLayout,
+        resetHomeLayout,
         openOnboarding: () => setIsOnboardingOpen(true),
         closeOnboarding: () => setIsOnboardingOpen(false),
         openPreferences: () => setIsPreferencesOpen(true),

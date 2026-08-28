@@ -6,6 +6,7 @@ import { vidSrcMeProvider } from './providers/VidSrcMeProvider';
 import { vidSrcDevProvider } from './providers/VidSrcDevProvider';
 import { vidLinkProProvider } from './providers/VidLinkProProvider';
 import { CustomConfigProvider } from './providers/CustomConfigProvider';
+import { TwoEmbedProvider } from './providers/TwoEmbedProvider';
 
 export interface FallbackAttempt {
   providerId: string;
@@ -15,23 +16,41 @@ export interface FallbackAttempt {
   timestamp: number;
 }
 
+export interface ProviderHealthRecord {
+  failureCount: number;
+  lastFailureTime: number;
+  isDead: boolean;
+}
+
 export class StreamingManager {
   private providers = new Map<string, StreamingProvider>();
   private customProvider: CustomConfigProvider;
+  private twoEmbedProvider: TwoEmbedProvider;
   private availabilityCache = new Map<string, { available: boolean; timestamp: number }>();
   private streamCache = new Map<string, { result: StreamingMovie | StreamingEpisode; timestamp: number }>();
+  private providerHealth = new Map<string, ProviderHealthRecord>();
   private lastFallbackAttempts: FallbackAttempt[] = [];
   private readonly CACHE_TTL_MS = 60000; // 1 minute
+  private readonly HEALTH_EXPIRATION_MS = 300000; // 5 minutes
 
   constructor() {
     this.customProvider = new CustomConfigProvider(providerConfigService.getConfig());
+    this.twoEmbedProvider = new TwoEmbedProvider();
 
     // Register standard authorized providers
-    this.registerProvider(vidSrcToProvider);
     this.registerProvider(vidSrcMeProvider);
-    this.registerProvider(vidSrcDevProvider);
+    this.registerProvider(vidSrcToProvider);
+    this.registerProvider(this.twoEmbedProvider);
     this.registerProvider(vidLinkProProvider);
+    this.registerProvider(vidSrcDevProvider);
     this.registerProvider(this.customProvider);
+
+    // Fast-fail parked/dead domains by default
+    this.providerHealth.set('vidsrc-dev', {
+      failureCount: 5,
+      lastFailureTime: Date.now(),
+      isDead: true,
+    });
 
     // Listen for provider configuration changes
     if (typeof window !== 'undefined') {
@@ -82,9 +101,83 @@ export class StreamingManager {
   }
 
   /**
+   * Records a failed stream resolution for a provider.
+   */
+  public recordProviderFailure(providerId: string, reason?: string): void {
+    const current = this.providerHealth.get(providerId) || {
+      failureCount: 0,
+      lastFailureTime: 0,
+      isDead: false,
+    };
+
+    const count = current.failureCount + 1;
+    const isDead = providerId === 'vidsrc-dev' || count >= 4;
+
+    this.providerHealth.set(providerId, {
+      failureCount: count,
+      lastFailureTime: Date.now(),
+      isDead,
+    });
+
+    console.warn(`[StreamingManager] Recorded failure for ${providerId} (${count} failures). Reason: ${reason || 'unspecified'}`);
+  }
+
+  /**
+   * Records a successful stream resolution for a provider, resetting failure counts.
+   */
+  public recordProviderSuccess(providerId: string): void {
+    this.providerHealth.set(providerId, {
+      failureCount: 0,
+      lastFailureTime: 0,
+      isDead: false,
+    });
+  }
+
+  /**
+   * Checks whether a provider is currently healthy or if failure penalty has expired.
+   */
+  public isProviderHealthy(providerId: string): boolean {
+    const health = this.providerHealth.get(providerId);
+    if (!health) return true;
+
+    // Fast-fail parked or dead providers
+    if (providerId === 'vidsrc-dev' || health.isDead) {
+      // Allow re-testing dead providers after expiration
+      if (Date.now() - health.lastFailureTime > this.HEALTH_EXPIRATION_MS * 2) {
+        return true;
+      }
+      return false;
+    }
+
+    // Check if failure penalty has expired
+    if (Date.now() - health.lastFailureTime > this.HEALTH_EXPIRATION_MS) {
+      return true; // Expiration elapsed; eligible for retry
+    }
+
+    return health.failureCount < 2;
+  }
+
+  /**
+   * Returns diagnostic health summary for all providers.
+   */
+  public getProviderHealthSummary(): Record<string, { failureCount: number; isHealthy: boolean; isDead: boolean }> {
+    const summary: Record<string, { failureCount: number; isHealthy: boolean; isDead: boolean }> = {};
+    for (const [id] of this.providers) {
+      const record = this.providerHealth.get(id);
+      summary[id] = {
+        failureCount: record?.failureCount || 0,
+        isHealthy: this.isProviderHealthy(id),
+        isDead: Boolean(record?.isDead),
+      };
+    }
+    return summary;
+  }
+
+  /**
    * Builds ordered list of eligible providers:
-   * 1. The preferred/configured active provider
-   * 2. Remaining registered providers in deterministic priority
+   * 1. The preferred/configured active provider (if healthy)
+   * 2. Remaining registered healthy providers in deterministic priority
+   * 3. Unhealthy/failing providers as secondary fallbacks
    */
   public getEligibleProviders(): StreamingProvider[] {
     const config = providerConfigService.getConfig();
@@ -93,22 +186,20 @@ export class StreamingManager {
     }
 
     const activeId = providerConfigService.getActiveProviderId();
-    // Resolve alias (e.g. 'vidsrc' -> 'vidsrc-to')
-    const normalizedActiveId = activeId === 'vidsrc' ? 'vidsrc-to' : activeId;
+    const normalizedActiveId = activeId === 'vidsrc' ? 'vidsrc-me' : activeId;
 
-    const activeProvider = this.providers.get(normalizedActiveId) || this.providers.get('vidsrc-to');
+    const activeProvider = this.providers.get(normalizedActiveId) || this.providers.get('vidsrc-me') || this.providers.get('vidsrc-to');
     const eligible: StreamingProvider[] = [];
 
     if (activeProvider) {
       eligible.push(activeProvider);
     }
 
-    // Append other registered providers in deterministic order
-    const priorityOrder = ['vidsrc-to', 'vidsrc-me', 'vidsrc-dev', 'vidlink', 'custom'];
+    // Prioritized order: High-reliability unblocked providers first, secondary fallbacks next, parked/dead last
+    const priorityOrder = ['vidsrc-me', 'vidsrc-to', '2embed', 'custom', 'vidlink', 'vidsrc-dev'];
     for (const id of priorityOrder) {
       const p = this.providers.get(id);
       if (p && !eligible.some(item => item.getId() === p.getId())) {
-        // Only include custom provider if base URL is configured
         if (id === 'custom' && !config.baseUrl) {
           continue;
         }
@@ -116,14 +207,23 @@ export class StreamingManager {
       }
     }
 
-    // Include any third-party manually registered providers not in priorityOrder
+    // Include any third-party manually registered providers
     for (const [id, p] of this.providers) {
       if (!eligible.some(item => item.getId() === id)) {
         eligible.push(p);
       }
     }
 
-    return eligible;
+    // Sort so healthy providers come first, unhealthy providers come last
+    return eligible.sort((a, b) => {
+      // Keep active provider first unless it's known dead
+      if (a.getId() === normalizedActiveId && !this.providerHealth.get(a.getId())?.isDead) return -1;
+      if (b.getId() === normalizedActiveId && !this.providerHealth.get(b.getId())?.isDead) return 1;
+
+      const aHealthy = this.isProviderHealthy(a.getId()) ? 1 : 0;
+      const bHealthy = this.isProviderHealthy(b.getId()) ? 1 : 0;
+      return bHealthy - aHealthy;
+    });
   }
 
   /**
@@ -134,9 +234,9 @@ export class StreamingManager {
     if (!config.isEnabled) return 'Disabled (Discovery Only)';
 
     const activeId = providerConfigService.getActiveProviderId();
-    const normalized = activeId === 'vidsrc' ? 'vidsrc-to' : activeId;
+    const normalized = activeId === 'vidsrc' ? 'vidsrc-me' : activeId;
     const provider = this.providers.get(normalized);
-    if (!provider) return 'VidSrc (vidsrc.to)';
+    if (!provider) return 'VidSrc Me (vidsrcme.ru)';
     return provider.getName();
   }
 
@@ -229,6 +329,7 @@ export class StreamingManager {
 
         if (movie && movie.available && movie.stream?.url) {
           // Success! Record attempt and return
+          this.recordProviderSuccess(pId);
           this.lastFallbackAttempts.push({
             providerId: pId,
             providerName: pName,
@@ -253,6 +354,7 @@ export class StreamingManager {
         }
 
         // Provider responded but content was unavailable
+        this.recordProviderFailure(pId, 'Stream marked unavailable by provider');
         this.lastFallbackAttempts.push({
           providerId: pId,
           providerName: pName,
@@ -262,11 +364,13 @@ export class StreamingManager {
         });
       } catch (err: any) {
         // Isolated provider error (timeout, network, 404, 401, 429)
+        const reason = err?.message || 'Network or parse error';
+        this.recordProviderFailure(pId, reason);
         this.lastFallbackAttempts.push({
           providerId: pId,
           providerName: pName,
           status: 'failed',
-          reason: err?.message || 'Network or parse error',
+          reason,
           timestamp: Date.now(),
         });
       }
@@ -322,6 +426,7 @@ export class StreamingManager {
         const ep = await provider.getTVEpisode(tmdbId, season, episode);
 
         if (ep && ep.available && ep.stream?.url) {
+          this.recordProviderSuccess(pId);
           this.lastFallbackAttempts.push({
             providerId: pId,
             providerName: pName,
@@ -344,6 +449,7 @@ export class StreamingManager {
           return enrichedEp;
         }
 
+        this.recordProviderFailure(pId, 'Episode marked unavailable by provider');
         this.lastFallbackAttempts.push({
           providerId: pId,
           providerName: pName,
@@ -352,11 +458,13 @@ export class StreamingManager {
           timestamp: Date.now(),
         });
       } catch (err: any) {
+        const reason = err?.message || 'Network or parse error';
+        this.recordProviderFailure(pId, reason);
         this.lastFallbackAttempts.push({
           providerId: pId,
           providerName: pName,
           status: 'failed',
-          reason: err?.message || 'Network or parse error',
+          reason,
           timestamp: Date.now(),
         });
       }
@@ -364,6 +472,16 @@ export class StreamingManager {
 
     this.availabilityCache.set(cacheKey, { available: false, timestamp: Date.now() });
     return null;
+  }
+
+  /**
+   * Records that a stream was resolved, but playback failed at runtime
+   * (e.g. black screen, iframe sandbox error, network error, or media error).
+   * Penalizes provider and clears stream cache for this provider.
+   */
+  public reportPlaybackFailure(providerId: string, reason: string = 'Playback stalled or failed'): void {
+    this.recordProviderFailure(providerId, `Playback Failure: ${reason}`);
+    this.streamCache.clear();
   }
 
   /**
@@ -377,6 +495,17 @@ export class StreamingManager {
     season?: number,
     episode?: number
   ): Promise<StreamingMovie | StreamingEpisode | null> {
+    if (failedProviderId) {
+      this.reportPlaybackFailure(failedProviderId, 'Runtime failover requested');
+      this.lastFallbackAttempts.push({
+        providerId: failedProviderId,
+        providerName: this.providers.get(failedProviderId)?.getName() || failedProviderId,
+        status: 'failed',
+        reason: 'Runtime player failover',
+        timestamp: Date.now(),
+      });
+    }
+
     const providers = this.getEligibleProviders();
     const candidates = failedProviderId
       ? providers.filter(p => p.getId() !== failedProviderId)
@@ -387,6 +516,13 @@ export class StreamingManager {
         if (mediaType === 'movie') {
           const movie = await provider.getMovie(tmdbId);
           if (movie && movie.available && movie.stream?.url) {
+            this.recordProviderSuccess(provider.getId());
+            this.lastFallbackAttempts.push({
+              providerId: provider.getId(),
+              providerName: provider.getName(),
+              status: 'success',
+              timestamp: Date.now(),
+            });
             return {
               ...movie,
               stream: {
@@ -400,6 +536,13 @@ export class StreamingManager {
         } else if (season !== undefined && episode !== undefined) {
           const ep = await provider.getTVEpisode(tmdbId, season, episode);
           if (ep && ep.available && ep.stream?.url) {
+            this.recordProviderSuccess(provider.getId());
+            this.lastFallbackAttempts.push({
+              providerId: provider.getId(),
+              providerName: provider.getName(),
+              status: 'success',
+              timestamp: Date.now(),
+            });
             return {
               ...ep,
               stream: {
@@ -411,7 +554,15 @@ export class StreamingManager {
             };
           }
         }
-      } catch {
+      } catch (err: any) {
+        this.recordProviderFailure(provider.getId(), err?.message || 'Error during failover');
+        this.lastFallbackAttempts.push({
+          providerId: provider.getId(),
+          providerName: provider.getName(),
+          status: 'failed',
+          reason: err?.message || 'Error during failover',
+          timestamp: Date.now(),
+        });
         continue;
       }
     }

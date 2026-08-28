@@ -44,6 +44,42 @@ export interface PlaybackProgress {
   lastWatchedAt: string; // ISO date string
 }
 
+export type SeekAmount = 5 | 10 | 15 | 30;
+
+export type HomeSectionId =
+  | 'hero'
+  | 'continue_watching'
+  | 'watchlist'
+  | 'decision_helper'
+  | 'recommended'
+  | 'trending'
+  | 'popular_movies'
+  | 'top_rated_movies'
+  | 'popular_tv'
+  | 'action_movies'
+  | 'scifi_movies'
+  | 'comedy_movies';
+
+export interface HomeSectionItem {
+  id: HomeSectionId;
+  label: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_HOME_SECTIONS: HomeSectionItem[] = [
+  { id: 'hero', label: 'Hero / Featured Title', enabled: true },
+  { id: 'continue_watching', label: 'Continue Watching', enabled: true },
+  { id: 'recommended', label: 'Recommended For You', enabled: true },
+  { id: 'decision_helper', label: 'Tonight Decision Helper', enabled: true },
+  { id: 'trending', label: 'Trending Today', enabled: true },
+  { id: 'popular_movies', label: 'Popular Movies', enabled: true },
+  { id: 'popular_tv', label: 'Binge-Worthy TV Shows', enabled: true },
+  { id: 'action_movies', label: 'High-Octane Action', enabled: true },
+  { id: 'scifi_movies', label: 'Sci-Fi & Futuristic', enabled: true },
+  { id: 'comedy_movies', label: 'Comedy & Laughs', enabled: true },
+  { id: 'top_rated_movies', label: 'Top Rated Masterpieces', enabled: true },
+];
+
 export interface UserPreferences {
   favoriteGenreIds: number[];
   favoriteActors: string[];
@@ -55,6 +91,13 @@ export interface UserPreferences {
   enableHoverTrailers: boolean;
   reduceMotion: boolean;
   adultContent: boolean;
+  // v1.2.0 Playback & External Player
+  useVlc: boolean;
+  seekAmount: SeekAmount;
+  autoNextEpisode: boolean;
+  autoNextCountdown: number; // in seconds, default 10
+  defaultPlaybackSpeed: number;
+  defaultVolume: number;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -68,4 +111,10 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   enableHoverTrailers: true,
   reduceMotion: false,
   adultContent: false,
+  useVlc: false,
+  seekAmount: 10,
+  autoNextEpisode: true,
+  autoNextCountdown: 10,
+  defaultPlaybackSpeed: 1,
+  defaultVolume: 1,
 };

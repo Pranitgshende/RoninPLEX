@@ -6,6 +6,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-08-28 — VLC External Player, Seek Engine, TV Auto-Next & Home Customizer
+
+### Added
+- **External VLC Media Player Interop**:
+  - Native Rust backend commands `check_vlc_installed` and `open_stream_in_vlc`.
+  - Probes default 64-bit and 32-bit Windows Program Files paths as well as system PATH.
+  - Direct process spawning via `std::process::Command` without intermediate shell interpreters, guaranteeing protection against argument injection.
+  - URL scheme validation (`http://`, `https://`) and whitespace/newline sanitization.
+  - Video player "Play in VLC" header button with fallback modal and direct link to VideoLAN when VLC is not installed.
+- **Central Video Player Seek Engine**:
+  - Configurable seek jump amounts: `5s`, `10s` (Default), `15s`, `30s` persisted in `UserPreferences`.
+  - Double-click edge gesture seeking (left 1/3 = backward, right 1/3 = forward) with 250ms single-click coordination to prevent unintended play/pause toggles.
+  - Animated seek feedback badge overlay (`-10s` / `+10s`) with pulsing icon and smooth CSS fadeout.
+  - Clamped timeline boundaries between `0` and `duration`.
+- **TV Auto-Next Episode System**:
+  - Native playback completion detection (`onEnded`) triggering an animated countdown transition card.
+  - Visual circular/linear countdown progress bar with next episode title, episode number, and still preview.
+  - "Play Now" instant skip button and "Cancel" button to stay on current episode.
+  - Configurable auto-play toggle and countdown duration (`5s`, `10s`, `15s`) in Settings.
+- **Dynamic Home Page Customization**:
+  - Fully customizable shelf arrangement with reordering (Move Up / Move Down) and toggling on/off.
+  - Optimization: Disabled sections are excluded from TMDB API queries, eliminating wasted network requests and accelerating app startup.
+  - "Reset to Default Layout" button to restore canonical ordering at any time.
+  - Remaining time indicators on Continue Watching cards (e.g. `24m left (65%)`).
+- **Multi-Tiered Playback & Fallback Pipeline (Playback Regression Resolution)**:
+  - Default Active Provider: Elevated `vidlink` (`vidlink.pro`) as the default active provider for fast startup, clean 1st-level embeds, and full sandbox compliance without nested Cloudflare stalls.
+  - 7-Second Playback Watchdog: Automatically detects stalled or black-screen embeds and presents an immediate recovery banner with 1-click fallback to next provider, external VLC, or reload.
+  - Universal VLC Interop: Enabled "Play in VLC" for all stream types with an interactive "Playing in External VLC" overlay offering in-app resume and provider switching.
+  - Automatic Playback Failure Reporting: Added `reportPlaybackFailure()` and enriched `getNextStream()` to penalize failing providers at runtime and ensure seamless failover across providers.
+  - 5-minute health penalty expiration (`HEALTH_EXPIRATION_MS = 300000`) allowing recovered providers to automatically re-enter active rotation.
+  - Prioritized fallback sequence: `vidlink` -> `vidsrc-to` -> `vidsrc-me` -> `custom` -> `vidsrc-dev`.
+  - Fast-fail protection for known dead/parked domains to avoid playback freezes.
+  - Provider Health Diagnostics table in Settings for transparency and debugging.
+- **Settings Redesign**:
+  - Reorganized into 7 dedicated desktop categories: **Home Page**, **Playback & VLC**, **Streaming**, **TMDB Metadata**, **Appearance**, **Storage & Privacy**, **About RoninPLEX**.
+  - Cache purge tool for resolved stream URLs.
+  - Factory reset capability with confirmation dialog.
+- **Production Packaging & Release Startup Resolution**:
+  - Identified and resolved the root cause of production window startup failures: fixed Tauri 2 WebView2 navigation guard to allow `http://tauri.localhost/` and `*.localhost`.
+  - Configured NSIS installer with `currentUser` install mode for silent, unprompted installation without requiring administrator UAC elevation.
+  - Verified installation and verified running application from `C:\Users\prani\AppData\Local\RoninPLEX\roninplex.exe`.
+
+---
+
 ## [1.1.0] - 2026-08-27 — Complete Development, Performance, Player & Multi-Streaming Upgrade
 
 ### Added
