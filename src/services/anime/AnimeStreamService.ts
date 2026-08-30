@@ -21,7 +21,7 @@ export class AnimeStreamService {
     }
   }
 
-  private static async fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<any> {
+  private static async fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<any> {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -56,7 +56,7 @@ export class AnimeStreamService {
           if (animeId && !animeId.startsWith('latest')) {
              try {
                logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
+               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`, {}, 15000);
              } catch (metaErr: any) {
                logPlayback(`[AnimeStreamService] Meta lookup error/timeout: ${metaErr.message}`);
                sourcesData = null; // Proceed to fallback

@@ -284,4 +284,72 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       global.fetch = originalFetch;
     }
   });
+
+  test('Slice R: AnimeStreamService explicit metadata timeout scoping', async () => {
+    const serviceCode = fs.readFileSync('src/services/anime/AnimeStreamService.ts', 'utf8');
+    const ts = (await import('typescript')).default;
+    const transpiled = ts.transpile(serviceCode, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
+    const exports = {};
+    const mockRequire = (mod) => {
+      if (mod === './AnimeTypes') return { ContentLanguage: { SUB: 'sub', DUB: 'dub' } };
+      return { logPlayback: () => {} };
+    };
+    const func = new Function('exports', 'require', 'global', transpiled);
+    
+    let requestedTimeouts = [];
+    const originalFetch = global.fetch;
+    try {
+      global.fetch = async (url, options) => {
+        // Just return dummy data so it moves through the steps
+        if (url.includes('/meta/stream')) {
+           throw new Error('simulate local catch');
+        }
+        if (url.includes('/search?')) {
+          return { ok: true, json: async () => ([{ id: 'mockMediaId' }]) };
+        }
+        if (url.includes('/content?')) {
+          return { ok: true, json: async () => ([{ id: 'mockEpId', number: 1 }]) };
+        }
+        if (url.includes('/stream?')) {
+          return { ok: true, json: async () => ({ streams: [{ sourceUrl: 'http://valid', quality: 'auto', isHLS: true }] }) };
+        }
+        if (url === 'http://valid') {
+          return { ok: true, headers: new Map([['content-type', 'video/mp4']]) };
+        }
+        return { ok: true, json: async () => ({}) };
+      };
+      
+      func(exports, mockRequire, global);
+      const service = exports.AnimeStreamService;
+      
+      // Spy on fetchJsonWithTimeout
+      const originalFetchJson = service.fetchJsonWithTimeout;
+      service.fetchJsonWithTimeout = (url, opts, tms) => {
+         requestedTimeouts.push({ url, tms });
+         return originalFetchJson.call(service, url, opts, tms);
+      };
+      
+      const stream = await service.resolveEpisodeStream('Test Anime', 1, 'sub', '123');
+      
+      const metaRequest = requestedTimeouts.find(r => r.url.includes('/meta/stream'));
+      const searchRequest = requestedTimeouts.find(r => r.url.includes('/search?'));
+      const contentRequest = requestedTimeouts.find(r => r.url.includes('/content?'));
+      const streamRequest = requestedTimeouts.find(r => r.url.includes('/stream?unitId='));
+      
+      assert.ok(metaRequest, 'Meta request was made');
+      assert.strictEqual(metaRequest.tms, 15000, 'Meta request should use 15000ms timeout');
+      
+      assert.ok(searchRequest, 'Search request was made');
+      assert.ok(searchRequest.tms === undefined || searchRequest.tms === 8000, 'Search request should use 8000ms default timeout');
+      
+      assert.ok(contentRequest, 'Content request was made');
+      assert.ok(contentRequest.tms === undefined || contentRequest.tms === 8000, 'Content request should use 8000ms default timeout');
+      
+      assert.ok(streamRequest, 'Stream request was made');
+      assert.ok(streamRequest.tms === undefined || streamRequest.tms === 8000, 'Stream request should use 8000ms default timeout');
+      
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });
