@@ -228,22 +228,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Continue Watching methods
-  const savePlaybackProgress = (progress: PlaybackProgress) => {
+  const savePlaybackProgress = useCallback((progress: PlaybackProgress) => {
     storage.savePlaybackProgress(progress);
     setContinueWatching(storage.getContinueWatchingList());
-  };
+  }, []);
 
-  const removePlaybackProgress = (id: number, mediaType: MediaType, season?: number, episode?: number) => {
+  const removePlaybackProgress = useCallback((id: number, mediaType: MediaType, season?: number, episode?: number) => {
     storage.removePlaybackProgress(id, mediaType, season, episode);
     setContinueWatching(storage.getContinueWatchingList());
     showToast('info', 'Removed from Continue Watching');
-  };
+  }, [showToast]);
 
-  const clearContinueWatching = () => {
+  const clearContinueWatching = useCallback(() => {
     storage.clearPlaybackProgress();
     setContinueWatching([]);
     showToast('info', 'Continue Watching Cleared');
-  };
+  }, [showToast]);
 
   // Preferences methods
   const updatePreferences = (prefs: Partial<UserPreferences>) => {
