@@ -214,4 +214,74 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
     assert.ok(searchCode.includes('animeService.search'), 'Search must call anime metadata search');
     assert.ok(searchCode.includes('All Media'), 'Search must have All Media tab');
   });
+
+  test('Slice O: Overlapping fallback requests (Race condition guarding)', () => {
+    const watchCode = fs.readFileSync('src/pages/Watch.tsx', 'utf8');
+    // Ensure handleTryNextProvider increments and captures the request ID
+    assert.match(watchCode, /requestIdRef\.current \+= 1;\s+const currentRequestId = requestIdRef\.current;/);
+    // Ensure state updates check if the ID matches
+    assert.match(watchCode, /if \(currentRequestId !== requestIdRef\.current\) return;/);
+  });
+
+  test('Slice P: fetch body timeout and fallback continuation', async () => {
+    const serviceCode = fs.readFileSync('src/services/anime/AnimeStreamService.ts', 'utf8');
+    
+    // Ensure fetchJsonWithTimeout exists
+    assert.match(serviceCode, /fetchJsonWithTimeout/);
+    
+    // Ensure res.json() happens inside the timeout block
+    // "const data = await res.json();\n      clearTimeout(id);"
+    assert.match(serviceCode, /const data = await res\.json\(\);\s+clearTimeout\(id\);/);
+    
+    // We transpile and dynamically test the timeout logic
+    const ts = (await import('typescript')).default;
+    const transpiled = ts.transpile(serviceCode, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
+    
+    const exports = {};
+    const mockRequire = () => ({ logPlayback: () => {} });
+    
+    // Create an execution context
+    const func = new Function('exports', 'require', 'global', transpiled);
+    
+    // We mock global fetch
+    const originalFetch = global.fetch;
+    try {
+      global.fetch = async (url, options) => {
+        return {
+          ok: true,
+          json: async () => {
+            // Check if abort signal is already aborted
+            if (options.signal && options.signal.aborted) {
+              throw new Error('AbortError');
+            }
+            // Stall for 100ms
+            await new Promise(r => setTimeout(r, 100));
+            // Check again after stall
+            if (options.signal && options.signal.aborted) {
+              throw new Error('AbortError');
+            }
+            return { streams: [] };
+          }
+        };
+      };
+      
+      func(exports, mockRequire, global);
+      const service = exports.AnimeStreamService;
+      
+      // Test successful body consumption (timeout > 100ms)
+      const dataSuccess = await service.fetchJsonWithTimeout('http://test', {}, 200);
+      assert.deepStrictEqual(dataSuccess, { streams: [] }, 'Should succeed if body parsed before timeout');
+      
+      // Test timeout during body consumption (timeout < 100ms)
+      let threw = false;
+      try {
+        await service.fetchJsonWithTimeout('http://test', {}, 50);
+      } catch (e) {
+        threw = true;
+      }
+      assert.ok(threw, 'Should throw AbortError if body stalls past timeout');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

@@ -21,6 +21,24 @@ export class AnimeStreamService {
     }
   }
 
+  private static async fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<any> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      if (!res.ok) {
+        clearTimeout(id);
+        return null;
+      }
+      const data = await res.json();
+      clearTimeout(id);
+      return data;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  }
+
   static async resolveEpisodeStream(
     animeTitle: string,
     episodeNumber: number,
@@ -37,35 +55,26 @@ export class AnimeStreamService {
           
           if (animeId && !animeId.startsWith('latest')) {
              logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-             const metaRes = await this.fetchWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
-             if (metaRes.ok) {
-                 sourcesData = await metaRes.json();
-             }
+             sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
           }
           
           if (!sourcesData || !sourcesData.streams || sourcesData.streams.length === 0) {
             logPlayback(`[AnimeStreamService] Meta stream failed. Falling back to manual search.`);
-            const searchRes = await this.fetchWithTimeout(`${API_BASE}/search?q=${encodeURIComponent(animeTitle)}&provider=${provider}`);
-            if (!searchRes.ok) continue;
-            const searchData = await searchRes.json();
-            
+            const searchData = await this.fetchJsonWithTimeout(`${API_BASE}/search?q=${encodeURIComponent(animeTitle)}&provider=${provider}`);
             if (!searchData || searchData.length === 0) continue;
             
             const mediaId = searchData[0].id;
             logPlayback(`[AnimeStreamService] Found media ID: ${mediaId}`);
             
-            const epRes = await this.fetchWithTimeout(`${API_BASE}/content?mediaId=${encodeURIComponent(mediaId)}&provider=${provider}`);
-            if (!epRes.ok) continue;
-            const episodes = await epRes.json();
+            const episodes = await this.fetchJsonWithTimeout(`${API_BASE}/content?mediaId=${encodeURIComponent(mediaId)}&provider=${provider}`);
+            if (!episodes || !Array.isArray(episodes)) continue;
             
             const episode = episodes.find((e: any) => parseInt(e.number) === episodeNumber);
             if (!episode) continue;
             
             logPlayback(`[AnimeStreamService] Found episode ID: ${episode.id}`);
             
-            const srcRes = await this.fetchWithTimeout(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}&language=${preferredLanguage}`);
-            if (!srcRes.ok) continue;
-            sourcesData = await srcRes.json();
+            sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}&language=${preferredLanguage}`);
           }
           
           if (!sourcesData || !sourcesData.streams || sourcesData.streams.length === 0) continue;

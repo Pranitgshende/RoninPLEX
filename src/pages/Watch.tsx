@@ -260,7 +260,8 @@ export const Watch: React.FC = () => {
     logPlayback(`Fallback requested. Current provider: ${streamResult?.providerId || 'none'}`);
     setIsLoading(true);
     
-    // Capture request ID for race condition guarding
+    // Increment and capture request ID for race condition guarding
+    requestIdRef.current += 1;
     const currentRequestId = requestIdRef.current;
     
     // Add current provider to failed list if it's not already there
