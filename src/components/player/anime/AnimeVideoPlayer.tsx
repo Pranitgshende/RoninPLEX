@@ -183,6 +183,37 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     };
   }, [stream, anime.id, episodeNumber]);
 
+  // Periodic progress saving (every 5 seconds)
+  useEffect(() => {
+    const flushProgress = () => {
+      const current = videoRef.current?.currentTime || 0;
+      const dur = videoRef.current?.duration || 0;
+      if (dur > 0 && current > 15) {
+        savePlaybackProgress({
+          id: parseInt(anime.id as string, 10) || 0,
+          mediaType: 'anime',
+          title: anime.title,
+          posterPath: anime.poster,
+          backdropPath: anime.banner || anime.poster,
+          seasonNumber: 1,
+          episodeNumber: episodeNumber,
+          episodeTitle: `Episode ${episodeNumber}`,
+          currentTime: current,
+          duration: dur,
+          progressPercent: (current / dur) * 100,
+          lastWatchedAt: new Date().toISOString()
+        });
+      }
+    };
+
+    const interval = setInterval(flushProgress, 5000);
+
+    return () => {
+      clearInterval(interval);
+      flushProgress();
+    };
+  }, [anime.id, anime.title, anime.poster, anime.banner, episodeNumber, savePlaybackProgress]);
+
   // Video event handlers
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -190,20 +221,6 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     const dur = videoRef.current.duration || 0;
     setCurrentTime(cur);
     setDuration(dur);
-    savePlaybackProgress({
-      id: parseInt(anime.id as string, 10) || 0,
-      mediaType: 'anime',
-      title: anime.title,
-      posterPath: anime.poster,
-      backdropPath: anime.banner || anime.poster,
-      seasonNumber: 1,
-      episodeNumber: episodeNumber,
-      episodeTitle: `Episode ${episodeNumber}`,
-      currentTime: cur,
-      duration: dur,
-      progressPercent: (cur / dur) * 100,
-      lastWatchedAt: new Date().toISOString()
-    });
 
     // Auto next countdown in last 10 seconds
     if (dur > 60 && dur - cur <= 10 && navState.hasNext && !hasStartedAutoNextRef.current) {

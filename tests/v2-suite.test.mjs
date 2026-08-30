@@ -132,6 +132,11 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       assert.ok(avatar.includes(st), `RoninAvatar must support state: ${st}`);
     }
   });
+  test('Slice M: Anime Progress Deletion - Episode specificity', () => {
+    const storageContent = fs.readFileSync('src/services/storage.ts', 'utf8');
+    // Ensure removePlaybackProgress checks for season and episode specifically for tv and anime
+    assert.match(storageContent, /if \(\(mediaType === 'tv' \|\| mediaType === 'anime'\) && season !== undefined && episode !== undefined\)/);
+  });
 
   test('Slice N: Universal Search includes Movies, TV Shows, and Anime', () => {
     const searchCode = fs.readFileSync('src/pages/Search.tsx', 'utf8');

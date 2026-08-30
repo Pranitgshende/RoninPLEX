@@ -85,7 +85,7 @@ export class AnimeStreamService {
           return {
             sourceUrl: source.sourceUrl,
             isHLS: source.isHLS || source.sourceUrl.includes('.m3u8') || source.sourceUrl.includes('/proxy?'),
-            language: ContentLanguage.SUB,
+            language: preferredLanguage,
             quality: source.quality || 'auto',
             providerId: provider,
             qualities: qualities,

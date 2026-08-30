@@ -349,9 +349,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (stream.type === 'embed') return;
 
-    const interval = setInterval(() => {
-      if (isPlaying && duration > 0 && currentTime > 15) {
-        const percent = Math.round((currentTime / duration) * 100);
+    const flushProgress = () => {
+      const current = videoRef.current?.currentTime || 0;
+      const dur = videoRef.current?.duration || 0;
+      
+      if (dur > 0 && current > 15) {
+        const percent = Math.round((current / dur) * 100);
         savePlaybackProgress({
           id: mediaId,
           mediaType,
@@ -359,18 +362,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           seasonNumber,
           episodeNumber,
           episodeTitle,
-          currentTime,
-          duration,
+          currentTime: current,
+          duration: dur,
           progressPercent: percent,
           posterPath: posterPath || null,
           backdropPath: backdropPath || null,
           lastWatchedAt: new Date().toISOString(),
         });
       }
-    }, 5000);
+    };
 
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTime, duration, mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type]);
+    const interval = setInterval(flushProgress, 5000);
+
+    return () => {
+      clearInterval(interval);
+      flushProgress();
+    };
+  }, [mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type]);
 
   // Single Click Play/Pause toggle
   const togglePlay = useCallback(() => {
@@ -453,31 +461,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // v2.0.0 Playback Watchdog: currentTime advance verification & black-screen stall protection
   useEffect(() => {
-    let stallTimer: number | null = null;
+    let progressInterval: number | null = null;
 
-    if (effectiveStream.type === 'hls' || effectiveStream.type === 'mp4') {
-      // Give the player 30 seconds to start advancing time to account for slow connections
-      stallTimer = window.setTimeout(() => {
-        // Read directly from video element to avoid stale closures
-        const isAdvanced = videoRef.current && videoRef.current.currentTime > 0.5;
-        if (!isAdvanced && !videoError) {
-          logPlayback(`Watchdog alert: currentTime did not advance within 30s for provider ${effectiveStream.providerId || 'unknown'}`);
-          setEmbedStallDetected(true);
-          if (effectiveStream.providerId) {
-            streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected playback stall (currentTime did not advance)');
+    if (effectiveStream.type === 'embed' || videoError) {
+      if (effectiveStream.type === 'embed') {
+        setEmbedStallDetected(false); // Embeds cannot be reliably tracked for stalls
+      }
+      return;
+    }
+
+    if (isPlaying) {
+      let lastTime = videoRef.current?.currentTime || 0;
+      let checkCount = 0;
+
+      progressInterval = window.setInterval(() => {
+        const current = videoRef.current?.currentTime || 0;
+        
+        if (current > lastTime) {
+          lastTime = current;
+          checkCount = 0; // Reset checks on progress
+          if (watchdogPhase !== 'currentTime_advances') {
+            setWatchdogPhase('currentTime_advances');
+          }
+        } else {
+          checkCount++;
+          if (checkCount >= 6) { // 30 seconds of no progress while playing
+            logPlayback(`Watchdog alert: currentTime did not advance within 30s for provider ${effectiveStream.providerId || 'unknown'}`);
+            setEmbedStallDetected(true);
+            if (effectiveStream.providerId) {
+              streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected playback stall (currentTime did not advance)');
+            }
+            if (progressInterval) window.clearInterval(progressInterval);
           }
         }
-      }, 30000);
-    } else if (effectiveStream.type === 'embed') {
-      // Embeds cannot report currentTime back to the parent window due to cross-origin policies.
-      // Do not artificially fail them on a timer.
-      setEmbedStallDetected(false);
+      }, 5000);
     }
 
     return () => {
-      if (stallTimer) window.clearTimeout(stallTimer);
+      if (progressInterval) window.clearInterval(progressInterval);
     };
-  }, [effectiveStream.url, effectiveStream.type, iframeKey, videoError]); // Do not restart timer on watchdogPhase change
+  }, [effectiveStream.url, effectiveStream.type, iframeKey, videoError, isPlaying, watchdogPhase]);
 
   const toggleMute = () => {
     if (!videoRef.current) return;

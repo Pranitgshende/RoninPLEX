@@ -115,6 +115,8 @@ export const Watch: React.FC = () => {
         if (isAnime) {
           // Load Anime
           logPlayback(`Loading Anime: id=${mediaId}, ep=${episodeNumber}`);
+          setAnimeStreamSource(null); // Clear stale stream before resolution
+          
           const animeData = await animeService.getDetails(String(mediaId));
           if (currentRequestId !== requestIdRef.current) return;
           if (!animeData) throw new Error('Anime not found');

@@ -193,6 +193,10 @@ class AIService {
           // Filter out completely invalid items or adults if strict
           return !this.session.recommendedIds.has(idStr) && hasImage;
         })
+        .map(item => ({
+          ...item,
+          mediaType: isAnime ? 'anime' : isTV ? 'tv' : 'movie'
+        }))
         // Sort by rating or popularity to rank best items first
         .sort((a, b) => {
           const ratingA = a.vote_average || (a.score ? a.score / 10 : 0) || 0;

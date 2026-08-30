@@ -226,7 +226,7 @@ class StorageService {
     const all = this.getAllPlaybackProgress();
     const updated = all.filter(item => {
       if (item.id !== id || item.mediaType !== mediaType) return true;
-      if (mediaType === 'tv' && season !== undefined && episode !== undefined) {
+      if ((mediaType === 'tv' || mediaType === 'anime') && season !== undefined && episode !== undefined) {
         return !(item.seasonNumber === season && item.episodeNumber === episode);
       }
       // If season/episode not specified, remove all progress for this show/movie
