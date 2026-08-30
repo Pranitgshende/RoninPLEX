@@ -65,7 +65,7 @@ export class AnimeStreamService {
           if (animeId && !animeId.startsWith('latest')) {
              try {
                logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`, {}, 5000);
+               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`, {}, 15000);
              } catch (metaErr: any) {
                logPlayback(`[AnimeStreamService] Meta lookup error/timeout: ${metaErr.message}`);
                sourcesData = null; // Proceed to fallback

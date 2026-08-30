@@ -405,6 +405,28 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
     assert.match(movieCardCode, /loading=\{\s*hasIntersected\s*\?\s*'eager'\s*:\s*'lazy'\s*\}/, 'Image loading must flip to eager when intersected');
   });
 
+  test('[TAURI REGRESSION] Backend proxy rewrites image/jpeg to video/MP2T for TS segments', async (t) => {
+    const { spawn } = await import('child_process');
+    
+    // Start backend server
+    const serverProcess = spawn(process.execPath, ['backend/server.js']);
+    
+    // Wait for server to start
+    await new Promise(r => setTimeout(r, 2000));
+    
+    try {
+      const fetch = (await import('node-fetch')).default;
+      const proxyUrl = 'http://127.0.0.1:4173/proxy?url=https%3A%2F%2Fstream.animeparadise.moe%2Fts%3Furl%3D46cXRUVzoevXjsjj_uEYS23ULBOuh1VmO9L6dlr1O561mBhHsw9Kusu4fWwFxKZYIc_Ab1Z422ZAUX7UOjSYCzGNkiecRWt714StzppWiMNr7QfKq-Ho8a5-u2GQ5cJgnUPY9_Qub49DOU66MQT08xv47H99fRLCctag3qAcRi96mZawgO8QPXL6Pq4T0kEccmDRWuU8CDNFpbVVXmAPiYXM';
+      
+      const res = await fetch(proxyUrl);
+      const ct = res.headers.get('content-type');
+      
+      assert.strictEqual(ct, 'video/MP2T', 'Proxy must rewrite image/jpeg to video/MP2T for Tauri WebView2 compatibility');
+    } finally {
+      serverProcess.kill();
+    }
+  });
+
   test('Slice U: Dedicated Genre fetching uses single efficient API call instead of parallel trending loops', () => {
     const repoCode = fs.readFileSync('src/services/anime/AnimeRepository.ts', 'utf8');
     assert.ok(repoCode.includes('fetchByGenre'), 'AnimeRepository must have fetchByGenre');
