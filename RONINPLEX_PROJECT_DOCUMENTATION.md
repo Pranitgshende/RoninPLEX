@@ -1,7 +1,7 @@
-# RoninPLEX v1.2.0 — Authoritative Project Documentation & Technical Specification
+# RoninPLEX v2.0.0 — Authoritative Project Documentation & Technical Specification
 
-> **Document Version**: 1.2.0  
-> **Release Date**: August 28, 2026  
+> **Document Version**: 2.0.0  
+> **Release Date**: August 30, 2026  
 > **Target Platform**: Windows 10 / 11 (x64)  
 > **Classification**: Authoritative Engineering & Operational Specification  
 > **Architecture**: Tauri 2 (Rust Backend + WebView2) + React 19 + TypeScript + Vite + Tailwind CSS

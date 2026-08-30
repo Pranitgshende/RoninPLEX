@@ -40,20 +40,26 @@ pub fn run() {
             use tauri_plugin_shell::process::CommandEvent;
 
             // Run anime-server sidecar
-            let sidecar_command = app.shell().sidecar("anime-server")
-                .expect("failed to create `anime-server` binary command")
-                .env("PORT", "4173");
-            let (mut rx, mut _child) = sidecar_command
-                .spawn()
-                .expect("Failed to spawn sidecar");
-
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    if let CommandEvent::Stdout(line) = event {
-                        println!("[anime-server] {}", String::from_utf8_lossy(&line));
+            match app.shell().sidecar("anime-server") {
+                Ok(cmd) => {
+                    let sidecar_command = cmd.env("PORT", "4173");
+                    match sidecar_command.spawn() {
+                        Ok((mut rx, mut _child)) => {
+                            tauri::async_runtime::spawn(async move {
+                                while let Some(event) = rx.recv().await {
+                                    if let CommandEvent::Stdout(line) = event {
+                                        println!("[anime-server] {}", String::from_utf8_lossy(&line));
+                                    }
+                                }
+                            });
+                        }
+                        Err(e) => eprintln!("[Warning] Failed to spawn anime-server sidecar: {}", e),
                     }
                 }
-            });
+                Err(e) => eprintln!("[Warning] Failed to create anime-server binary command: {}", e),
+            }
+
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![log_runtime_event])

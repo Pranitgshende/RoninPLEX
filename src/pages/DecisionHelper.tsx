@@ -154,8 +154,12 @@ export const DecisionHelper: React.FC = () => {
     setAvatarState('idle');
   };
 
-  const handleWatch = (item: Movie | TVShow) => {
-    const isMovie = 'title' in item;
+  const handleWatch = (item: any) => {
+    if (item.mediaType === 'anime') {
+      navigate(`/watch/anime/${item.id}/1`);
+      return;
+    }
+    const isMovie = item.mediaType === 'movie' || ('title' in item && !('name' in item));
     if (isMovie) {
       navigate(`/watch/movie/${item.id}`);
     } else {
@@ -163,8 +167,12 @@ export const DecisionHelper: React.FC = () => {
     }
   };
 
-  const handleDetails = (item: Movie | TVShow) => {
-    const isMovie = 'title' in item;
+  const handleDetails = (item: any) => {
+    if (item.mediaType === 'anime') {
+      navigate(`/anime/${item.id}`);
+      return;
+    }
+    const isMovie = item.mediaType === 'movie' || ('title' in item && !('name' in item));
     navigate(`/${isMovie ? 'movie' : 'tv'}/${item.id}`);
   };
 

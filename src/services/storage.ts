@@ -1,3 +1,4 @@
+import { MediaType } from '../types/tmdb';
 import {
   WatchlistItem,
   WatchedItem,
@@ -89,13 +90,13 @@ class StorageService {
     return this.set(STORAGE_KEYS.WATCHLIST, updated);
   }
 
-  removeFromWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
+  removeFromWatchlist(id: number, mediaType: MediaType): boolean {
     const list = this.getWatchlist();
     const updated = list.filter(i => !(i.id === id && i.mediaType === mediaType));
     return this.set(STORAGE_KEYS.WATCHLIST, updated);
   }
 
-  isInWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
+  isInWatchlist(id: number, mediaType: MediaType): boolean {
     const list = this.getWatchlist();
     return list.some(i => i.id === id && i.mediaType === mediaType);
   }
@@ -116,18 +117,18 @@ class StorageService {
     return this.set(STORAGE_KEYS.WATCHED, updated);
   }
 
-  removeFromWatched(id: number, mediaType: 'movie' | 'tv'): boolean {
+  removeFromWatched(id: number, mediaType: MediaType): boolean {
     const list = this.getWatched();
     const updated = list.filter(i => !(i.id === id && i.mediaType === mediaType));
     return this.set(STORAGE_KEYS.WATCHED, updated);
   }
 
-  isWatched(id: number, mediaType: 'movie' | 'tv'): boolean {
+  isWatched(id: number, mediaType: MediaType): boolean {
     const list = this.getWatched();
     return list.some(i => i.id === id && i.mediaType === mediaType);
   }
 
-  updateWatchedRating(id: number, mediaType: 'movie' | 'tv', userRating?: number, liked?: boolean, disliked?: boolean): boolean {
+  updateWatchedRating(id: number, mediaType: MediaType, userRating?: number, liked?: boolean, disliked?: boolean): boolean {
     const list = this.getWatched();
     const itemIndex = list.findIndex(i => i.id === id && i.mediaType === mediaType);
     if (itemIndex === -1) return false;
@@ -176,7 +177,7 @@ class StorageService {
   /**
    * Looks up playback progress for a specific movie or TV episode
    */
-  getPlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): PlaybackProgress | null {
+  getPlaybackProgress(id: number, mediaType: MediaType, season?: number, episode?: number): PlaybackProgress | null {
     const all = this.getAllPlaybackProgress();
     const match = all.find(item => {
       if (item.id !== id || item.mediaType !== mediaType) return false;
@@ -221,7 +222,7 @@ class StorageService {
     return this.set(STORAGE_KEYS.PLAYBACK_PROGRESS, updated);
   }
 
-  removePlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): boolean {
+  removePlaybackProgress(id: number, mediaType: MediaType, season?: number, episode?: number): boolean {
     const all = this.getAllPlaybackProgress();
     const updated = all.filter(item => {
       if (item.id !== id || item.mediaType !== mediaType) return true;

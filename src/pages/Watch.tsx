@@ -40,6 +40,7 @@ export const Watch: React.FC = () => {
   const [animeEpisodes, setAnimeEpisodes] = useState<AnimeEpisode[]>([]);
   const [animeStreamSource, setAnimeStreamSource] = useState<AnimeStreamSource | null>(null);
   const [animeLanguage, setAnimeLanguage] = useState<ContentLanguage>(ContentLanguage.SUB);
+  const [failedProviders, setFailedProviders] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
@@ -98,6 +99,10 @@ export const Watch: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
+    let isMounted = true;
+    
+    // Clear failed providers when media changes
+    setFailedProviders([]);
 
     const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
@@ -236,14 +241,23 @@ export const Watch: React.FC = () => {
      (tvShow?.seasons && tvShow.seasons.some(s => s.season_number === seasonNumber + 1)))
   );
 
+
   const handleTryNextProvider = async () => {
     logPlayback(`Fallback requested. Current provider: ${streamResult?.providerId || 'none'}`);
     setIsLoading(true);
+    
+    // Add current provider to failed list if it's not already there
+    const newFailed = [...failedProviders];
+    if (streamResult?.providerId && !newFailed.includes(streamResult.providerId)) {
+      newFailed.push(streamResult.providerId);
+      setFailedProviders(newFailed);
+    }
+    
     try {
       const nextStream = await streamingManager.getNextStream(
         mediaId,
         isTV ? 'tv' : 'movie',
-        streamResult?.providerId,
+        newFailed,
         seasonNumber,
         episodeNumber
       );

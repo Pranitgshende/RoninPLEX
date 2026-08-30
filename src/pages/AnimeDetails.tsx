@@ -97,7 +97,7 @@ export const AnimeDetails: React.FC = () => {
     if (!anime) return;
     toggleWatchlist({
       id: anime.id as any,
-      mediaType: 'tv',
+      mediaType: 'anime',
       title: anime.title,
       posterPath: anime.poster,
       backdropPath: anime.banner || anime.poster,

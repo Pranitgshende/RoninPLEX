@@ -1225,7 +1225,7 @@ export const Settings: React.FC = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-white/5">
                     <span className="text-slate-400">Release Version:</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-brand-400 font-bold font-mono">v1.2.0</span>
+                      <span className="text-brand-400 font-bold font-mono">v2.0.0</span>
                       <span className="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 text-[10px] font-bold">
                         Production
                       </span>

@@ -98,6 +98,10 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   useEffect(() => {
     setHasError(false);
     setIsBuffering(false);
+    if (autoNextTimerRef.current) {
+      clearInterval(autoNextTimerRef.current);
+      autoNextTimerRef.current = null;
+    }
     setAutoNextCountdown(null);
 
     const video = videoRef.current;
@@ -185,13 +189,17 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     }
   };
 
+  const autoNextTimerRef = useRef<any>(null);
+
   const startAutoNextCountdown = () => {
+    if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current);
     let count = 8;
     setAutoNextCountdown(count);
-    const timer = setInterval(() => {
+    autoNextTimerRef.current = setInterval(() => {
       count -= 1;
       if (count <= 0) {
-        clearInterval(timer);
+        if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current);
+        autoNextTimerRef.current = null;
         setAutoNextCountdown(null);
         handleNextEpisode();
       } else {
@@ -199,6 +207,15 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       }
     }, 1000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (autoNextTimerRef.current) {
+        clearInterval(autoNextTimerRef.current);
+        autoNextTimerRef.current = null;
+      }
+    };
+  }, [episodeNumber]);
 
   const handleNextEpisode = () => {
     const next = AnimeEpisodeController.getNextEpisodeNumber(episodeNumber, totalEpCount);
@@ -423,7 +440,13 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
               Play Now
             </button>
             <button
-              onClick={() => setAutoNextCountdown(null)}
+              onClick={() => {
+                if (autoNextTimerRef.current) {
+                  clearInterval(autoNextTimerRef.current);
+                  autoNextTimerRef.current = null;
+                }
+                setAutoNextCountdown(null);
+              }}
               className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300"
             >
               <X className="w-4 h-4" />
@@ -516,7 +539,11 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
               </button>
 
               <div className="flex items-center gap-2 group relative">
-                <button onClick={() => setIsMuted(!isMuted)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">
+                <button onClick={() => {
+                  const newMuted = !isMuted;
+                  setIsMuted(newMuted);
+                  if (videoRef.current) videoRef.current.muted = newMuted;
+                }} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">
                   {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                 </button>
                 <input
@@ -527,6 +554,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                     const v = parseFloat(e.target.value);
                     setVolume(v);
                     if (v > 0) setIsMuted(false);
+                    if (videoRef.current) videoRef.current.volume = v;
                   }}
                   className="w-20 opacity-0 group-hover:opacity-100 transition-opacity accent-rose-500 cursor-pointer h-1.5 bg-white/20 rounded-lg absolute left-12"
                 />
@@ -566,38 +594,51 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
               {/* Audio Language Menu */}
               {onLanguageChange && (
-                <div className="relative">
-                  <button 
-                    onClick={() => setActiveMenu(activeMenu === 'audio' ? 'none' : 'audio')}
-                    className={`px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold transition-colors ${activeMenu === 'audio' ? 'bg-white/30 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-200'}`}
-                  >
-                    {activeLanguage === ContentLanguage.SUB ? 'Sub' : 'Dub'}
-                  </button>
-                  {activeMenu === 'audio' && (
-                    <div className="absolute bottom-full right-0 mb-2 w-32 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1">
+                (() => {
+                  const currentEp = episodes.find(e => {
+                    const epNum = typeof e.number === 'string' ? parseInt(e.number, 10) : e.number;
+                    return epNum === episodeNumber;
+                  });
+                  const supportsDub = currentEp?.availableLanguages ? currentEp.availableLanguages.includes(ContentLanguage.DUB) : true;
+                  if (!supportsDub && currentEp?.availableLanguages) return null;
+                  // Better: Just don't render the Dub button if not supported.
+                  return (
+                    <div className="relative">
                       <button 
-                        onClick={() => {
-                          setActiveLanguage(ContentLanguage.SUB);
-                          onLanguageChange(ContentLanguage.SUB);
-                          setActiveMenu('none');
-                        }}
-                        className={`px-4 py-2 text-xs font-semibold text-left transition-colors ${activeLanguage === ContentLanguage.SUB ? 'bg-rose-600/30 text-rose-300' : 'text-slate-300 hover:bg-surface-300'}`}
+                        onClick={() => setActiveMenu(activeMenu === 'audio' ? 'none' : 'audio')}
+                        className={`px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold transition-colors ${activeMenu === 'audio' ? 'bg-white/30 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-200'}`}
                       >
-                        Sub
+                        {activeLanguage === ContentLanguage.SUB ? 'Sub' : 'Dub'}
                       </button>
-                      <button 
-                        onClick={() => {
-                          setActiveLanguage(ContentLanguage.DUB);
-                          onLanguageChange(ContentLanguage.DUB);
-                          setActiveMenu('none');
-                        }}
-                        className={`px-4 py-2 text-xs font-semibold text-left transition-colors ${activeLanguage === ContentLanguage.DUB ? 'bg-rose-600/30 text-rose-300' : 'text-slate-300 hover:bg-surface-300'}`}
-                      >
-                        Dub
-                      </button>
+                      {activeMenu === 'audio' && (
+                        <div className="absolute bottom-full right-0 mb-2 w-32 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1">
+                          <button 
+                            onClick={() => {
+                              setActiveLanguage(ContentLanguage.SUB);
+                              onLanguageChange(ContentLanguage.SUB);
+                              setActiveMenu('none');
+                            }}
+                            className={`px-4 py-2 text-xs font-semibold text-left transition-colors ${activeLanguage === ContentLanguage.SUB ? 'bg-rose-600/30 text-rose-300' : 'text-slate-300 hover:bg-surface-300'}`}
+                          >
+                            Sub
+                          </button>
+                          {supportsDub !== false && (
+                            <button 
+                              onClick={() => {
+                                setActiveLanguage(ContentLanguage.DUB);
+                                onLanguageChange(ContentLanguage.DUB);
+                                setActiveMenu('none');
+                              }}
+                              className={`px-4 py-2 text-xs font-semibold text-left transition-colors ${activeLanguage === ContentLanguage.DUB ? 'bg-rose-600/30 text-rose-300' : 'text-slate-300 hover:bg-surface-300'}`}
+                            >
+                              Dub
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()
               )}
 
               {/* Subtitles Menu */}

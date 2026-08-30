@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-08-30 — Anime Integration & CodeRabbit Fixes
+### Fixed
+- Addressed CodeRabbit findings for v2.0.0
+
 ## [1.2.0] - 2026-08-28 — VLC External Player, Seek Engine, TV Auto-Next & Home Customizer
 
 ### Added

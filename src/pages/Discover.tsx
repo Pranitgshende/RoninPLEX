@@ -67,7 +67,7 @@ export type DiscoverItem = MovieDiscoverItem | TvDiscoverItem | AnimeDiscoverIte
 
 export const Discover: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { preferences, watchlist, watched } = useUser();
+  const { preferences } = useUser();
   const showAdult = preferences.showAdultRecommendations ?? false;
 
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'for-you');
@@ -474,8 +474,6 @@ export const Discover: React.FC = () => {
     selectedLanguage,
     sortBy,
     preferences,
-    watchlist,
-    watched,
     showAdult,
     page,
   ]);

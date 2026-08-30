@@ -24,7 +24,7 @@ export class AnimeStreamService {
           
           if (animeId && !animeId.startsWith('latest')) {
              logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-             const metaRes = await fetch(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}`);
+             const metaRes = await fetch(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
              if (metaRes.ok) {
                  sourcesData = await metaRes.json();
              }
@@ -53,7 +53,7 @@ export class AnimeStreamService {
             logPlayback(`[AnimeStreamService] Found episode ID: ${episode.id}`);
             
             // 3. Get stream
-            const srcRes = await fetch(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}`);
+            const srcRes = await fetch(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}&language=${preferredLanguage}`);
             if (!srcRes.ok) continue;
             sourcesData = await srcRes.json();
           }

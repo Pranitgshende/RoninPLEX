@@ -153,21 +153,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       };
     }
     return {
-      sandbox: null,
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups',
       allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
       referrerPolicy: 'origin' as const,
     };
   }, [effectiveStream.embedPolicy, effectiveStream.url]);
 
-  // Prevent unwanted top-level window navigation away from RoninPLEX
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      return (e.returnValue = '');
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+
 
   // Auto-hide controls timer
   const resetControlsTimer = useCallback(() => {
@@ -189,23 +181,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setFallbackHistory(streamingManager.getLastFallbackAttempts());
   }, [stream.url]);
 
-  // Initial resume position from unified storage
+  const hasAppliedResumeRef = useRef(false);
+
+  // Reset resume application tracker when media changes
   useEffect(() => {
-    try {
-      const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
-      if (match && match.currentTime > 15 && match.progressPercent < 92) {
-        if (videoRef.current) {
-          videoRef.current.currentTime = match.currentTime;
-        }
-        const mins = Math.floor(match.currentTime / 60);
-        const secs = Math.floor(match.currentTime % 60);
-        setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-        const timer = setTimeout(() => setResumeNotification(null), 5000);
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {
-      console.warn('Could not read resume position:', e);
-    }
+    hasAppliedResumeRef.current = false;
   }, [mediaId, mediaType, seasonNumber, episodeNumber]);
 
   // Picture-in-Picture event listeners
@@ -276,6 +256,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hlsRef.current = hls;
         hls.loadSource(effectiveStream.url);
         hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (!hasAppliedResumeRef.current) {
+            hasAppliedResumeRef.current = true;
+            try {
+              const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
+              if (match && match.currentTime > 15 && match.progressPercent < 92) {
+                video.currentTime = match.currentTime;
+                const mins = Math.floor(match.currentTime / 60);
+                const secs = Math.floor(match.currentTime % 60);
+                setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+                setTimeout(() => setResumeNotification(null), 5000);
+              }
+            } catch (e) {
+              console.warn('Could not read resume position:', e);
+            }
+          }
+        });
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
@@ -458,30 +456,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     let stallTimer: number | null = null;
 
     if (effectiveStream.type === 'hls' || effectiveStream.type === 'mp4') {
+      // Give the player 30 seconds to start advancing time to account for slow connections
       stallTimer = window.setTimeout(() => {
-        if (watchdogPhase !== 'currentTime_advances' && !videoError) {
-          logPlayback(`Watchdog alert: currentTime did not advance within 8s for provider ${effectiveStream.providerId || 'unknown'}`);
+        // Read directly from video element to avoid stale closures
+        const isAdvanced = videoRef.current && videoRef.current.currentTime > 0.5;
+        if (!isAdvanced && !videoError) {
+          logPlayback(`Watchdog alert: currentTime did not advance within 30s for provider ${effectiveStream.providerId || 'unknown'}`);
           setEmbedStallDetected(true);
           if (effectiveStream.providerId) {
             streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected playback stall (currentTime did not advance)');
           }
         }
-      }, 8000);
+      }, 30000);
     } else if (effectiveStream.type === 'embed') {
+      // Embeds cannot report currentTime back to the parent window due to cross-origin policies.
+      // Do not artificially fail them on a timer.
       setEmbedStallDetected(false);
-      stallTimer = window.setTimeout(() => {
-        logPlayback(`Watchdog alert: embed unresponsive after 8s for provider ${effectiveStream.providerId || 'unknown'}`);
-        setEmbedStallDetected(true);
-        if (effectiveStream.providerId) {
-          streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected unresponsive embed');
-        }
-      }, 8000);
     }
 
     return () => {
       if (stallTimer) window.clearTimeout(stallTimer);
     };
-  }, [effectiveStream.url, effectiveStream.type, iframeKey, watchdogPhase, videoError]);
+  }, [effectiveStream.url, effectiveStream.type, iframeKey, videoError]); // Do not restart timer on watchdogPhase change
 
   const toggleMute = () => {
     if (!videoRef.current) return;
@@ -1047,6 +1043,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setDuration(videoRef.current.duration);
             setWatchdogPhase('media_loaded');
             logPlayback('Watchdog [Phase 3/5]: media loaded');
+            
+            // Safely apply resume position after metadata is loaded
+            if (!hasAppliedResumeRef.current) {
+              hasAppliedResumeRef.current = true;
+              try {
+                const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
+                if (match && match.currentTime > 15 && match.progressPercent < 92) {
+                  videoRef.current.currentTime = match.currentTime;
+                  const mins = Math.floor(match.currentTime / 60);
+                  const secs = Math.floor(match.currentTime % 60);
+                  setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+                  setTimeout(() => setResumeNotification(null), 5000);
+                }
+              } catch (e) {
+                console.warn('Could not read resume position:', e);
+              }
+            }
           }
         }}
         onEnded={() => {

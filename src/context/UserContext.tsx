@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress, HomeSectionItem } from '../types/user';
+import { MediaType } from '../types/tmdb';
 import { storage } from '../services/storage';
 
 export interface ToastMessage {
@@ -20,22 +21,22 @@ interface UserContextType {
   toasts: ToastMessage[];
   // Watchlist Actions
   addToWatchlist: (item: WatchlistItem) => void;
-  removeFromWatchlist: (id: number, mediaType: 'movie' | 'tv') => void;
-  isInWatchlist: (id: number, mediaType: 'movie' | 'tv') => boolean;
+  removeFromWatchlist: (id: number, mediaType: MediaType) => void;
+  isInWatchlist: (id: number, mediaType: MediaType) => boolean;
   toggleWatchlist: (item: WatchlistItem) => void;
   clearWatchlist: () => void;
   // Watched Actions
   addToWatched: (item: WatchedItem) => void;
-  removeFromWatched: (id: number, mediaType: 'movie' | 'tv') => void;
-  isWatched: (id: number, mediaType: 'movie' | 'tv') => boolean;
+  removeFromWatched: (id: number, mediaType: MediaType) => void;
+  isWatched: (id: number, mediaType: MediaType) => boolean;
   toggleWatched: (item: WatchedItem) => void;
-  rateWatchedItem: (id: number, mediaType: 'movie' | 'tv', rating: number) => void;
-  toggleLike: (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => void;
-  toggleDislike: (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => void;
+  rateWatchedItem: (id: number, mediaType: MediaType, rating: number) => void;
+  toggleLike: (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => void;
+  toggleDislike: (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => void;
   clearWatched: () => void;
   // Continue Watching Actions
   savePlaybackProgress: (progress: PlaybackProgress) => void;
-  removePlaybackProgress: (id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number) => void;
+  removePlaybackProgress: (id: number, mediaType: MediaType, season?: number, episode?: number) => void;
   clearContinueWatching: () => void;
   // Preferences Actions
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
@@ -107,14 +108,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const removeFromWatchlist = (id: number, mediaType: 'movie' | 'tv') => {
+  const removeFromWatchlist = (id: number, mediaType: MediaType) => {
     const item = watchlist.find(w => w.id === id && w.mediaType === mediaType);
     storage.removeFromWatchlist(id, mediaType);
     setWatchlist(storage.getWatchlist());
     showToast('info', 'Removed from Watchlist', item ? `"${item.title}" removed.` : undefined);
   };
 
-  const isInWatchlist = (id: number, mediaType: 'movie' | 'tv') => {
+  const isInWatchlist = (id: number, mediaType: MediaType) => {
     return watchlist.some(i => i.id === id && i.mediaType === mediaType);
   };
 
@@ -143,14 +144,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('success', 'Marked as Watched', `Logged "${item.title}".`);
   };
 
-  const removeFromWatched = (id: number, mediaType: 'movie' | 'tv') => {
+  const removeFromWatched = (id: number, mediaType: MediaType) => {
     const item = watched.find(w => w.id === id && w.mediaType === mediaType);
     storage.removeFromWatched(id, mediaType);
     setWatched(storage.getWatched());
     showToast('info', 'Removed from History', item ? `"${item.title}" removed.` : undefined);
   };
 
-  const isWatched = (id: number, mediaType: 'movie' | 'tv') => {
+  const isWatched = (id: number, mediaType: MediaType) => {
     return watched.some(i => i.id === id && i.mediaType === mediaType);
   };
 
@@ -162,13 +163,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const rateWatchedItem = (id: number, mediaType: 'movie' | 'tv', rating: number) => {
+  const rateWatchedItem = (id: number, mediaType: MediaType, rating: number) => {
     storage.updateWatchedRating(id, mediaType, rating);
     setWatched(storage.getWatched());
     showToast('success', 'Rating Saved', `Rated ${rating}/10.`);
   };
 
-  const toggleLike = (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => {
+  const toggleLike = (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => {
     const existing = watched.find(w => w.id === id && w.mediaType === mediaType);
     if (!existing && itemFallback) {
       const newItem: WatchedItem = {
@@ -194,7 +195,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('info', !currentLiked ? 'Liked' : 'Like removed', 'Your recommendations will be tailored accordingly.');
   };
 
-  const toggleDislike = (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => {
+  const toggleDislike = (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => {
     const existing = watched.find(w => w.id === id && w.mediaType === mediaType);
     if (!existing && itemFallback) {
       const newItem: WatchedItem = {
@@ -232,7 +233,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setContinueWatching(storage.getContinueWatchingList());
   };
 
-  const removePlaybackProgress = (id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number) => {
+  const removePlaybackProgress = (id: number, mediaType: MediaType, season?: number, episode?: number) => {
     storage.removePlaybackProgress(id, mediaType, season, episode);
     setContinueWatching(storage.getContinueWatchingList());
     showToast('info', 'Removed from Continue Watching');

@@ -78,7 +78,7 @@ export const Search: React.FC = () => {
           ]);
 
           const tmdbItems: SearchResultItem[] = tmdbRes.results
-            .filter((item) => (item as any).media_type === 'movie' || (item as any).media_type === 'tv' || 'title' in item || 'name' in item)
+            .filter((item) => (item as any).media_type === 'movie' || (item as any).media_type === 'tv')
             .map((item) => ({
               id: item.id,
               mediaType: (item as any).media_type || ('title' in item ? 'movie' : 'tv'),

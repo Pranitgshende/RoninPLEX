@@ -61,12 +61,21 @@ export class ProviderConfigService {
 
     try {
       const val = localStorage.getItem(ACTIVE_PROVIDER_KEY);
-      if (val && val !== 'vidsrc' && val !== 'vidsrc-to' && val !== 'vidlink') return val;
-      const legacyVal = localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY);
-      if (legacyVal && legacyVal !== 'vidsrc' && legacyVal !== 'vidsrc-to' && legacyVal !== 'vidlink') {
-        localStorage.setItem(ACTIVE_PROVIDER_KEY, legacyVal);
-        return legacyVal;
+      if (val) {
+        if (val === 'vidsrc') {
+          localStorage.setItem(ACTIVE_PROVIDER_KEY, 'vidsrc-to');
+          return 'vidsrc-to';
+        }
+        return val;
       }
+
+      const legacyVal = localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY);
+      if (legacyVal) {
+        const migratedVal = legacyVal === 'vidsrc' ? 'vidsrc-to' : legacyVal;
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, migratedVal);
+        return migratedVal;
+      }
+
       return 'vidsrc-me';
     } catch {
       return this.inMemoryActiveId;

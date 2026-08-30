@@ -186,7 +186,7 @@ export class StreamingManager {
     }
 
     const activeId = providerConfigService.getActiveProviderId();
-    const normalizedActiveId = activeId === 'vidsrc' ? 'vidsrc-me' : activeId;
+    const normalizedActiveId = activeId === 'vidsrc' ? 'vidsrc-to' : activeId;
 
     const activeProvider = this.providers.get(normalizedActiveId) || this.providers.get('vidsrc-me') || this.providers.get('vidsrc-to');
     const eligible: StreamingProvider[] = [];
@@ -234,7 +234,7 @@ export class StreamingManager {
     if (!config.isEnabled) return 'Disabled (Discovery Only)';
 
     const activeId = providerConfigService.getActiveProviderId();
-    const normalized = activeId === 'vidsrc' ? 'vidsrc-me' : activeId;
+    const normalized = activeId === 'vidsrc' ? 'vidsrc-to' : activeId;
     const provider = this.providers.get(normalized);
     if (!provider) return 'VidSrc Me (vidsrcme.ru)';
     return provider.getName();
@@ -484,22 +484,19 @@ export class StreamingManager {
     this.streamCache.clear();
   }
 
-  /**
-   * Directly resolves the next alternative stream in the fallback chain
-   * when a player encounters a runtime embed or buffer failure.
-   */
   public async getNextStream(
     tmdbId: number,
     mediaType: 'movie' | 'tv',
-    failedProviderId?: string,
+    failedProviderIds: string[] = [],
     season?: number,
     episode?: number
   ): Promise<StreamingMovie | StreamingEpisode | null> {
-    if (failedProviderId) {
-      this.reportPlaybackFailure(failedProviderId, 'Runtime failover requested');
+    if (failedProviderIds.length > 0) {
+      const lastFailed = failedProviderIds[failedProviderIds.length - 1];
+      this.reportPlaybackFailure(lastFailed, 'Runtime failover requested');
       this.lastFallbackAttempts.push({
-        providerId: failedProviderId,
-        providerName: this.providers.get(failedProviderId)?.getName() || failedProviderId,
+        providerId: lastFailed,
+        providerName: this.providers.get(lastFailed)?.getName() || lastFailed,
         status: 'failed',
         reason: 'Runtime player failover',
         timestamp: Date.now(),
@@ -507,8 +504,8 @@ export class StreamingManager {
     }
 
     const providers = this.getEligibleProviders();
-    const candidates = failedProviderId
-      ? providers.filter(p => p.getId() !== failedProviderId)
+    const candidates = failedProviderIds.length > 0
+      ? providers.filter(p => !failedProviderIds.includes(p.getId()))
       : providers;
 
     for (const provider of candidates) {
