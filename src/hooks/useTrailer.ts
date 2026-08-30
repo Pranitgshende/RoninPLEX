@@ -39,7 +39,12 @@ export function useTrailer(id?: number | null, mediaType: MediaType = 'movie', i
 
     const fetchTrailer = async () => {
       try {
-        if (mediaType === 'movie') {
+        if (mediaType === 'anime') {
+          // Anime trailers are usually handled directly by AnimeService/AnimeMapper via URL strings.
+          // Don't query TMDB for AniList IDs.
+          setIsLoading(false);
+          return;
+        } else if (mediaType === 'movie') {
           const movie = await tmdb.getMovieDetails(id);
           if (!isMounted) return;
           const videos = movie?.videos?.results || [];

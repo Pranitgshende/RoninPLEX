@@ -1,0 +1,27 @@
+{
+  "source_path": "C:\\Users\\prani\\.gemini\\antigravity\\scratch\\RoninPLEX\\PRD-v2.0.0.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "RoninPLEX v2.0.0 — Product Requirements Document",
+  "summary": "Comprehensive product specification for RoninPLEX v2.0.0 desktop cinema and anime discovery streaming application.",
+  "scope": [
+    "Anime Isolation",
+    "Anime SDK Integration",
+    "Dedicated Anime Player",
+    "Unified Discover",
+    "18+ Content Filtering",
+    "Glassmorphism Design System",
+    "Ronin AI Conversational Intelligence",
+    "Multi-Provider Streaming Failover",
+    "VLC Eradication"
+  ],
+  "cross_refs": [
+    "RALPH-LOOP.md",
+    "README.md",
+    "RONINPLEX_PROJECT_DOCUMENTATION.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Authoritative root PRD defining all functional requirements, architectural isolation boundaries, and verification matrices for v2.0.0."
+}

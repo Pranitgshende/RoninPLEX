@@ -36,7 +36,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const hoverTimeoutRef = useRef<number | null>(null);
 
   const isAnime = explicitMediaType === "anime" || (normalized.media_type as string) === "anime";
-  const effectiveType: "movie" | "tv" = isAnime ? "tv" : (normalized.media_type as "movie" | "tv");
+  const effectiveType: "movie" | "tv" | "anime" = isAnime ? "anime" : (normalized.media_type as "movie" | "tv");
   const inWatchlist = isInWatchlist(normalized.id, effectiveType);
   const watchedStatus = isWatched(normalized.id, effectiveType);
   const watchedRecord = watched.find(w => w.id === normalized.id && w.mediaType === effectiveType);

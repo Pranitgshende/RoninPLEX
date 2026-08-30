@@ -101,9 +101,13 @@ export class AnimeStreamService {
           let validSource = null;
           for (const source of candidates) {
             logPlayback(`[AnimeStreamService] Validating source URL (${source.quality})`);
-            const valid = await this.validateStream(source.sourceUrl);
+            const sourceUrl = source.url || source.sourceUrl;
+            if (!sourceUrl) continue;
+            
+            const valid = await this.validateStream(sourceUrl);
             if (valid) {
               validSource = source;
+              validSource.sourceUrl = sourceUrl;
               break;
             } else {
               logPlayback(`[AnimeStreamService] Source invalid (${source.quality}), trying next quality...`);
@@ -117,11 +121,14 @@ export class AnimeStreamService {
 
           logPlayback(`[AnimeStreamService] Successfully resolved playable stream via ${provider}.`);
           
-          const qualities = sourcesData.streams.map((s: any) => ({
-            url: s.sourceUrl,
-            quality: s.quality || 'auto',
-            isHLS: s.isHLS || s.sourceUrl.includes('.m3u8') || s.sourceUrl.includes('/proxy?')
-          }));
+          const qualities = sourcesData.streams.map((s: any) => {
+            const url = s.url || s.sourceUrl;
+            return {
+              url: url,
+              quality: s.quality || 'auto',
+              isHLS: s.isHLS || (url && url.includes('.m3u8')) || (url && url.includes('/proxy?'))
+            };
+          });
           
           return {
             sourceUrl: validSource.sourceUrl,
