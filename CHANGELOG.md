@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2026-08-30 — Anime Hotfix
+### Fixed
+- Fixed a regression causing the Anime Video Player to fail playback due to a fallback looping error.
+- Tuned timeout limits for AnimeStreamService resolution to optimize performance.
+
 ## [2.0.0] - 2026-08-30 — Anime Integration & CodeRabbit Fixes
 ### Fixed
 - Addressed CodeRabbit findings for v2.0.0

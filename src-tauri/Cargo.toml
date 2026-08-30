@@ -1,6 +1,6 @@
 [package]
 name = "roninplex"
-version = "2.0.0"
+version = "2.0.1"
 description = "Personal movie and TV discovery & streaming application"
 authors = ["RoninPLEX Team"]
 edition = "2021"
