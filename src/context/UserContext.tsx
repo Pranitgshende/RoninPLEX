@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress } from '../types/user';
+import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress, HomeSectionItem } from '../types/user';
+import { MediaType } from '../types/tmdb';
 import { storage } from '../services/storage';
 
 export interface ToastMessage {
@@ -14,31 +15,35 @@ interface UserContextType {
   watched: WatchedItem[];
   continueWatching: PlaybackProgress[];
   preferences: UserPreferences;
+  homeLayout: HomeSectionItem[];
   isOnboardingOpen: boolean;
   isPreferencesOpen: boolean;
   toasts: ToastMessage[];
   // Watchlist Actions
   addToWatchlist: (item: WatchlistItem) => void;
-  removeFromWatchlist: (id: number, mediaType: 'movie' | 'tv') => void;
-  isInWatchlist: (id: number, mediaType: 'movie' | 'tv') => boolean;
+  removeFromWatchlist: (id: number, mediaType: MediaType) => void;
+  isInWatchlist: (id: number, mediaType: MediaType) => boolean;
   toggleWatchlist: (item: WatchlistItem) => void;
   clearWatchlist: () => void;
   // Watched Actions
   addToWatched: (item: WatchedItem) => void;
-  removeFromWatched: (id: number, mediaType: 'movie' | 'tv') => void;
-  isWatched: (id: number, mediaType: 'movie' | 'tv') => boolean;
+  removeFromWatched: (id: number, mediaType: MediaType) => void;
+  isWatched: (id: number, mediaType: MediaType) => boolean;
   toggleWatched: (item: WatchedItem) => void;
-  rateWatchedItem: (id: number, mediaType: 'movie' | 'tv', rating: number) => void;
-  toggleLike: (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => void;
-  toggleDislike: (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => void;
+  rateWatchedItem: (id: number, mediaType: MediaType, rating: number) => void;
+  toggleLike: (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => void;
+  toggleDislike: (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => void;
   clearWatched: () => void;
   // Continue Watching Actions
   savePlaybackProgress: (progress: PlaybackProgress) => void;
-  removePlaybackProgress: (id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number) => void;
+  removePlaybackProgress: (id: number, mediaType: MediaType, season?: number, episode?: number) => void;
   clearContinueWatching: () => void;
   // Preferences Actions
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
   resetPreferences: () => void;
+  // Home Layout Actions
+  updateHomeLayout: (layout: HomeSectionItem[]) => void;
+  resetHomeLayout: () => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
   openPreferences: () => void;
@@ -55,6 +60,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [watched, setWatched] = useState<WatchedItem[]>(() => storage.getWatched());
   const [continueWatching, setContinueWatching] = useState<PlaybackProgress[]>(() => storage.getContinueWatchingList());
   const [preferences, setPreferences] = useState<UserPreferences>(() => storage.getPreferences());
+  const [homeLayout, setHomeLayout] = useState<HomeSectionItem[]>(() => storage.getHomeLayout());
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => !preferences.onboardingCompleted);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -78,13 +84,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setWatched(storage.getWatched());
       setContinueWatching(storage.getContinueWatchingList());
       setPreferences(storage.getPreferences());
+      setHomeLayout(storage.getHomeLayout());
+    };
+
+    const handleHomeLayoutChange = () => {
+      setHomeLayout(storage.getHomeLayout());
     };
 
     window.addEventListener('roninplex_storage_change', handleStorageChange);
-    window.addEventListener('cinepulse_storage_change', handleStorageChange);
+    window.addEventListener('roninplex_home_layout_change', handleHomeLayoutChange);
     return () => {
       window.removeEventListener('roninplex_storage_change', handleStorageChange);
-      window.removeEventListener('cinepulse_storage_change', handleStorageChange);
+      window.removeEventListener('roninplex_home_layout_change', handleHomeLayoutChange);
     };
   }, []);
 
@@ -97,14 +108,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const removeFromWatchlist = (id: number, mediaType: 'movie' | 'tv') => {
+  const removeFromWatchlist = (id: number, mediaType: MediaType) => {
     const item = watchlist.find(w => w.id === id && w.mediaType === mediaType);
     storage.removeFromWatchlist(id, mediaType);
     setWatchlist(storage.getWatchlist());
     showToast('info', 'Removed from Watchlist', item ? `"${item.title}" removed.` : undefined);
   };
 
-  const isInWatchlist = (id: number, mediaType: 'movie' | 'tv') => {
+  const isInWatchlist = (id: number, mediaType: MediaType) => {
     return watchlist.some(i => i.id === id && i.mediaType === mediaType);
   };
 
@@ -133,14 +144,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('success', 'Marked as Watched', `Logged "${item.title}".`);
   };
 
-  const removeFromWatched = (id: number, mediaType: 'movie' | 'tv') => {
+  const removeFromWatched = (id: number, mediaType: MediaType) => {
     const item = watched.find(w => w.id === id && w.mediaType === mediaType);
     storage.removeFromWatched(id, mediaType);
     setWatched(storage.getWatched());
     showToast('info', 'Removed from History', item ? `"${item.title}" removed.` : undefined);
   };
 
-  const isWatched = (id: number, mediaType: 'movie' | 'tv') => {
+  const isWatched = (id: number, mediaType: MediaType) => {
     return watched.some(i => i.id === id && i.mediaType === mediaType);
   };
 
@@ -152,13 +163,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const rateWatchedItem = (id: number, mediaType: 'movie' | 'tv', rating: number) => {
+  const rateWatchedItem = (id: number, mediaType: MediaType, rating: number) => {
     storage.updateWatchedRating(id, mediaType, rating);
     setWatched(storage.getWatched());
     showToast('success', 'Rating Saved', `Rated ${rating}/10.`);
   };
 
-  const toggleLike = (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => {
+  const toggleLike = (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => {
     const existing = watched.find(w => w.id === id && w.mediaType === mediaType);
     if (!existing && itemFallback) {
       const newItem: WatchedItem = {
@@ -184,7 +195,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('info', !currentLiked ? 'Liked' : 'Like removed', 'Your recommendations will be tailored accordingly.');
   };
 
-  const toggleDislike = (id: number, mediaType: 'movie' | 'tv', itemFallback?: Partial<WatchedItem>) => {
+  const toggleDislike = (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => {
     const existing = watched.find(w => w.id === id && w.mediaType === mediaType);
     if (!existing && itemFallback) {
       const newItem: WatchedItem = {
@@ -222,7 +233,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setContinueWatching(storage.getContinueWatchingList());
   };
 
-  const removePlaybackProgress = (id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number) => {
+  const removePlaybackProgress = (id: number, mediaType: MediaType, season?: number, episode?: number) => {
     storage.removePlaybackProgress(id, mediaType, season, episode);
     setContinueWatching(storage.getContinueWatchingList());
     showToast('info', 'Removed from Continue Watching');
@@ -247,6 +258,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('info', 'Preferences Reset', 'Restored default settings.');
   };
 
+  // Home Layout methods
+  const updateHomeLayout = (layout: HomeSectionItem[]) => {
+    storage.saveHomeLayout(layout);
+    setHomeLayout(layout);
+    showToast('success', 'Home Layout Updated', 'Home page sections re-ordered.');
+  };
+
+  const resetHomeLayout = () => {
+    const reset = storage.resetHomeLayout();
+    setHomeLayout(reset);
+    showToast('info', 'Layout Reset', 'Restored default Home page layout.');
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -254,6 +278,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         watched,
         continueWatching,
         preferences,
+        homeLayout,
         isOnboardingOpen,
         isPreferencesOpen,
         toasts,
@@ -275,6 +300,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearContinueWatching,
         updatePreferences,
         resetPreferences,
+        updateHomeLayout,
+        resetHomeLayout,
         openOnboarding: () => setIsOnboardingOpen(true),
         closeOnboarding: () => setIsOnboardingOpen(false),
         openPreferences: () => setIsPreferencesOpen(true),

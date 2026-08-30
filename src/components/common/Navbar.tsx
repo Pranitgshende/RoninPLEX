@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Film, Search, Sliders, Key, Menu, X, Settings as SettingsIcon } from 'lucide-react';
+import { Film, Search, Sliders, Key, Menu, X, Settings as SettingsIcon, Bookmark } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useApiKey } from '../../context/ApiKeyContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { tmdb } from '../../services/tmdb';
+import { animeService } from '../../services/anime/AnimeService';
+import { Sparkles } from 'lucide-react';
 import { Movie, TVShow } from '../../types/tmdb';
 import { normalizeMedia, getPosterUrl } from '../../utils/helpers';
 import { RatingBadge } from './RatingBadge';
@@ -48,9 +50,24 @@ export const Navbar: React.FC = () => {
     let isMounted = true;
     setIsSearching(true);
 
-    tmdb.searchMulti(debouncedQuery, 1).then(res => {
+    Promise.all([
+      tmdb.searchMulti(debouncedQuery, 1),
+      animeService.search(debouncedQuery, false).catch(() => []),
+    ]).then(([res, animeRes]) => {
       if (isMounted) {
-        setSuggestions(res.results.slice(0, 5));
+        const tmdbItems = res.results.slice(0, 4);
+        const animeItems = animeRes.slice(0, 3).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          poster_path: a.poster,
+          backdrop_path: a.banner || a.poster,
+          vote_average: a.score || 0,
+          media_type: 'anime',
+          romajiTitle: a.romajiTitle,
+          year: a.year,
+          synopsis: a.synopsis,
+        }));
+        setSuggestions([...animeItems, ...tmdbItems] as any);
         setIsSearching(false);
       }
     });
@@ -80,15 +97,11 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: 'Home', path: '/' },
+    { label: 'Movies', path: '/movies' },
+    { label: 'TV Shows', path: '/tv' },
+    { label: 'Anime', path: '/anime' },
     { label: 'Discover', path: '/discover' },
-    { label: 'Movies', path: '/discover?type=movie' },
-    { label: 'TV Shows', path: '/discover?type=tv' },
-    {
-      label: 'My List',
-      path: '/watchlist',
-      badge: watchlist.length > 0 ? watchlist.length : undefined,
-    },
-    { label: 'Settings', path: '/settings' },
+    { label: 'Ronin AI', path: '/decision' },
   ];
 
   return (
@@ -100,20 +113,28 @@ export const Navbar: React.FC = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 flex items-center justify-between gap-4">
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-600/30 group-hover:scale-105 transition-transform">
-            <Film className="w-5 h-5" />
+        {/* Brand Logo & Navigation */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            {/* Logo Icon -> Home */}
+            <Link to="/" className="group" title="Home">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-600/30 group-hover:scale-105 transition-transform">
+                <Film className="w-5 h-5" />
+              </div>
+            </Link>
+            
+            {/* Wordmark -> Ronin AI */}
+            <Link to="/decision" className="flex flex-col group" title="Ask Ronin AI">
+              <span className="text-lg sm:text-xl font-black font-display tracking-tight text-white group-hover:text-brand-400 transition-colors leading-none flex items-center gap-1.5">
+                RONIN<span className="text-brand-500">PLEX</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse hidden sm:block" />
+              </span>
+              <span className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold leading-none mt-0.5 group-hover:text-brand-300 transition-colors">
+                Ronin AI
+              </span>
+            </Link>
           </div>
-          <div className="flex flex-col">
-            <span className="text-lg sm:text-xl font-black font-display tracking-tight text-white group-hover:text-brand-300 transition-colors leading-none">
-              RONIN<span className="text-brand-500">PLEX</span>
-            </span>
-            <span className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold leading-none mt-0.5">
-              Personal Cinema
-            </span>
-          </div>
-        </Link>
+        </div>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden lg:flex items-center gap-1 bg-surface-100/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
@@ -121,6 +142,7 @@ export const Navbar: React.FC = () => {
             <NavLink
               key={link.path}
               to={link.path}
+              end={link.path === '/'}
               className={({ isActive }) =>
                 `relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
                   isActive
@@ -130,11 +152,6 @@ export const Navbar: React.FC = () => {
               }
             >
               <span>{link.label}</span>
-              {link.badge !== undefined && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-brand-400 text-slate-950">
-                  {link.badge}
-                </span>
-              )}
             </NavLink>
           ))}
         </nav>
@@ -162,7 +179,7 @@ export const Navbar: React.FC = () => {
                   ) : suggestions.length > 0 ? (
                     suggestions.map((item) => {
                       const norm = normalizeMedia(item);
-                      const link = norm.media_type === 'movie' ? `/movie/${norm.id}` : `/tv/${norm.id}`;
+                      const link = (norm.media_type as string) === 'anime' ? `/anime/${norm.id}` : norm.media_type === 'movie' ? `/movie/${norm.id}` : `/tv/${norm.id}`;
                       return (
                         <Link
                           key={`${norm.id}-${norm.media_type}`}
@@ -205,6 +222,22 @@ export const Navbar: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* My List / Watchlist */}
+          <button
+            type="button"
+            onClick={() => navigate('/watchlist')}
+            className="relative p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            title="My List / Watchlist"
+            aria-label="My List / Watchlist"
+          >
+            <Bookmark className="w-4 h-4" />
+            {watchlist.length > 0 && (
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-4 text-[9px] font-bold rounded-full bg-brand-500 text-white flex items-center justify-center">
+                {watchlist.length}
+              </span>
+            )}
+          </button>
 
           <button
             type="button"
@@ -274,6 +307,7 @@ export const Navbar: React.FC = () => {
               <NavLink
                 key={link.path}
                 to={link.path}
+                end={link.path === '/'}
                 className={({ isActive }) =>
                   `px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
                     isActive ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-white/5'
@@ -281,13 +315,24 @@ export const Navbar: React.FC = () => {
                 }
               >
                 <span>{link.label}</span>
-                {link.badge !== undefined && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-400 text-slate-950">
-                    {link.badge}
-                  </span>
-                )}
               </NavLink>
             ))}
+
+            <NavLink
+              to="/watchlist"
+              className={({ isActive }) =>
+                `px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
+                  isActive ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-white/5'
+                }`
+              }
+            >
+              <span>My List</span>
+              {watchlist.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-400 text-slate-950">
+                  {watchlist.length}
+                </span>
+              )}
+            </NavLink>
           </div>
 
           <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">

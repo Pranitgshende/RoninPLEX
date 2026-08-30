@@ -44,6 +44,44 @@ export interface PlaybackProgress {
   lastWatchedAt: string; // ISO date string
 }
 
+export type SeekAmount = 5 | 10 | 15 | 30;
+
+export type HomeSectionId =
+  | 'hero'
+  | 'continue_watching'
+  | 'watchlist'
+  | 'decision_helper'
+  | 'recommended'
+  | 'trending'
+  | 'popular_movies'
+  | 'popular_tv'
+  | 'anime_spotlight'
+  | 'ronin_picks'
+  | 'adult_content'
+  | 'top_rated_movies'
+  | 'action_movies'
+  | 'scifi_movies'
+  | 'comedy_movies';
+
+export interface HomeSectionItem {
+  id: HomeSectionId;
+  label: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_HOME_SECTIONS: HomeSectionItem[] = [
+  { id: 'hero', label: 'Hero / Featured Title', enabled: true },
+  { id: 'continue_watching', label: 'Continue Watching', enabled: true },
+  { id: 'trending', label: 'Trending Today', enabled: true },
+  { id: 'popular_movies', label: 'Popular Movies', enabled: true },
+  { id: 'popular_tv', label: 'Binge-Worthy TV Shows', enabled: true },
+  { id: 'anime_spotlight', label: 'Anime Realm Spotlight', enabled: true },
+  { id: 'recommended', label: 'Recommended For You', enabled: true },
+  { id: 'ronin_picks', label: 'Ronin AI Picks', enabled: true },
+  { id: 'adult_content', label: '18+ Mature Recommendations', enabled: true },
+  { id: 'top_rated_movies', label: 'Top Rated Masterpieces', enabled: true },
+];
+
 export interface UserPreferences {
   favoriteGenreIds: number[];
   favoriteActors: string[];
@@ -55,6 +93,13 @@ export interface UserPreferences {
   enableHoverTrailers: boolean;
   reduceMotion: boolean;
   adultContent: boolean;
+  showAdultRecommendations: boolean;
+  // Playback & Built-in Player Engine
+  seekAmount: SeekAmount;
+  autoNextEpisode: boolean;
+  autoNextCountdown: number; // in seconds, default 10
+  defaultPlaybackSpeed: number;
+  defaultVolume: number;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -68,4 +113,10 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   enableHoverTrailers: true,
   reduceMotion: false,
   adultContent: false,
+  showAdultRecommendations: false,
+  seekAmount: 10,
+  autoNextEpisode: true,
+  autoNextCountdown: 10,
+  defaultPlaybackSpeed: 1,
+  defaultVolume: 1,
 };

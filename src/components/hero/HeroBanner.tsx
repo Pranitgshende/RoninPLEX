@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Play, Info, Bookmark, BookmarkCheck, Volume2, VolumeX, Sparkles, Compass, PlayCircle } from 'lucide-react';
 import { Movie, TVShow } from '../../types/tmdb';
 import { RatingBadge } from '../common/RatingBadge';
+import { AdultBadge } from '../common/AdultBadge';
 import { TrailerModal } from '../common/TrailerModal';
 import { TonightPicker } from '../decision/TonightPicker';
 import { getBackdropUrl, normalizeMedia } from '../../utils/helpers';
@@ -112,12 +113,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </div>
 
             {/* Title */}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white font-display tracking-tight leading-[1.1] drop-shadow-lg">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white font-display tracking-tight leading-tight drop-shadow-2xl">
               {normalized.displayTitle}
             </h1>
 
             {/* Metadata Bar */}
             <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm font-medium text-slate-300">
+              {normalized.adult && <AdultBadge size="md" />}
               <RatingBadge rating={normalized.vote_average} size="md" />
               <span>•</span>
               <span>{formatYear(normalized.displayDate)}</span>

@@ -7,14 +7,36 @@ export interface SubtitleTrack {
   isDefault?: boolean;
 }
 
+export interface EmbedPolicy {
+  /**
+   * The iframe sandbox attribute tokens, or null if the provider cannot function inside a sandboxed frame.
+   * Permitted tokens: allow-scripts, allow-same-origin, allow-forms, allow-presentation.
+   * Top-level navigation permissions (allow-top-navigation) are strictly prohibited.
+   */
+  sandbox?: string | null;
+  /**
+   * Feature policy permissions for the iframe (autoplay, fullscreen, etc.).
+   */
+  allow?: string;
+  /**
+   * Referrer policy for the embed iframe.
+   */
+  referrerPolicy?: 'no-referrer' | 'no-referrer-when-downgrade' | 'origin' | 'origin-when-cross-origin' | 'same-origin' | 'strict-origin' | 'strict-origin-when-cross-origin' | 'unsafe-url';
+}
+
+export const DEFAULT_SECURE_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-presentation';
+export const DEFAULT_ALLOW_POLICY = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+
 export interface StreamingResult {
   available: boolean;
   type?: StreamType;
   url?: string;
   subtitles?: SubtitleTrack[];
   providerName?: string;
+  providerId?: string;
   quality?: string;
   message?: string;
+  embedPolicy?: EmbedPolicy;
 }
 
 export interface StreamingMovie {
@@ -82,9 +104,9 @@ export interface ProviderConfig {
 }
 
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
-  id: 'vidsrc',
-  name: 'VidSrc (vidsrc.to)',
-  baseUrl: 'https://vidsrc.to',
+  id: 'vidsrc-me',
+  name: 'VidSrc Me (vidsrcme.ru)',
+  baseUrl: 'https://vidsrcme.ru',
   apiKey: '',
   apiToken: '',
   movieEndpoint: '/embed/movie/{tmdbId}',

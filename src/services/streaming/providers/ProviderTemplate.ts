@@ -58,6 +58,20 @@ export class ProviderTemplate implements StreamingProvider {
   }
 
   /**
+   * 3b. PROVIDER-AWARE IFRAME EMBED POLICY
+   * Customize sandbox tokens, feature policy permissions, and referrer policy.
+   * Return sandbox: null if the provider explicitly forbids iframe sandboxing (e.g. anti-sandbox scripts).
+   * Note: Top-level navigation permissions (allow-top-navigation) are strictly prohibited.
+   */
+  getEmbedPolicy(): import('../types').EmbedPolicy {
+    return {
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+      referrerPolicy: 'origin',
+    };
+  }
+
+  /**
    * 4. MOVIE LOOKUP
    * Looks up a movie by TMDB ID and returns the streaming source
    */
@@ -194,3 +208,23 @@ export class ProviderTemplate implements StreamingProvider {
     }
   }
 }
+
+/**
+ * ============================================================================
+ * REGISTRATION IN STREAMING MANAGER
+ * ============================================================================
+ *
+ * To register your provider so it automatically participates in multi-provider fallback:
+ * 1. Open `src/services/streaming/StreamingManager.ts`
+ * 2. Import your provider instance:
+ *      import { myCustomProvider } from './providers/MyCustomProvider';
+ * 3. In the constructor, add:
+ *      this.registerProvider(myCustomProvider);
+ *
+ * It will immediately:
+ * - Appear in Settings > Streaming Provider selector
+ * - Participate in the automatic fallback sequence (tried in order if earlier providers fail)
+ * - Be included in Streaming Diagnostics HUD (`D` key)
+ */
+export const providerTemplate = new ProviderTemplate();
+

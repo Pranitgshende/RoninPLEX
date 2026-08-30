@@ -84,7 +84,31 @@ export function extractBestTrailerKey(videos?: VideoResult[]): string | null {
   return youtubeVideos[0].key;
 }
 
-export function normalizeMedia(item: Movie | TVShow | ScoredMediaItem | MediaItem, explicitType?: 'movie' | 'tv'): MediaItem {
+export function normalizeMedia(item: Movie | TVShow | ScoredMediaItem | MediaItem | any, explicitType?: 'movie' | 'tv' | 'anime'): MediaItem {
+  // Handle Anime format
+  if (explicitType === 'anime' || ('romajiTitle' in item && 'synopsis' in item)) {
+    const anime = item;
+    return {
+      id: anime.id,
+      title: anime.title,
+      original_title: anime.romajiTitle || anime.nativeTitle || anime.title,
+      overview: anime.synopsis,
+      poster_path: anime.poster,
+      backdrop_path: anime.banner || anime.poster,
+      release_date: anime.year ? `${anime.year}-01-01` : '',
+      vote_average: anime.score || 0,
+      vote_count: 500,
+      popularity: anime.popularity || 100,
+      genre_ids: [],
+      original_language: 'ja',
+      media_type: 'anime' as any,
+      adult: anime.isAdult,
+      displayTitle: anime.title,
+      displayDate: anime.year ? String(anime.year) : '',
+      displayYear: anime.year ? String(anime.year) : '',
+    } as any;
+  }
+
   // Handle ScoredMediaItem format
   if ('posterPath' in item) {
     const scored = item as ScoredMediaItem;

@@ -1,4 +1,4 @@
-export type MediaType = 'movie' | 'tv';
+export type MediaType = 'movie' | 'tv' | 'anime';
 
 export interface Genre {
   id: number;
@@ -66,6 +66,7 @@ export interface Movie {
   budget?: number;
   revenue?: number;
   original_language: string;
+  adult?: boolean;
   media_type?: 'movie';
   videos?: VideosResponse;
   credits?: CreditsResponse;
@@ -117,6 +118,7 @@ export interface TVShow {
   tagline?: string;
   status?: string;
   original_language: string;
+  adult?: boolean;
   media_type?: 'tv';
   videos?: VideosResponse;
   credits?: CreditsResponse;

@@ -1,4 +1,13 @@
-import { WatchlistItem, WatchedItem, UserPreferences, PlaybackProgress, DEFAULT_USER_PREFERENCES } from '../types/user';
+import { MediaType } from '../types/tmdb';
+import {
+  WatchlistItem,
+  WatchedItem,
+  UserPreferences,
+  PlaybackProgress,
+  DEFAULT_USER_PREFERENCES,
+  HomeSectionItem,
+  DEFAULT_HOME_SECTIONS,
+} from '../types/user';
 
 const STORAGE_KEYS = {
   WATCHLIST: 'roninplex_watchlist',
@@ -7,17 +16,53 @@ const STORAGE_KEYS = {
   API_KEY: 'roninplex_tmdb_api_key',
   PLAYBACK_PROGRESS: 'roninplex_playback_progress',
   PROVIDER_CONFIG: 'roninplex_streaming_provider_config',
+  HOME_LAYOUT: 'roninplex_home_layout',
 } as const;
 
 class StorageService {
+  constructor() {
+    this.migrateLegacyStorage();
+  }
+
+  /**
+   * Safe one-time legacy storage migration:
+   * Copies any CinePulse-era keys over to RoninPLEX keys if they don't already exist.
+   */
+  public migrateLegacyStorage(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+
+    try {
+      const mappings: Array<[string, string]> = [
+        ['cinepulse_watchlist', STORAGE_KEYS.WATCHLIST],
+        ['cinepulse_watched', STORAGE_KEYS.WATCHED],
+        ['cinepulse_preferences', STORAGE_KEYS.PREFERENCES],
+        ['cinepulse_tmdb_api_key', STORAGE_KEYS.API_KEY],
+        ['cinepulse_playback_progress', STORAGE_KEYS.PLAYBACK_PROGRESS],
+        ['cinepulse_streaming_provider_config', STORAGE_KEYS.PROVIDER_CONFIG],
+        ['cinepulse_active_streaming_provider_id', 'roninplex_active_streaming_provider_id'],
+      ];
+
+      for (const [legacyKey, newKey] of mappings) {
+        const legacyVal = localStorage.getItem(legacyKey);
+        const currentVal = localStorage.getItem(newKey);
+        
+        if (legacyVal) {
+          if (!currentVal && legacyVal !== 'cleared') {
+            localStorage.setItem(newKey, legacyVal);
+          }
+          // Remove the legacy key immediately to prevent resurrection, unless we just marked it cleared.
+          // Wait, if another tab uses it? The easiest way is just to remove the legacy key so it never resurrects.
+          localStorage.removeItem(legacyKey);
+        }
+      }
+    } catch (e) {
+      console.warn('Storage migration check encountered an error:', e);
+    }
+  }
+
   private get<T>(key: string, defaultValue: T): T {
     try {
-      let item = localStorage.getItem(key);
-      if (!item && key.startsWith('roninplex_')) {
-        // Backward-compatible fallback for previous CinePulse data
-        const legacyKey = key.replace('roninplex_', 'cinepulse_');
-        item = localStorage.getItem(legacyKey);
-      }
+      const item = localStorage.getItem(key);
       if (!item) return defaultValue;
       return JSON.parse(item) as T;
     } catch (e) {
@@ -30,7 +75,6 @@ class StorageService {
     try {
       localStorage.setItem(key, JSON.stringify(value));
       window.dispatchEvent(new Event('roninplex_storage_change'));
-      window.dispatchEvent(new Event('cinepulse_storage_change'));
       return true;
     } catch (e) {
       console.error(`Failed to save ${key} to localStorage:`, e);
@@ -52,13 +96,13 @@ class StorageService {
     return this.set(STORAGE_KEYS.WATCHLIST, updated);
   }
 
-  removeFromWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
+  removeFromWatchlist(id: number, mediaType: MediaType): boolean {
     const list = this.getWatchlist();
     const updated = list.filter(i => !(i.id === id && i.mediaType === mediaType));
     return this.set(STORAGE_KEYS.WATCHLIST, updated);
   }
 
-  isInWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
+  isInWatchlist(id: number, mediaType: MediaType): boolean {
     const list = this.getWatchlist();
     return list.some(i => i.id === id && i.mediaType === mediaType);
   }
@@ -79,18 +123,18 @@ class StorageService {
     return this.set(STORAGE_KEYS.WATCHED, updated);
   }
 
-  removeFromWatched(id: number, mediaType: 'movie' | 'tv'): boolean {
+  removeFromWatched(id: number, mediaType: MediaType): boolean {
     const list = this.getWatched();
     const updated = list.filter(i => !(i.id === id && i.mediaType === mediaType));
     return this.set(STORAGE_KEYS.WATCHED, updated);
   }
 
-  isWatched(id: number, mediaType: 'movie' | 'tv'): boolean {
+  isWatched(id: number, mediaType: MediaType): boolean {
     const list = this.getWatched();
     return list.some(i => i.id === id && i.mediaType === mediaType);
   }
 
-  updateWatchedRating(id: number, mediaType: 'movie' | 'tv', userRating?: number, liked?: boolean, disliked?: boolean): boolean {
+  updateWatchedRating(id: number, mediaType: MediaType, userRating?: number, liked?: boolean, disliked?: boolean): boolean {
     const list = this.getWatched();
     const itemIndex = list.findIndex(i => i.id === id && i.mediaType === mediaType);
     if (itemIndex === -1) return false;
@@ -109,17 +153,41 @@ class StorageService {
   }
 
   // --- Playback Progress & Continue Watching ---
-  getContinueWatchingList(): PlaybackProgress[] {
+  /**
+   * Returns all stored playback progress records, sorted descending by lastWatchedAt
+   */
+  getAllPlaybackProgress(): PlaybackProgress[] {
     const all = this.get<PlaybackProgress[]>(STORAGE_KEYS.PLAYBACK_PROGRESS, []);
-    // Sort descending by lastWatchedAt
     return all.sort((a, b) => new Date(b.lastWatchedAt).getTime() - new Date(a.lastWatchedAt).getTime());
   }
 
-  getPlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): PlaybackProgress | null {
-    const list = this.getContinueWatchingList();
-    const match = list.find(item => {
+  /**
+   * Returns deduplicated items for the Continue Watching shelf.
+   * For TV shows, only the single most recently watched episode is shown to prevent duplicate cards.
+   */
+  getContinueWatchingList(): PlaybackProgress[] {
+    const all = this.getAllPlaybackProgress();
+    const seen = new Set<string>();
+    const deduplicated: PlaybackProgress[] = [];
+
+    for (const item of all) {
+      const key = `${item.mediaType}-${item.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicated.push(item);
+      }
+    }
+    return deduplicated;
+  }
+
+  /**
+   * Looks up playback progress for a specific movie or TV episode
+   */
+  getPlaybackProgress(id: number, mediaType: MediaType, season?: number, episode?: number): PlaybackProgress | null {
+    const all = this.getAllPlaybackProgress();
+    const match = all.find(item => {
       if (item.id !== id || item.mediaType !== mediaType) return false;
-      if (mediaType === 'tv') {
+      if (mediaType === 'tv' || mediaType === 'anime') {
         return item.seasonNumber === season && item.episodeNumber === episode;
       }
       return true;
@@ -128,10 +196,10 @@ class StorageService {
   }
 
   savePlaybackProgress(progress: PlaybackProgress): boolean {
-    const list = this.getContinueWatchingList();
-    const filtered = list.filter(item => {
+    const all = this.getAllPlaybackProgress();
+    const filtered = all.filter(item => {
       if (item.id !== progress.id || item.mediaType !== progress.mediaType) return true;
-      if (progress.mediaType === 'tv') {
+      if (progress.mediaType === 'tv' || progress.mediaType === 'anime') {
         return !(item.seasonNumber === progress.seasonNumber && item.episodeNumber === progress.episodeNumber);
       }
       return false;
@@ -160,13 +228,14 @@ class StorageService {
     return this.set(STORAGE_KEYS.PLAYBACK_PROGRESS, updated);
   }
 
-  removePlaybackProgress(id: number, mediaType: 'movie' | 'tv', season?: number, episode?: number): boolean {
-    const list = this.getContinueWatchingList();
-    const updated = list.filter(item => {
+  removePlaybackProgress(id: number, mediaType: MediaType, season?: number, episode?: number): boolean {
+    const all = this.getAllPlaybackProgress();
+    const updated = all.filter(item => {
       if (item.id !== id || item.mediaType !== mediaType) return true;
-      if (mediaType === 'tv') {
+      if ((mediaType === 'tv' || mediaType === 'anime') && season !== undefined && episode !== undefined) {
         return !(item.seasonNumber === season && item.episodeNumber === episode);
       }
+      // If season/episode not specified, remove all progress for this show/movie
       return false;
     });
     return this.set(STORAGE_KEYS.PLAYBACK_PROGRESS, updated);
@@ -178,7 +247,11 @@ class StorageService {
 
   // --- User Preferences ---
   getPreferences(): UserPreferences {
-    return this.get<UserPreferences>(STORAGE_KEYS.PREFERENCES, DEFAULT_USER_PREFERENCES);
+    const stored = this.get<Partial<UserPreferences>>(STORAGE_KEYS.PREFERENCES, {});
+    return {
+      ...DEFAULT_USER_PREFERENCES,
+      ...stored,
+    };
   }
 
   savePreferences(prefs: Partial<UserPreferences>): UserPreferences {
@@ -196,6 +269,36 @@ class StorageService {
     return DEFAULT_USER_PREFERENCES;
   }
 
+  // --- Home Page Layout ---
+  getHomeLayout(): HomeSectionItem[] {
+    const stored = this.get<HomeSectionItem[] | null>(STORAGE_KEYS.HOME_LAYOUT, null);
+    if (!stored || !Array.isArray(stored) || stored.length === 0) {
+      return [...DEFAULT_HOME_SECTIONS];
+    }
+    // Merge any missing default sections (forward compatibility)
+    const existingIds = new Set(stored.map(s => s.id));
+    const merged = [...stored];
+    for (const defSection of DEFAULT_HOME_SECTIONS) {
+      if (!existingIds.has(defSection.id)) {
+        merged.push(defSection);
+      }
+    }
+    return merged;
+  }
+
+  saveHomeLayout(layout: HomeSectionItem[]): boolean {
+    const success = this.set(STORAGE_KEYS.HOME_LAYOUT, layout);
+    if (success && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_home_layout_change'));
+    }
+    return success;
+  }
+
+  resetHomeLayout(): HomeSectionItem[] {
+    this.saveHomeLayout(DEFAULT_HOME_SECTIONS);
+    return [...DEFAULT_HOME_SECTIONS];
+  }
+
   // --- TMDB API Key Override ---
   getCustomApiKey(): string {
     try {
@@ -209,11 +312,11 @@ class StorageService {
     try {
       if (!key) {
         localStorage.removeItem(STORAGE_KEYS.API_KEY);
+        localStorage.removeItem('cinepulse_tmdb_api_key');
       } else {
         localStorage.setItem(STORAGE_KEYS.API_KEY, key.trim());
       }
       window.dispatchEvent(new Event('roninplex_api_key_change'));
-      window.dispatchEvent(new Event('cinepulse_api_key_change'));
     } catch (e) {
       console.error('Failed to save TMDB API key to localStorage:', e);
     }
@@ -228,6 +331,8 @@ class StorageService {
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
       localStorage.removeItem(STORAGE_KEYS.PLAYBACK_PROGRESS);
       localStorage.removeItem(STORAGE_KEYS.PROVIDER_CONFIG);
+      localStorage.removeItem(STORAGE_KEYS.HOME_LAYOUT);
+      localStorage.removeItem('roninplex_active_streaming_provider_id');
       // Also clear legacy keys
       localStorage.removeItem('cinepulse_watchlist');
       localStorage.removeItem('cinepulse_watched');
@@ -235,10 +340,9 @@ class StorageService {
       localStorage.removeItem('cinepulse_tmdb_api_key');
       localStorage.removeItem('cinepulse_playback_progress');
       localStorage.removeItem('cinepulse_streaming_provider_config');
+      localStorage.removeItem('cinepulse_active_streaming_provider_id');
       window.dispatchEvent(new Event('roninplex_storage_change'));
-      window.dispatchEvent(new Event('cinepulse_storage_change'));
       window.dispatchEvent(new Event('roninplex_api_key_change'));
-      window.dispatchEvent(new Event('cinepulse_api_key_change'));
     } catch (e) {
       console.error('Failed to clear all data:', e);
     }
