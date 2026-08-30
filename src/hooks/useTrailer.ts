@@ -10,17 +10,24 @@ interface UseTrailerResult {
   allVideos: VideoResult[];
 }
 
-export function useTrailer(id?: number | null, mediaType: MediaType = 'movie', initialVideos?: VideoResult[]): UseTrailerResult {
+export function useTrailer(
+  id?: number | null, 
+  mediaType: MediaType = 'movie', 
+  initialVideos?: VideoResult[],
+  enabled: boolean = true
+): UseTrailerResult {
   const [trailerKey, setTrailerKey] = useState<string | null>(() => extractBestTrailerKey(initialVideos));
   const [allVideos, setAllVideos] = useState<VideoResult[]>(initialVideos || []);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!id) {
-      setTrailerKey(null);
-      setAllVideos([]);
-      setIsLoading(false);
+    if (!id || !enabled) {
+      if (!id) {
+        setTrailerKey(null);
+        setAllVideos([]);
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -74,7 +81,7 @@ export function useTrailer(id?: number | null, mediaType: MediaType = 'movie', i
     return () => {
       isMounted = false;
     };
-  }, [id, mediaType, initialVideos]);
+  }, [id, mediaType, initialVideos, enabled]);
 
   return { trailerKey, isLoading, hasError, allVideos };
 }

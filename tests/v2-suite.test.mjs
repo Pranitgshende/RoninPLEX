@@ -383,4 +383,34 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       global.setTimeout = originalSetTimeout;
     }
   });
+
+  test('Slice S: Anime resumes without update-depth loop (UserContext useCallback)', () => {
+    const userContextCode = fs.readFileSync('src/context/UserContext.tsx', 'utf8');
+    assert.ok(userContextCode.includes('savePlaybackProgress = useCallback('), 'savePlaybackProgress must be wrapped in useCallback to prevent infinite render loops in players');
+  });
+
+  test('Slice T: MovieCard intelligent progressive prefetching', () => {
+    const movieCardCode = fs.readFileSync('src/components/common/MovieCard.tsx', 'utf8');
+    // Ensure it uses intersection observer for deferring data fetch
+    assert.ok(movieCardCode.includes('useIntersectionObserver'), 'MovieCard must use IntersectionObserver for progressive loading');
+    assert.ok(movieCardCode.includes('hasIntersected'), 'MovieCard must track intersection state');
+    
+    // Ensure useTrailer requires hasIntersected
+    assert.match(movieCardCode, /useTrailer\([^,]+,\s*[^,]+,\s*[^,]+,\s*hasIntersected\)/, 'useTrailer must be deferred until intersection');
+    
+    // Ensure stream availability check requires hasIntersected
+    assert.match(movieCardCode, /if\s*\(\s*effectiveType\s*===\s*'anime'\s*\|\|\s*!hasIntersected\s*\)\s*return;/, 'Stream availability check must be deferred until intersection');
+    
+    // Ensure image uses native lazy/eager loading based on intersection
+    assert.match(movieCardCode, /loading=\{\s*hasIntersected\s*\?\s*'eager'\s*:\s*'lazy'\s*\}/, 'Image loading must flip to eager when intersected');
+  });
+
+  test('Slice U: Dedicated Genre fetching uses single efficient API call instead of parallel trending loops', () => {
+    const repoCode = fs.readFileSync('src/services/anime/AnimeRepository.ts', 'utf8');
+    assert.ok(repoCode.includes('fetchByGenre'), 'AnimeRepository must have fetchByGenre');
+    assert.ok(repoCode.includes('genre_in:'), 'fetchByGenre must use GraphQL genre_in filter');
+    
+    const serviceCode = fs.readFileSync('src/services/anime/AnimeService.ts', 'utf8');
+    assert.match(serviceCode, /return\s+AnimeRepository\.fetchByGenre/, 'AnimeService.getByGenre must directly use repository fetchByGenre');
+  });
 });

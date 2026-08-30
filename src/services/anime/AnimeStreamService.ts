@@ -155,8 +155,22 @@ export class AnimeStreamService {
 
   private static async validateStream(url: string): Promise<boolean> {
     try {
-      const headRes = await this.fetchWithTimeout(url, { method: 'GET', headers: { 'Range': 'bytes=0-1000' } }, 5000);
-      if (!headRes.ok) return false;
+      const isHLS = url.includes('.m3u8') || url.includes('/proxy?');
+      // HLS CDNs often reject Range requests (416/405), so use a simple HEAD/GET for HLS
+      const options: RequestInit = isHLS
+        ? { method: 'HEAD' }
+        : { method: 'GET', headers: { 'Range': 'bytes=0-1000' } };
+      const headRes = await this.fetchWithTimeout(url, options, 5000);
+      if (!headRes.ok) {
+        // For HLS, retry with GET if HEAD fails (some CDNs don't support HEAD)
+        if (isHLS) {
+          const getRes = await this.fetchWithTimeout(url, { method: 'GET' }, 5000);
+          if (!getRes.ok) return false;
+          const ct = getRes.headers.get('content-type') || '';
+          return !ct.includes('text/html');
+        }
+        return false;
+      }
       const contentType = headRes.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {
         return false;

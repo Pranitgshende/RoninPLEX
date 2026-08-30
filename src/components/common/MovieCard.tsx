@@ -10,6 +10,7 @@ import { TrailerPlayer } from '../player/TrailerPlayer';
 import { getPosterUrl, getBackdropUrl, normalizeMedia } from '../../utils/helpers';
 import { useUser } from '../../context/UserContext';
 import { useTrailer } from '../../hooks/useTrailer';
+import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 import { streamingManager } from '../../services/streaming/StreamingManager';
 
 interface MovieCardProps {
@@ -34,6 +35,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const [isStreamAvailable, setIsStreamAvailable] = useState<boolean | null>(null);
 
   const hoverTimeoutRef = useRef<number | null>(null);
+  
+  // Eagerly preload data when within 400px of viewport
+  const { ref: cardRef, hasIntersected } = useIntersectionObserver({ rootMargin: '400px', threshold: 0 });
 
   const isAnime = explicitMediaType === "anime" || (normalized.media_type as string) === "anime";
   const effectiveType: "movie" | "tv" | "anime" = isAnime ? "anime" : (normalized.media_type as "movie" | "tv");
@@ -43,12 +47,14 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const isLiked = watchedRecord?.userLiked ?? false;
 
   const initialVideos = ('videos' in item && item.videos) ? item.videos.results : undefined;
-  const { trailerKey } = useTrailer(normalized.id, effectiveType, initialVideos);
+  const { trailerKey } = useTrailer(normalized.id, effectiveType, initialVideos, hasIntersected);
 
-  // Check stream availability lazily when card enters viewport or hover
+  // Check stream availability lazily when card is near viewport
+  // Skip for anime — anime streams are resolved by AnimeStreamService, not TMDB providers
   useEffect(() => {
+    if (effectiveType === 'anime' || !hasIntersected) return;
     let isMounted = true;
-    if (isHovered && isStreamAvailable === null) {
+    if (isStreamAvailable === null) {
       streamingManager.checkAvailability(normalized.id, effectiveType).then(avail => {
         if (isMounted) setIsStreamAvailable(avail);
       });
@@ -56,7 +62,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isHovered, normalized.id, normalized.media_type, isStreamAvailable]);
+  }, [hasIntersected, normalized.id, effectiveType, isStreamAvailable]);
 
   // Handle 400ms debounce hover
   const handleMouseEnter = () => {
@@ -164,6 +170,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   return (
     <>
       <div
+        ref={cardRef as any}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className="group relative rounded-xl glass-card glass-card-hover p-2 flex flex-col h-full"
@@ -187,7 +194,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <img
               src={getPosterUrl(normalized.poster_path, 'large')}
               alt={normalized.displayTitle}
-              loading="lazy"
+              loading={hasIntersected ? 'eager' : 'lazy'}
               decoding="async"
               onLoad={() => setImageLoaded(true)}
               className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${

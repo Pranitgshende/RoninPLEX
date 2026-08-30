@@ -268,6 +268,12 @@ export class StreamingManager {
    * Quick check for whether a title is available for streaming across eligible providers.
    */
   public async checkAvailability(tmdbId: number, mediaType: 'movie' | 'tv' | 'anime'): Promise<boolean> {
+    // Anime availability is handled by AnimeStreamService, not TMDB providers.
+    // AniList IDs passed here would produce invalid TMDB lookups.
+    if (mediaType === 'anime') {
+      return false;
+    }
+
     const cacheKey = `${mediaType}-${tmdbId}`;
     const cached = this.availabilityCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {

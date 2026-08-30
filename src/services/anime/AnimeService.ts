@@ -76,8 +76,7 @@ export class AnimeService {
    * Get Anime by Genre.
    */
   public async getByGenre(genre: string, allowAdult: boolean = false, page: number = 1): Promise<AnimeItem[]> {
-    const trending = await this.getTrending(allowAdult, page);
-    return trending.filter(a => a.genres.some(g => g.toLowerCase() === genre.toLowerCase()));
+    return AnimeRepository.fetchByGenre(genre, page, 20, allowAdult);
   }
 
   /**

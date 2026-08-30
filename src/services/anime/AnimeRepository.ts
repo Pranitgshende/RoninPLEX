@@ -493,6 +493,55 @@ export class AnimeRepository {
   }
 
   /**
+   * Fetch Anime by Genre using a dedicated AniList genre filter.
+   * Returns genuinely genre-specific content rather than filtered trending data.
+   */
+  public static async fetchByGenre(genre: string, page: number = 1, perPage: number = 20, allowAdult: boolean = false): Promise<AnimeItem[]> {
+    const query = `
+      query ($page: Int, $perPage: Int, $isAdult: Boolean, $genre: String) {
+        Page(page: $page, perPage: $perPage) {
+          media(type: ANIME, genre_in: [$genre], isAdult: $isAdult, sort: [POPULARITY_DESC]) {
+            id
+            idMal
+            title { romaji english native userPreferred }
+            description
+            coverImage { extraLarge large medium color }
+            bannerImage
+            genres
+            tags { name isAdult }
+            status
+            episodes
+            duration
+            averageScore
+            popularity
+            isAdult
+            season
+            seasonYear
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+
+    const data = await this.executeGraphQL<any>(query, {
+      page,
+      perPage,
+      isAdult: allowAdult ? undefined : false,
+      genre,
+    });
+
+    if (data?.Page?.media && Array.isArray(data.Page.media) && data.Page.media.length > 0) {
+      return data.Page.media.map((m: any) => AnimeMapper.fromAniListMedia(m));
+    }
+
+    // Fallback: filter offline data by genre
+    return OFFLINE_FALLBACK_ANIME.filter(a =>
+      a.genres.some(g => g.toLowerCase() === genre.toLowerCase()) &&
+      (allowAdult || !a.isAdult)
+    );
+  }
+
+  /**
    * Search Anime by query.
    */
   public static async searchAnime(searchQuery: string, page: number = 1, perPage: number = 20, allowAdult: boolean = false): Promise<AnimeItem[]> {
