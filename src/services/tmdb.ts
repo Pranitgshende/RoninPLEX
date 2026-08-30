@@ -93,10 +93,21 @@ class TMDBService {
     return fetchPromise;
   }
 
+  private filterAnimeFromTVShows<T extends { original_language?: string; genre_ids?: number[] }>(results: T[]): T[] {
+    return results.filter(item => {
+      // 16 is Animation in TMDB. origin country is usually JP.
+      const isAnime = item.original_language === 'ja' && item.genre_ids?.includes(16);
+      return !isAnime;
+    });
+  }
+
   // --- Trending ---
   async getTrending(mediaType: 'all' | 'movie' | 'tv' = 'all', timeWindow: 'day' | 'week' = 'day', page: number = 1): Promise<(Movie | TVShow)[]> {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie | TVShow>>(`/trending/${mediaType}/${timeWindow}`, { page });
     if (data && data.results) {
+      if (mediaType === 'tv') {
+        return this.filterAnimeFromTVShows(data.results) as (Movie | TVShow)[];
+      }
       return data.results;
     }
     // Fallback
@@ -108,7 +119,7 @@ class TMDBService {
   // --- Movies ---
   async getPopularMovies(page: number = 1): Promise<TMDBResponse<Movie>> {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie>>('/movie/popular', { page });
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
     return {
       page: 1,
       results: MOCK_MOVIES,
@@ -119,7 +130,7 @@ class TMDBService {
 
   async getTopRatedMovies(page: number = 1): Promise<TMDBResponse<Movie>> {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie>>('/movie/top_rated', { page });
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
     return {
       page: 1,
       results: [...MOCK_MOVIES].sort((a, b) => b.vote_average - a.vote_average),
@@ -130,7 +141,7 @@ class TMDBService {
 
   async getUpcomingMovies(page: number = 1): Promise<TMDBResponse<Movie>> {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie>>('/movie/upcoming', { page });
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
     return {
       page: 1,
       results: MOCK_MOVIES.slice(0, 4),
@@ -141,7 +152,7 @@ class TMDBService {
 
   async getNowPlayingMovies(page: number = 1): Promise<TMDBResponse<Movie>> {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie>>('/movie/now_playing', { page });
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
     return {
       page: 1,
       results: MOCK_MOVIES.slice(0, 5),
@@ -161,7 +172,9 @@ class TMDBService {
   // --- TV Shows ---
   async getPopularTV(page: number = 1): Promise<TMDBResponse<TVShow>> {
     const data = await this.fetchFromTMDB<TMDBResponse<TVShow>>('/tv/popular', { page });
-    if (data && data.results) return data;
+    if (data && data.results) {
+      return { ...data, results: this.filterAnimeFromTVShows(data.results) };
+    }
     return {
       page: 1,
       results: MOCK_TV_SHOWS,
@@ -172,10 +185,12 @@ class TMDBService {
 
   async getTopRatedTV(page: number = 1): Promise<TMDBResponse<TVShow>> {
     const data = await this.fetchFromTMDB<TMDBResponse<TVShow>>('/tv/top_rated', { page });
-    if (data && data.results) return data;
+    if (data && data.results) {
+      return { ...data, results: this.filterAnimeFromTVShows(data.results) };
+    }
     return {
       page: 1,
-      results: [...MOCK_TV_SHOWS].sort((a, b) => b.vote_average - a.vote_average),
+      results: MOCK_TV_SHOWS,
       total_pages: 1,
       total_results: MOCK_TV_SHOWS.length,
     };
@@ -237,7 +252,7 @@ class TMDBService {
       query: query.trim(),
       page,
     });
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
     const q = query.toLowerCase();
     const matches = MOCK_MOVIES.filter(m => m.title.toLowerCase().includes(q) || m.overview.toLowerCase().includes(q));
     return {
@@ -253,7 +268,9 @@ class TMDBService {
       query: query.trim(),
       page,
     });
-    if (data && data.results) return data;
+    if (data && data.results) {
+      return { ...data, results: this.filterAnimeFromTVShows(data.results) };
+    }
     const q = query.toLowerCase();
     const matches = MOCK_TV_SHOWS.filter(t => t.name.toLowerCase().includes(q) || t.overview.toLowerCase().includes(q));
     return {
@@ -276,7 +293,7 @@ class TMDBService {
     };
 
     const data = await this.fetchFromTMDB<TMDBResponse<Movie>>('/discover/movie', params);
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
 
     // Filter fallback mock data
     let filtered = [...MOCK_MOVIES];
@@ -308,7 +325,7 @@ class TMDBService {
     };
 
     const data = await this.fetchFromTMDB<TMDBResponse<TVShow>>('/discover/tv', params);
-    if (data && data.results) return data;
+    if (data && data.results) { return { ...data, results: this.filterAnimeFromTVShows(data.results) }; }
 
     let filtered = [...MOCK_TV_SHOWS];
     if (filters.genreId) {

@@ -2,7 +2,7 @@ import { AnimeStreamSource, ContentLanguage } from './AnimeTypes';
 import { logPlayback } from '../../utils/logger';
 
 const API_BASE = 'http://127.0.0.1:4173';
-const PROVIDERS = ['gogoanime', 'allmanga'];
+const PROVIDERS = ['animeparadise', 'gogoanime', 'allmanga'];
 
 export class AnimeStreamService {
   /**
@@ -43,12 +43,21 @@ export class AnimeStreamService {
     animeTitle: string,
     episodeNumber: number,
     preferredLanguage: ContentLanguage = ContentLanguage.SUB,
-    animeId?: string
+    animeId?: string,
+    retryCount: number = 0
   ): Promise<AnimeStreamSource | null> {
     try {
       logPlayback(`[AnimeStreamService] Resolving stream for "${animeTitle}" (ID: ${animeId}) Episode ${episodeNumber}`);
 
-      for (const provider of PROVIDERS) {
+      const shiftedProviders = [...PROVIDERS];
+      if (shiftedProviders.length > 0) {
+        const shiftBy = retryCount % shiftedProviders.length;
+        for (let i = 0; i < shiftBy; i++) {
+          shiftedProviders.push(shiftedProviders.shift()!);
+        }
+      }
+
+      for (const provider of shiftedProviders) {
         logPlayback(`[AnimeStreamService] Trying provider: ${provider}`);
         try {
           let sourcesData: any = null;
@@ -56,7 +65,7 @@ export class AnimeStreamService {
           if (animeId && !animeId.startsWith('latest')) {
              try {
                logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`, {}, 15000);
+               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`, {}, 5000);
              } catch (metaErr: any) {
                logPlayback(`[AnimeStreamService] Meta lookup error/timeout: ${metaErr.message}`);
                sourcesData = null; // Proceed to fallback

@@ -153,11 +153,19 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
         video.play().catch(() => setIsPlaying(false));
       });
 
+      const retryCountRef = { current: 0 };
+      
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad();
+              if (retryCountRef.current < 2) {
+                retryCountRef.current += 1;
+                hls.startLoad();
+              } else {
+                setHasError(true);
+                hls.destroy();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               hls.recoverMediaError();
