@@ -1,9 +1,5 @@
-
+import './shims';
 import React from 'react';
-import { Buffer } from 'buffer';
-if (typeof window !== 'undefined') {
-  window.Buffer = window.Buffer || Buffer;
-}
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';

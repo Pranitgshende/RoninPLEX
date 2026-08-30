@@ -24,6 +24,8 @@ import { AnimeItem, AnimeEpisode, AnimeStreamSource, ContentLanguage } from '../
 import { AnimeSubtitleManager } from './AnimeSubtitleManager';
 import { AnimeEpisodeController } from './AnimeEpisodeController';
 import { AnimePlaybackController } from './AnimePlaybackController';
+import { useUser } from '../../../context/UserContext';
+import { storage } from '../../../services/storage';
 
 interface AnimeVideoPlayerProps {
   anime: AnimeItem;
@@ -58,6 +60,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const { savePlaybackProgress } = useUser();
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -126,7 +129,13 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     const sm = new AnimeSubtitleManager(stream.subtitles || []);
     setSubtitleManager(sm);
 
-    const resumeTime = AnimePlaybackController.getSavedProgress(anime.id, episodeNumber) || 0;
+    const progress = storage.getPlaybackProgress(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber);
+    let resumeTime = progress?.currentTime || 0;
+    if (resumeTime > 15 && progress && progress.duration - resumeTime > 60) {
+      // Valid resume
+    } else {
+      resumeTime = 0;
+    }
 
     if (stream.isHLS && Hls.isSupported()) {
       const hls = new Hls({
@@ -181,15 +190,34 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     const dur = videoRef.current.duration || 0;
     setCurrentTime(cur);
     setDuration(dur);
-    AnimePlaybackController.saveProgress(anime.id, episodeNumber, cur, dur);
+    savePlaybackProgress({
+      id: parseInt(anime.id as string, 10) || 0,
+      mediaType: 'anime',
+      title: anime.title,
+      posterPath: anime.poster,
+      backdropPath: anime.banner || anime.poster,
+      seasonNumber: 1,
+      episodeNumber: episodeNumber,
+      episodeTitle: `Episode ${episodeNumber}`,
+      currentTime: cur,
+      duration: dur,
+      progressPercent: (cur / dur) * 100,
+      lastWatchedAt: new Date().toISOString()
+    });
 
     // Auto next countdown in last 10 seconds
-    if (dur > 60 && dur - cur <= 10 && navState.hasNext && autoNextCountdown === null) {
+    if (dur > 60 && dur - cur <= 10 && navState.hasNext && !hasStartedAutoNextRef.current) {
+      hasStartedAutoNextRef.current = true;
       startAutoNextCountdown();
     }
   };
 
   const autoNextTimerRef = useRef<any>(null);
+  const hasStartedAutoNextRef = useRef(false);
+
+  useEffect(() => {
+    hasStartedAutoNextRef.current = false;
+  }, [episodeNumber]);
 
   const startAutoNextCountdown = () => {
     if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current);
@@ -553,8 +581,16 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
                     setVolume(v);
-                    if (v > 0) setIsMuted(false);
-                    if (videoRef.current) videoRef.current.volume = v;
+                    if (videoRef.current) {
+                      videoRef.current.volume = v;
+                      if (v > 0 && isMuted) {
+                        setIsMuted(false);
+                        videoRef.current.muted = false;
+                      } else if (v === 0 && !isMuted) {
+                        setIsMuted(true);
+                        videoRef.current.muted = true;
+                      }
+                    }
                   }}
                   className="w-20 opacity-0 group-hover:opacity-100 transition-opacity accent-rose-500 cursor-pointer h-1.5 bg-white/20 rounded-lg absolute left-12"
                 />

@@ -181,7 +181,7 @@ class StorageService {
     const all = this.getAllPlaybackProgress();
     const match = all.find(item => {
       if (item.id !== id || item.mediaType !== mediaType) return false;
-      if (mediaType === 'tv') {
+      if (mediaType === 'tv' || mediaType === 'anime') {
         return item.seasonNumber === season && item.episodeNumber === episode;
       }
       return true;
@@ -193,7 +193,7 @@ class StorageService {
     const all = this.getAllPlaybackProgress();
     const filtered = all.filter(item => {
       if (item.id !== progress.id || item.mediaType !== progress.mediaType) return true;
-      if (progress.mediaType === 'tv') {
+      if (progress.mediaType === 'tv' || progress.mediaType === 'anime') {
         return !(item.seasonNumber === progress.seasonNumber && item.episodeNumber === progress.episodeNumber);
       }
       return false;

@@ -73,7 +73,7 @@ export const Search: React.FC = () => {
         } else {
           // 'all' -> Search TMDB (movies/tv) + Anime SDK / AniList
           const [tmdbRes, animeRes] = await Promise.all([
-            tmdb.searchMulti(debouncedQuery.trim(), 1),
+            tmdb.searchMulti(debouncedQuery.trim(), 1, showAdult),
             animeService.search(debouncedQuery.trim(), showAdult),
           ]);
 

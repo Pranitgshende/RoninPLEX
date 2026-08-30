@@ -34,7 +34,7 @@ export const AnimeDetails: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [jumpInput, setJumpInput] = useState<string>('');
 
-  const inWatchlist = anime ? isInWatchlist(anime.id as any, 'tv') : false;
+  const inWatchlist = anime ? isInWatchlist(anime.id as any, 'anime') : false;
 
   useEffect(() => {
     if (!id) return;

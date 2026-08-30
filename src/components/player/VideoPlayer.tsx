@@ -153,7 +153,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       };
     }
     return {
-      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups',
+      sandbox: 'allow-scripts allow-same-origin allow-presentation',
       allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
       referrerPolicy: 'origin' as const,
     };

@@ -26,7 +26,7 @@ export const Watch: React.FC = () => {
 
   const mediaId = id ? parseInt(id, 10) : 0;
   const isAnime = location.pathname.startsWith('/watch/anime');
-  const isTV = Boolean(isAnime || (seasonParam !== undefined && episodeParam !== undefined));
+  const isTV = Boolean(!isAnime && seasonParam !== undefined && episodeParam !== undefined);
   console.log('WATCH PAGE RENDER:', { pathname: location.pathname, isAnime, isTV, id, seasonParam, episodeParam });
   const seasonNumber = seasonParam ? parseInt(seasonParam, 10) : 1;
   const episodeNumber = episodeParam ? parseInt(episodeParam, 10) : 1;
@@ -109,7 +109,7 @@ export const Watch: React.FC = () => {
 
     const loadContent = async () => {
       logPlayback(`User requested playback: id=${mediaId}, isTV=${isTV}`);
-      logPlayback(`Media type: ${isTV ? 'tv' : 'movie'}`);
+      logPlayback(`Media type: ${isAnime ? 'anime' : isTV ? 'tv' : 'movie'}`);
       logPlayback(`Provider resolution started`);
       try {
         if (isAnime) {
@@ -146,7 +146,8 @@ export const Watch: React.FC = () => {
           logPlayback(`Provider selected: ${streamData?.stream?.providerName || 'none'} (${streamData?.stream?.providerId || 'none'})`);
           logPlayback(`Source returned: ${streamData?.stream ? 'yes' : 'no'}`);
           logPlayback(`Source type: ${streamData?.stream?.type || 'none'}`);
-          logPlayback(`Source URL: ${streamData?.stream?.url || 'none'}`);
+          const sanitizeUrl = (url?: string) => url ? url.split('?')[0] + '[REDACTED_QUERY]' : 'none';
+          logPlayback(`Source URL: ${sanitizeUrl(streamData?.stream?.url)}`);
 
           if (streamData?.stream && streamData.available) {
             setStreamResult(streamData.stream);
@@ -174,7 +175,8 @@ export const Watch: React.FC = () => {
           logPlayback(`Provider selected: ${epStream?.stream?.providerName || 'none'} (${epStream?.stream?.providerId || 'none'})`);
           logPlayback(`Source returned: ${epStream?.stream ? 'yes' : 'no'}`);
           logPlayback(`Source type: ${epStream?.stream?.type || 'none'}`);
-          logPlayback(`Source URL: ${epStream?.stream?.url || 'none'}`);
+          const sanitizeUrl = (url?: string) => url ? url.split('?')[0] + '[REDACTED_QUERY]' : 'none';
+          logPlayback(`Source URL: ${sanitizeUrl(epStream?.stream?.url)}`);
 
           if (epStream?.stream && epStream.available) {
             setStreamResult(epStream.stream);
@@ -263,7 +265,8 @@ export const Watch: React.FC = () => {
       );
       logPlayback(`Next provider: ${nextStream?.stream?.providerName || 'none'} (${nextStream?.stream?.providerId || 'none'})`);
       logPlayback(`Source type: ${nextStream?.stream?.type || 'none'}`);
-      logPlayback(`Source URL: ${nextStream?.stream?.url || 'none'}`);
+      const sanitizeUrl = (url?: string) => url ? url.split('?')[0] + '[REDACTED_QUERY]' : 'none';
+      logPlayback(`Source URL: ${sanitizeUrl(nextStream?.stream?.url)}`);
       if (nextStream?.stream && nextStream.available) {
         setStreamResult(nextStream.stream);
       } else {

@@ -147,6 +147,15 @@ export const Discover: React.FC = () => {
             tmdb.getTrending('all', 'week', page),
           ]);
           const pool = [...trending, ...movies.results, ...tvs.results];
+          
+          if (preferences?.favoriteGenreIds?.length > 0) {
+            pool.sort((a, b) => {
+              const aMatch = (a.genre_ids || []).filter(g => preferences.favoriteGenreIds.includes(g)).length;
+              const bMatch = (b.genre_ids || []).filter(g => preferences.favoriteGenreIds.includes(g)).length;
+              return bMatch - aMatch;
+            });
+          }
+          
           movieTvCandidates = pool.map((item) => {
             const isMovie = 'title' in item;
             if (isMovie) {

@@ -245,7 +245,7 @@ export const DecisionHelper: React.FC = () => {
                     const title = item.title || item.name || 'Untitled';
                     const date = isAnime ? item.year : isMovie ? item.release_date : item.first_air_date;
                     const yearStr = date ? String(date).split('-')[0] : '';
-                    const inList = isInWatchlist(item.id as any, isAnime ? 'tv' : isMovie ? 'movie' : 'tv');
+                    const inList = isInWatchlist(item.id as any, isAnime ? 'anime' : isMovie ? 'movie' : 'tv');
                     const roninDesc = aiService.generateRoninDescription(item);
                     const posterUrl = item.poster || getPosterUrl(item.poster_path, 'small');
                     const detailsUrl = isAnime ? `/anime/${item.id}` : isMovie ? `/movie/${item.id}` : `/tv/${item.id}`;
@@ -316,7 +316,7 @@ export const DecisionHelper: React.FC = () => {
                                 onClick={() =>
                                   toggleWatchlist({
                                     id: item.id,
-                                    mediaType: isMovie ? 'movie' : 'tv',
+                                    mediaType: isAnime ? 'anime' : isMovie ? 'movie' : 'tv',
                                     title,
                                     posterPath: item.poster_path,
                                     backdropPath: item.backdrop_path,

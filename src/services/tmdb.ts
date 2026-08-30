@@ -197,7 +197,7 @@ class TMDBService {
   }
 
   // --- Search ---
-  async searchMulti(query: string, page: number = 1): Promise<TMDBResponse<Movie | TVShow>> {
+  async searchMulti(query: string, page: number = 1, includeAdult: boolean = false): Promise<TMDBResponse<Movie | TVShow>> {
     if (!query.trim()) {
       return { page: 1, results: [], total_pages: 0, total_results: 0 };
     }
@@ -205,7 +205,7 @@ class TMDBService {
     const data = await this.fetchFromTMDB<TMDBResponse<Movie | TVShow>>('/search/multi', {
       query: query.trim(),
       page,
-      include_adult: false,
+      include_adult: includeAdult,
     });
 
     if (data && data.results) {
