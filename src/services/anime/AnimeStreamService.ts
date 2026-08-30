@@ -21,7 +21,7 @@ export class AnimeStreamService {
     }
   }
 
-  private static async fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<any> {
+  private static async fetchJsonWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<any> {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -54,8 +54,13 @@ export class AnimeStreamService {
           let sourcesData: any = null;
           
           if (animeId && !animeId.startsWith('latest')) {
-             logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-             sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
+             try {
+               logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
+               sourcesData = await this.fetchJsonWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
+             } catch (metaErr: any) {
+               logPlayback(`[AnimeStreamService] Meta lookup error/timeout: ${metaErr.message}`);
+               sourcesData = null; // Proceed to fallback
+             }
           }
           
           if (!sourcesData || !sourcesData.streams || sourcesData.streams.length === 0) {
@@ -95,7 +100,7 @@ export class AnimeStreamService {
           
           let validSource = null;
           for (const source of candidates) {
-            logPlayback(`[AnimeStreamService] Validating source URL: ${source.sourceUrl} (${source.quality})`);
+            logPlayback(`[AnimeStreamService] Validating source URL (${source.quality})`);
             const valid = await this.validateStream(source.sourceUrl);
             if (valid) {
               validSource = source;
