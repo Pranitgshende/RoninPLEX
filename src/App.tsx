@@ -9,7 +9,12 @@ import { ApiKeyModal } from './components/modals/ApiKeyModal';
 
 // Pages
 import { Home } from './pages/Home';
+import { Movies } from './pages/Movies';
+import { TvShows } from './pages/TvShows';
+import { Anime } from './pages/Anime';
+import { AnimeDetails } from './pages/AnimeDetails';
 import { Discover } from './pages/Discover';
+import { DecisionHelper } from './pages/DecisionHelper';
 import { Search } from './pages/Search';
 import { MovieDetails } from './pages/MovieDetails';
 import { TvDetails } from './pages/TvDetails';
@@ -29,12 +34,18 @@ export const App: React.FC = () => {
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/movies" element={<Movies />} />
+          <Route path="/tv" element={<TvShows />} />
+          <Route path="/anime" element={<Anime />} />
           <Route path="/discover" element={<Discover />} />
+          <Route path="/decision" element={<DecisionHelper />} />
           <Route path="/search" element={<Search />} />
           <Route path="/movie/:id" element={<MovieDetails />} />
           <Route path="/tv/:id" element={<TvDetails />} />
+          <Route path="/anime/:id" element={<AnimeDetails />} />
           <Route path="/watch/movie/:id" element={<Watch />} />
           <Route path="/watch/tv/:id/:season/:episode" element={<Watch />} />
+          <Route path="/watch/anime/:id/:episode" element={<Watch />} />
           <Route path="/watchlist" element={<Watchlist />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />

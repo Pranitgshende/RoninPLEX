@@ -2,6 +2,30 @@
 <html lang="en" class="dark scroll-smooth">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      self.global = self;
+      if (typeof self.Buffer === 'undefined') {
+        self.Buffer = class Buffer extends Uint8Array {
+          static from(data, enc) {
+            if (typeof data === 'string') {
+              if (enc === 'base64') {
+                const bin = typeof atob !== 'undefined' ? atob(data) : '';
+                const b = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+                return b;
+              }
+              return new TextEncoder().encode(data);
+            }
+            if (Array.isArray(data) || data instanceof Uint8Array) {
+              return new Uint8Array(data);
+            }
+            return new Uint8Array(0);
+          }
+          static isBuffer(o) { return o instanceof Uint8Array; }
+          static alloc(s) { return new Uint8Array(s); }
+        };
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M18 3v2H6V3H4v18h2v-2h12v2h2V3h-2zM6 7h12v10H6V7z'/><polygon points='10 9 10 15 15 12'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#090a0f" />

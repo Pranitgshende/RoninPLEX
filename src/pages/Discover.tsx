@@ -1,20 +1,79 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Film, Tv, Sparkles, RotateCcw, ChevronDown } from 'lucide-react';
+import {
+  SlidersHorizontal,
+  Film,
+  Tv,
+  Sparkles,
+  RotateCcw,
+  RotateCw,
+  ChevronDown,
+  Search,
+  ShieldAlert,
+} from 'lucide-react';
 import { tmdb } from '../services/tmdb';
+import { animeService, AnimeItem } from '../services/anime/AnimeService';
 import { recommendation } from '../services/recommendation';
-import { Movie, TVShow, Genre, MediaType, FilterOptions } from '../types/tmdb';
+import { Movie, TVShow, Genre, FilterOptions } from '../types/tmdb';
 import { MovieCard } from '../components/common/MovieCard';
 import { SkeletonCard } from '../components/common/SkeletonCard';
 import { MOCK_GENRES } from '../services/mockData';
 import { useUser } from '../context/UserContext';
+import { AdultBadge } from '../components/common/AdultBadge';
+
+export type DiscoverMediaType = 'all' | 'movie' | 'tv' | 'anime';
+
+export interface MovieDiscoverItem {
+  id: number;
+  mediaType: 'movie';
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  rating: number;
+  releaseYear: string;
+  genres: number[];
+  adult: boolean;
+  raw: Movie;
+}
+
+export interface TvDiscoverItem {
+  id: number;
+  mediaType: 'tv';
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  rating: number;
+  releaseYear: string;
+  genres: number[];
+  adult: boolean;
+  raw: TVShow;
+}
+
+export interface AnimeDiscoverItem {
+  id: string;
+  mediaType: 'anime';
+  title: string;
+  romajiTitle?: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  rating: number;
+  releaseYear: string;
+  genres: string[];
+  adult: boolean;
+  raw: AnimeItem;
+}
+
+export type DiscoverItem = MovieDiscoverItem | TvDiscoverItem | AnimeDiscoverItem;
 
 export const Discover: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { preferences, watchlist, watched } = useUser();
+  const showAdult = preferences.showAdultRecommendations ?? false;
 
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'for-you');
-  const [mediaType, setMediaType] = useState<MediaType | 'all'>((searchParams.get('type') as MediaType) || 'all');
+  const [mediaType, setMediaType] = useState<DiscoverMediaType>(
+    (searchParams.get('type') as DiscoverMediaType) || 'all'
+  );
   const [selectedGenreId, setSelectedGenreId] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number>(0);
@@ -22,80 +81,404 @@ export const Discover: React.FC = () => {
   const [sortBy, setSortBy] = useState<FilterOptions['sortBy']>('popularity.desc');
   const [genres, setGenres] = useState<Genre[]>(MOCK_GENRES);
 
-  const [items, setItems] = useState<(Movie | TVShow)[]>([]);
+  const [items, setItems] = useState<DiscoverItem[]>([]);
+  const [page, setPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
+
+  // Cancellation token counter to eliminate race conditions
+  const requestIdRef = useRef<number>(0);
 
   useEffect(() => {
     tmdb.getGenres('movie').then(setGenres);
   }, []);
 
   const loadData = useCallback(async () => {
+    const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
+
     try {
-      if (activeTab === 'for-you') {
-        const [movies, tvs, trending] = await Promise.all([
-          tmdb.getPopularMovies(1),
-          tmdb.getPopularTV(1),
-          tmdb.getTrending('all', 'week'),
-        ]);
-        const pool = [...trending, ...movies.results, ...tvs.results];
-        const filtered = pool.filter(item => {
-          const isMovie = 'title' in item;
-          if (mediaType === 'movie' && !isMovie) return false;
-          if (mediaType === 'tv' && isMovie) return false;
+      let candidateItems: DiscoverItem[] = [];
 
-          const itemGenreIds = item.genre_ids || [];
-          if (selectedGenreId && !itemGenreIds.includes(selectedGenreId)) return false;
-          if (minRating > 0 && item.vote_average < minRating) return false;
-          return true;
-        });
+      // 1. Fetch Anime Candidates if mediaType is 'all' or 'anime'
+      const shouldFetchAnime = mediaType === 'all' || mediaType === 'anime';
+      let animeCandidates: AnimeDiscoverItem[] = [];
 
-        const ranked = recommendation.rankMedia(filtered, preferences, watchlist, watched);
-        setItems(ranked.map(r => {
-          const match = pool.find(p => p.id === r.id);
-          return match || (r as unknown as Movie);
-        }));
-      } else if (activeTab === 'trending') {
-        const results = await tmdb.getTrending(mediaType === 'all' ? 'all' : mediaType, 'week');
-        setItems(results);
-      } else if (activeTab === 'upcoming') {
-        const results = await tmdb.getUpcomingMovies(1);
-        setItems(results.results);
-      } else if (activeTab === 'now-playing') {
-        const results = await tmdb.getNowPlayingMovies(1);
-        setItems(results.results);
-      } else {
-        const filterOpts: FilterOptions = {
-          mediaType,
-          genreId: selectedGenreId,
-          year: selectedYear,
-          minRating: minRating > 0 ? minRating : undefined,
-          language: selectedLanguage || undefined,
-          sortBy,
-          page: 1,
-        };
+      if (shouldFetchAnime) {
+        try {
+          let rawAnime: AnimeItem[] = [];
+          if (activeTab === 'top-rated') {
+            rawAnime = await animeService.getTopRated(showAdult, page);
+          } else if (activeTab === 'popular') {
+            rawAnime = await animeService.getPopular(showAdult, page);
+          } else if (activeTab === 'upcoming') {
+            rawAnime = await animeService.getSeasonal(showAdult, page);
+          } else {
+            rawAnime = await animeService.getTrending(showAdult, page);
+          }
 
-        if (mediaType === 'tv') {
-          const res = await tmdb.discoverTV(filterOpts);
-          setItems(res.results);
-        } else if (mediaType === 'movie') {
-          const res = await tmdb.discoverMovies(filterOpts);
-          setItems(res.results);
-        } else {
-          const [movieRes, tvRes] = await Promise.all([
-            tmdb.discoverMovies(filterOpts),
-            tmdb.discoverTV(filterOpts),
-          ]);
-          setItems([...movieRes.results, ...tvRes.results]);
+          animeCandidates = rawAnime.map((a) => ({
+            id: a.id,
+            mediaType: 'anime',
+            title: a.title,
+            romajiTitle: a.romajiTitle,
+            posterPath: a.poster,
+            backdropPath: a.banner || a.poster,
+            rating: a.score || 0,
+            releaseYear: a.year ? String(a.year) : '',
+            genres: a.genres || [],
+            adult: a.isAdult,
+            raw: a,
+          }));
+        } catch (err) {
+          console.warn('Discover anime fetch error:', err);
         }
+      }
+
+      // 2. Fetch Movies / TV Candidates if mediaType is not 'anime'
+      let movieTvCandidates: (MovieDiscoverItem | TvDiscoverItem)[] = [];
+      const shouldFetchMovieTv = mediaType !== 'anime';
+
+      if (shouldFetchMovieTv) {
+        if (activeTab === 'for-you') {
+          const [movies, tvs, trending] = await Promise.all([
+            tmdb.getPopularMovies(page),
+            tmdb.getPopularTV(page),
+            tmdb.getTrending('all', 'week', page),
+          ]);
+          const pool = [...trending, ...movies.results, ...tvs.results];
+          movieTvCandidates = pool.map((item) => {
+            const isMovie = 'title' in item;
+            if (isMovie) {
+              const m = item as Movie;
+              return {
+                id: m.id,
+                mediaType: 'movie',
+                title: m.title,
+                posterPath: m.poster_path,
+                backdropPath: m.backdrop_path,
+                rating: m.vote_average || 0,
+                releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+                genres: m.genre_ids || [],
+                adult: Boolean(m.adult),
+                raw: m,
+              };
+            } else {
+              const t = item as TVShow;
+              return {
+                id: t.id,
+                mediaType: 'tv',
+                title: t.name,
+                posterPath: t.poster_path,
+                backdropPath: t.backdrop_path,
+                rating: t.vote_average || 0,
+                releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+                genres: t.genre_ids || [],
+                adult: Boolean(t.adult),
+                raw: t,
+              };
+            }
+          });
+        } else if (activeTab === 'trending') {
+          const target = mediaType === 'all' ? 'all' : (mediaType as 'movie' | 'tv');
+          const results = await tmdb.getTrending(target, 'week', page);
+          movieTvCandidates = results.map((item) => {
+            const isMovie = 'title' in item;
+            return {
+              id: item.id,
+              mediaType: isMovie ? 'movie' : 'tv',
+              title: isMovie ? (item as Movie).title : (item as TVShow).name,
+              posterPath: item.poster_path,
+              backdropPath: item.backdrop_path,
+              rating: item.vote_average || 0,
+              releaseYear: isMovie
+                ? (item as Movie).release_date?.substring(0, 4) || ''
+                : (item as TVShow).first_air_date?.substring(0, 4) || '',
+              genres: item.genre_ids || [],
+              adult: Boolean(item.adult),
+              raw: item as any,
+            };
+          });
+        } else if (activeTab === 'popular') {
+          if (mediaType === 'movie') {
+            const res = await tmdb.getPopularMovies(page);
+            movieTvCandidates = res.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+          } else if (mediaType === 'tv') {
+            const res = await tmdb.getPopularTV(page);
+            movieTvCandidates = res.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+          } else {
+            const [mRes, tRes] = await Promise.all([tmdb.getPopularMovies(page), tmdb.getPopularTV(page)]);
+            const mList: MovieDiscoverItem[] = mRes.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+            const tList: TvDiscoverItem[] = tRes.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+            movieTvCandidates = [...mList, ...tList];
+          }
+        } else if (activeTab === 'top-rated') {
+          if (mediaType === 'movie') {
+            const res = await tmdb.getTopRatedMovies(page);
+            movieTvCandidates = res.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+          } else if (mediaType === 'tv') {
+            const res = await tmdb.getTopRatedTV(page);
+            movieTvCandidates = res.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+          } else {
+            const [mRes, tRes] = await Promise.all([tmdb.getTopRatedMovies(page), tmdb.getTopRatedTV(page)]);
+            const mList: MovieDiscoverItem[] = mRes.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+            const tList: TvDiscoverItem[] = tRes.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+            movieTvCandidates = [...mList, ...tList];
+          }
+        } else if (activeTab === 'upcoming') {
+          const res = await tmdb.getUpcomingMovies(page);
+          movieTvCandidates = res.results.map((m) => ({
+            id: m.id,
+            mediaType: 'movie',
+            title: m.title,
+            posterPath: m.poster_path,
+            backdropPath: m.backdrop_path,
+            rating: m.vote_average || 0,
+            releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+            genres: m.genre_ids || [],
+            adult: Boolean(m.adult),
+            raw: m,
+          }));
+        } else if (activeTab === 'now-playing') {
+          const res = await tmdb.getNowPlayingMovies(page);
+          movieTvCandidates = res.results.map((m) => ({
+            id: m.id,
+            mediaType: 'movie',
+            title: m.title,
+            posterPath: m.poster_path,
+            backdropPath: m.backdrop_path,
+            rating: m.vote_average || 0,
+            releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+            genres: m.genre_ids || [],
+            adult: Boolean(m.adult),
+            raw: m,
+          }));
+        } else {
+          const filterOpts: FilterOptions = {
+            mediaType: mediaType === 'all' ? 'all' : (mediaType as any),
+            genreId: selectedGenreId,
+            year: selectedYear,
+            minRating: minRating > 0 ? minRating : undefined,
+            language: selectedLanguage || undefined,
+            sortBy,
+            page: 1,
+          };
+
+          if (mediaType === 'tv') {
+            const res = await tmdb.discoverTV(filterOpts);
+            movieTvCandidates = res.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+          } else if (mediaType === 'movie') {
+            const res = await tmdb.discoverMovies(filterOpts);
+            movieTvCandidates = res.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+          } else {
+            const [movieRes, tvRes] = await Promise.all([
+              tmdb.discoverMovies(filterOpts),
+              tmdb.discoverTV(filterOpts),
+            ]);
+            const mList: MovieDiscoverItem[] = movieRes.results.map((m) => ({
+              id: m.id,
+              mediaType: 'movie',
+              title: m.title,
+              posterPath: m.poster_path,
+              backdropPath: m.backdrop_path,
+              rating: m.vote_average || 0,
+              releaseYear: m.release_date ? m.release_date.substring(0, 4) : '',
+              genres: m.genre_ids || [],
+              adult: Boolean(m.adult),
+              raw: m,
+            }));
+            const tList: TvDiscoverItem[] = tvRes.results.map((t) => ({
+              id: t.id,
+              mediaType: 'tv',
+              title: t.name,
+              posterPath: t.poster_path,
+              backdropPath: t.backdrop_path,
+              rating: t.vote_average || 0,
+              releaseYear: t.first_air_date ? t.first_air_date.substring(0, 4) : '',
+              genres: t.genre_ids || [],
+              adult: Boolean(t.adult),
+              raw: t,
+            }));
+            movieTvCandidates = [...mList, ...tList];
+          }
+        }
+      }
+
+      // 3. Combine Candidates based on selected mediaType
+      if (mediaType === 'anime') {
+        candidateItems = animeCandidates;
+      } else if (mediaType === 'movie') {
+        candidateItems = movieTvCandidates.filter((i) => i.mediaType === 'movie');
+      } else if (mediaType === 'tv') {
+        candidateItems = movieTvCandidates.filter((i) => i.mediaType === 'tv');
+      } else {
+        // 'all' -> Interleave Movie/TV and Anime seamlessly
+        candidateItems = [...movieTvCandidates, ...animeCandidates];
+      }
+
+      // 4. Strict Deduplication by compound stable key `${item.mediaType}:${item.id}`
+      const seenKeys = new Set<string>();
+      const deduplicated: DiscoverItem[] = [];
+
+      for (const item of candidateItems) {
+        if (!item || !item.id) continue;
+
+        // Strict mediaType filter check
+        if (mediaType !== 'all' && item.mediaType !== mediaType) continue;
+
+        // Adult filter
+        if (!showAdult && item.adult) continue;
+
+        // Minimum Rating filter
+        if (minRating > 0 && item.rating < minRating) continue;
+
+        // Year filter
+        if (selectedYear && item.releaseYear && !item.releaseYear.startsWith(String(selectedYear))) {
+          continue;
+        }
+
+        const stableKey = `${item.mediaType}:${item.id}`;
+        if (!seenKeys.has(stableKey)) {
+          seenKeys.add(stableKey);
+          deduplicated.push(item);
+        }
+      }
+
+      // Check cancellation token before updating state
+      if (currentRequestId === requestIdRef.current) {
+        setItems(deduplicated);
       }
     } catch (err) {
       console.error('Failed to discover media:', err);
     } finally {
-      setIsLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [activeTab, mediaType, selectedGenreId, selectedYear, minRating, selectedLanguage, sortBy, preferences, watchlist, watched]);
+  }, [
+    activeTab,
+    mediaType,
+    selectedGenreId,
+    selectedYear,
+    minRating,
+    selectedLanguage,
+    sortBy,
+    preferences,
+    watchlist,
+    watched,
+    showAdult,
+    page,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -109,7 +492,12 @@ export const Discover: React.FC = () => {
     setSortBy('popularity.desc');
   };
 
-  const hasActiveFilters = selectedGenreId !== null || selectedYear !== null || minRating > 0 || selectedLanguage !== '' || sortBy !== 'popularity.desc';
+  const hasActiveFilters =
+    selectedGenreId !== null ||
+    selectedYear !== null ||
+    minRating > 0 ||
+    selectedLanguage !== '' ||
+    sortBy !== 'popularity.desc';
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8">
@@ -118,10 +506,12 @@ export const Discover: React.FC = () => {
           Explore & Discover
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
-          Browse top curated categories, filter by your favorite genres, runtime, and ratings, or explore custom personalized recommendations.
+          Unified discovery across Movies, TV Shows, and Anime. Filter by your favorite genres,
+          runtime, and ratings, or explore personalized recommendations.
         </p>
       </div>
 
+      {/* Category Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-white/5">
         {[
           { id: 'for-you', label: 'For You', icon: Sparkles },
@@ -138,7 +528,7 @@ export const Discover: React.FC = () => {
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id);
-                setSearchParams({ tab: tab.id });
+                setSearchParams({ tab: tab.id, type: mediaType });
               }}
               className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
                 isActive
@@ -154,193 +544,211 @@ export const Discover: React.FC = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Media Type Selector: ALL | MOVIES | TV | ANIME */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-100/80 border border-white/5">
             <button
-              onClick={() => setMediaType('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                mediaType === 'all' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => {
+                setMediaType('all');
+                setSearchParams({ tab: activeTab, type: 'all' });
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                mediaType === 'all'
+                  ? 'bg-surface-50 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              All Types
+              <span>All Media</span>
             </button>
             <button
-              onClick={() => setMediaType('movie')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                mediaType === 'movie' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => {
+                setMediaType('movie');
+                setSearchParams({ tab: activeTab, type: 'movie' });
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                mediaType === 'movie'
+                  ? 'bg-surface-50 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <Film className="w-3.5 h-3.5" />
-              <span>Movies</span>
+              <span>Movies Only</span>
             </button>
             <button
-              onClick={() => setMediaType('tv')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                mediaType === 'tv' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => {
+                setMediaType('tv');
+                setSearchParams({ tab: activeTab, type: 'tv' });
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                mediaType === 'tv'
+                  ? 'bg-surface-50 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <Tv className="w-3.5 h-3.5" />
-              <span>TV Shows</span>
+              <span>TV Shows Only</span>
+            </button>
+            <button
+              onClick={() => {
+                setMediaType('anime');
+                setSearchParams({ tab: activeTab, type: 'anime' });
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                mediaType === 'anime'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-rose-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Anime Only</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border border-white/5 bg-surface-100 text-slate-300 hover:text-white hover:bg-surface-50 transition-all"
+                title="Shuffle Recommendations"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Shuffle</span>
+              </button>
+
+              {hasActiveFilters && (
               <button
                 onClick={handleResetFilters}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-colors flex items-center gap-1.5"
+                className="p-2 rounded-xl bg-surface-100 hover:bg-surface-50 text-slate-400 hover:text-white transition-all text-xs flex items-center gap-1.5"
+                title="Reset all filters"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset Filters</span>
+                <span className="hidden sm:inline">Reset</span>
               </button>
             )}
-
             <button
               onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors border flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all ${
                 filtersOpen || hasActiveFilters
-                  ? 'bg-brand-500/20 text-brand-300 border-brand-500/50'
-                  : 'bg-surface-100 text-slate-300 border-white/5 hover:bg-surface-50'
+                  ? 'bg-brand-600/20 border-brand-500/50 text-brand-300'
+                  : 'bg-surface-100 border-white/5 text-slate-300 hover:text-white hover:bg-surface-50'
               }`}
             >
-              <SlidersHorizontal className="w-4 h-4" />
+              <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filters</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  filtersOpen ? 'rotate-180' : ''
+                }`}
+              />
             </button>
           </div>
         </div>
 
+        {/* Expandable Filter Tray */}
         {filtersOpen && (
-          <div className="p-5 rounded-2xl bg-surface-200 border border-white/10 space-y-5 animate-slide-up shadow-xl">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Filter by Genre
+          <div className="p-5 rounded-2xl bg-surface-100/90 border border-white/5 backdrop-blur-md grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+            {/* Genre Filter */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Genre
               </label>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedGenreId(null)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    selectedGenreId === null
-                      ? 'bg-brand-600 text-white border-brand-500'
-                      : 'bg-surface-100 text-slate-300 border-white/5 hover:border-white/20'
-                  }`}
-                >
-                  All Genres
-                </button>
-                {genres.map(g => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => setSelectedGenreId(selectedGenreId === g.id ? null : g.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      selectedGenreId === g.id
-                        ? 'bg-brand-600 text-white border-brand-500'
-                        : 'bg-surface-100 text-slate-300 border-white/5 hover:border-white/20'
-                    }`}
-                  >
+              <select
+                value={selectedGenreId || ''}
+                onChange={(e) =>
+                  setSelectedGenreId(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full px-3 py-2 rounded-xl bg-surface-200 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
+              >
+                <option value="">All Genres</option>
+                {genres.map((g) => (
+                  <option key={g.id} value={g.id}>
                     {g.name}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-white/5">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Release Year
-                </label>
-                <select
-                  value={selectedYear || ''}
-                  onChange={e => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-300 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
-                >
-                  <option value="">Any Year</option>
-                  <option value="2024">2024</option>
-                  <option value="2023">2023</option>
-                  <option value="2022">2022</option>
-                  <option value="2021">2021</option>
-                  <option value="2020">2020</option>
-                  <option value="2019">2019</option>
-                  <option value="2015">2015-2018</option>
-                  <option value="2010">2010s</option>
-                  <option value="2000">2000s</option>
-                  <option value="1990">1990s</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    Minimum Rating
-                  </label>
-                  <span className="text-xs text-amber-400 font-bold">
-                    {minRating > 0 ? `★ ${minRating.toFixed(1)}+` : 'All'}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="9.0"
-                  step="0.5"
-                  value={minRating}
-                  onChange={e => setMinRating(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-surface-300 rounded-lg appearance-none cursor-pointer accent-brand-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Sort Order
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as FilterOptions['sortBy'])}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-300 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
-                >
-                  <option value="popularity.desc">Most Popular</option>
-                  <option value="vote_average.desc">Highest Rated</option>
-                  <option value="primary_release_date.desc">Newest Release</option>
-                  <option value="revenue.desc">Box Office Revenue</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div>
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-5">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        ) : items.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-5">
-            {items.map((item) => (
-              <MovieCard
-                key={`${item.id}-${'title' in item ? 'movie' : 'tv'}`}
-                item={item}
+            {/* Minimum Rating Filter */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Min Rating ({minRating > 0 ? `${minRating}+` : 'Any'})
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="9"
+                step="0.5"
+                value={minRating}
+                onChange={(e) => setMinRating(Number(e.target.value))}
+                className="w-full accent-brand-500 cursor-pointer"
               />
-            ))}
-          </div>
-        ) : (
-          <div className="py-20 text-center space-y-4 bg-surface-100/30 rounded-2xl border border-white/5">
-            <Film className="w-12 h-12 text-slate-500 mx-auto" />
-            <h3 className="text-lg font-bold text-white">No titles match your criteria</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Try adjusting or resetting your genre and rating filters to see more recommendations.
-            </p>
-            <button
-              onClick={handleResetFilters}
-              className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition-colors"
-            >
-              Clear All Filters
-            </button>
+            </div>
+
+            {/* Release Year */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Release Year
+              </label>
+              <select
+                value={selectedYear || ''}
+                onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 rounded-xl bg-surface-200 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
+              >
+                <option value="">Any Year</option>
+                {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort Order */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Sort By
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as FilterOptions['sortBy'])}
+                className="w-full px-3 py-2 rounded-xl bg-surface-200 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
+              >
+                <option value="popularity.desc">Most Popular</option>
+                <option value="vote_average.desc">Highest Rated</option>
+                <option value="primary_release_date.desc">Release Date (Newest)</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Main Grid Display */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : items.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-fade-in">
+          {items.map((item) => (
+            <MovieCard
+              key={`${item.mediaType}-${item.id}`}
+              item={item.raw}
+              mediaType={item.mediaType as any}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-surface-100/40 rounded-3xl border border-white/5 p-8">
+          <p className="text-slate-400 text-sm">No titles matched your selected filters.</p>
+          <button
+            onClick={handleResetFilters}
+            className="mt-4 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold"
+          >
+            Reset Filters
+          </button>
+        </div>
+      )}
     </div>
   );
 };

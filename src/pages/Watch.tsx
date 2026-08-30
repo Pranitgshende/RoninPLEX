@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, RefreshCw, PlayCircle, X, Layers, Terminal } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
+import { animeService, ContentLanguage } from '../services/anime/AnimeService';
 import { Movie, TVShow, Season, Episode } from '../types/tmdb';
 import { streamingManager } from '../services/streaming/StreamingManager';
 import { StreamingResult } from '../services/streaming/types';
 import { VideoPlayer } from '../components/player/VideoPlayer';
+import { AnimeVideoPlayer } from '../components/player/anime/AnimeVideoPlayer';
+import { AnimeItem, AnimeEpisode, AnimeStreamSource } from '../services/anime/AnimeTypes';
+import { AnimeStreamService } from '../services/anime/AnimeStreamService';
 import { TrailerModal } from '../components/common/TrailerModal';
 import { extractBestTrailerKey, getStillUrl, getPosterUrl, getBackdropUrl } from '../utils/helpers';
 import { formatRuntime } from '../utils/formatting';
-import { logPlayback, logVlc } from '../utils/logger';
+import { logPlayback } from '../utils/logger';
 
 export const Watch: React.FC = () => {
   const { id, season: seasonParam, episode: episodeParam } = useParams<{
@@ -18,9 +22,12 @@ export const Watch: React.FC = () => {
     episode?: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const mediaId = id ? parseInt(id, 10) : 0;
-  const isTV = Boolean(seasonParam !== undefined && episodeParam !== undefined);
+  const isAnime = location.pathname.startsWith('/watch/anime');
+  const isTV = Boolean(isAnime || (seasonParam !== undefined && episodeParam !== undefined));
+  console.log('WATCH PAGE RENDER:', { pathname: location.pathname, isAnime, isTV, id, seasonParam, episodeParam });
   const seasonNumber = seasonParam ? parseInt(seasonParam, 10) : 1;
   const episodeNumber = episodeParam ? parseInt(episodeParam, 10) : 1;
 
@@ -29,10 +36,38 @@ export const Watch: React.FC = () => {
   const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const [streamResult, setStreamResult] = useState<StreamingResult | null>(null);
+  const [animeItem, setAnimeItem] = useState<AnimeItem | null>(null);
+  const [animeEpisodes, setAnimeEpisodes] = useState<AnimeEpisode[]>([]);
+  const [animeStreamSource, setAnimeStreamSource] = useState<AnimeStreamSource | null>(null);
+  const [animeLanguage, setAnimeLanguage] = useState<ContentLanguage>(ContentLanguage.SUB);
   const [isLoading, setIsLoading] = useState(true);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+
+  // TV Drawer specific state
+  const [drawerSeasonNumber, setDrawerSeasonNumber] = useState<number>(seasonNumber);
+  const [drawerSeasonEpisodes, setDrawerSeasonEpisodes] = useState<Episode[]>([]);
+  const [isDrawerLoading, setIsDrawerLoading] = useState(false);
+
+  useEffect(() => {
+    if (isEpisodeDrawerOpen) {
+      if (drawerSeasonNumber === seasonNumber && currentSeason) {
+        setDrawerSeasonEpisodes(currentSeason.episodes || []);
+      } else {
+        setIsDrawerLoading(true);
+        tmdb.getTVSeason(mediaId!, drawerSeasonNumber).then(season => {
+          setDrawerSeasonEpisodes(season?.episodes || []);
+          setIsDrawerLoading(false);
+        }).catch(() => setIsDrawerLoading(false));
+      }
+    }
+  }, [isEpisodeDrawerOpen, drawerSeasonNumber, seasonNumber, currentSeason, mediaId]);
+
+  // Sync drawer to current season on load
+  useEffect(() => {
+    setDrawerSeasonNumber(seasonNumber);
+  }, [seasonNumber]);
 
   // Cancellation token counter to eliminate race conditions on fast route/episode switches
   const requestIdRef = useRef<number>(0);
@@ -62,7 +97,7 @@ export const Watch: React.FC = () => {
   }, [isTV, currentSeason, episodeNumber, seasonNumber, tvShow]);
 
   useEffect(() => {
-    if (!mediaId) return;
+    if (!id) return;
 
     const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
@@ -72,7 +107,26 @@ export const Watch: React.FC = () => {
       logPlayback(`Media type: ${isTV ? 'tv' : 'movie'}`);
       logPlayback(`Provider resolution started`);
       try {
-        if (!isTV) {
+        if (isAnime) {
+          // Load Anime
+          logPlayback(`Loading Anime: id=${mediaId}, ep=${episodeNumber}`);
+          const animeData = await animeService.getDetails(String(mediaId));
+          if (currentRequestId !== requestIdRef.current) return;
+          if (!animeData) throw new Error('Anime not found');
+          
+          setAnimeItem(animeData);
+          
+          const [epsData, streamData] = await Promise.all([
+            animeService.getEpisodes(String(mediaId)),
+            AnimeStreamService.resolveEpisodeStream(animeData.title, episodeNumber, animeLanguage, String(mediaId))
+          ]);
+          
+          if (currentRequestId !== requestIdRef.current) return;
+          
+          setAnimeEpisodes(epsData);
+          setAnimeStreamSource(streamData);
+          logPlayback(`Anime Stream resolved: ${streamData ? 'yes' : 'no'}`);
+        } else if (!isTV) {
           // Load Movie: Concurrently request TMDB metadata + multi-provider stream
           const [movieData, streamData] = await Promise.all([
             tmdb.getMovieDetails(mediaId),
@@ -141,7 +195,7 @@ export const Watch: React.FC = () => {
       // Invalidate on route / param change
       requestIdRef.current++;
     };
-  }, [mediaId, isTV, seasonNumber, episodeNumber, retryCount]);
+  }, [mediaId, isTV, isAnime, seasonNumber, episodeNumber, retryCount, animeLanguage]);
 
   const handlePrevEpisode = () => {
     if (!currentSeason) return;
@@ -149,11 +203,11 @@ export const Watch: React.FC = () => {
     const hasPrevInSeason = currentSeason.episodes?.some(e => e.episode_number === prevEpNum) ?? false;
 
     if (hasPrevInSeason) {
-      navigate(`/watch/tv/${mediaId}/${seasonNumber}/${prevEpNum}`);
+      navigate(isAnime ? `/watch/anime/${mediaId}/${prevEpNum}` : `/watch/tv/${mediaId}/${seasonNumber}/${prevEpNum}`);
     } else if (seasonNumber > 1 && tvShow?.seasons) {
       const prevSeason = tvShow.seasons.find(s => s.season_number === seasonNumber - 1);
       if (prevSeason) {
-        navigate(`/watch/tv/${mediaId}/${seasonNumber - 1}/${prevSeason.episode_count || 1}`);
+        navigate(isAnime ? `/watch/anime/${mediaId}/${prevSeason.episode_count || 1}` : `/watch/tv/${mediaId}/${seasonNumber - 1}/${prevSeason.episode_count || 1}`);
       }
     }
   };
@@ -164,9 +218,9 @@ export const Watch: React.FC = () => {
     const hasNextInSeason = currentSeason.episodes?.some(e => e.episode_number === nextEpNum) ?? false;
 
     if (hasNextInSeason) {
-      navigate(`/watch/tv/${mediaId}/${seasonNumber}/${nextEpNum}`);
+      navigate(isAnime ? `/watch/anime/${mediaId}/${nextEpNum}` : `/watch/tv/${mediaId}/${seasonNumber}/${nextEpNum}`);
     } else if (tvShow?.seasons && tvShow.seasons.some(s => s.season_number === seasonNumber + 1)) {
-      navigate(`/watch/tv/${mediaId}/${seasonNumber + 1}/1`);
+      navigate(isAnime ? `/watch/anime/${mediaId}/1` : `/watch/tv/${mediaId}/${seasonNumber + 1}/1`);
     }
   };
 
@@ -213,6 +267,39 @@ export const Watch: React.FC = () => {
     ? extractBestTrailerKey(tvShow?.videos?.results)
     : extractBestTrailerKey(movie?.videos?.results);
 
+  // Dedicated Anime Player Architecture
+  if (isAnime) {
+    return (
+      <AnimeVideoPlayer
+        anime={
+          animeItem || {
+            id: String(mediaId),
+            title: 'Anime',
+            synopsis: '',
+            genres: [],
+            studios: [],
+            status: 'RELEASING',
+            episodeCount: 1200,
+            poster: '',
+            isAdult: false,
+          }
+        }
+        episodeNumber={episodeNumber}
+        episodes={animeEpisodes}
+        stream={animeStreamSource}
+        isLoading={isLoading}
+        onSelectEpisode={(epNum) => navigate(`/watch/anime/${mediaId}/${epNum}`)}
+        onSelectRelated={(relatedId) => {
+          setIsEpisodeDrawerOpen(false);
+          navigate(`/watch/anime/${relatedId}/1`);
+        }}
+        onLanguageChange={(lang) => setAnimeLanguage(lang)}
+        onBack={() => navigate(`/anime/${mediaId}`)}
+        onRetry={() => setRetryCount((c) => c + 1)}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-4 text-white">
@@ -236,7 +323,7 @@ export const Watch: React.FC = () => {
           episodeTitle={currentEpisode?.name}
           posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
           backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
-          onBack={() => navigate(isTV ? `/tv/${mediaId}` : `/movie/${mediaId}`)}
+          onBack={() => navigate(isAnime ? `/anime/${mediaId}` : isTV ? `/tv/${mediaId}` : `/movie/${mediaId}`)}
           onPrevEpisode={handlePrevEpisode}
           hasPrevEpisode={hasPrevEpisode}
           onNextEpisode={handleNextEpisode}
@@ -248,36 +335,57 @@ export const Watch: React.FC = () => {
         />
 
         {/* TV Episode Selector Drawer Overlay */}
-        {isTV && isEpisodeDrawerOpen && currentSeason && (
+        {isTV && isEpisodeDrawerOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end animate-fade-in">
-            <div className="w-full max-w-md h-full bg-surface-200 border-l border-white/10 p-6 flex flex-col gap-4 overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div>
-                  <h3 className="text-base font-bold text-white font-display">{tvShow?.name}</h3>
-                  <p className="text-xs text-slate-400">Season {seasonNumber} Episodes</p>
+            <div className="w-full max-w-md h-full bg-surface-200 border-l border-white/10 p-6 flex flex-col gap-4 overflow-hidden">
+              <div className="flex flex-col gap-4 border-b border-white/10 pb-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-white font-display truncate pr-4">{tvShow?.name}</h3>
+                  <button
+                    onClick={() => setIsEpisodeDrawerOpen(false)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setIsEpisodeDrawerOpen(false)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                
+                {/* Season Selector */}
+                {tvShow?.seasons && tvShow.seasons.length > 0 && (
+                  <select 
+                    value={drawerSeasonNumber}
+                    onChange={(e) => setDrawerSeasonNumber(Number(e.target.value))}
+                    className="w-full bg-surface-100 border border-white/10 rounded-lg p-2.5 text-sm text-white font-semibold outline-none focus:border-brand-500"
+                  >
+                    {tvShow.seasons.filter(s => s.season_number > 0).map(s => (
+                      <option key={s.id} value={s.season_number}>
+                        Season {s.season_number}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              <div className="space-y-2 flex-1">
-                {(currentSeason.episodes || []).map(ep => (
-                  <button
-                    key={ep.id}
-                    onClick={() => {
-                      setIsEpisodeDrawerOpen(false);
-                      navigate(`/watch/tv/${mediaId}/${seasonNumber}/${ep.episode_number}`);
-                    }}
-                    className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-colors ${
-                      ep.episode_number === episodeNumber
-                        ? 'bg-brand-600/20 border-brand-500/50 text-white'
-                        : 'bg-surface-100/60 border-white/5 text-slate-300 hover:bg-surface-100'
-                    }`}
-                  >
+              <div className="space-y-2 flex-1 overflow-y-auto pr-1">
+                {isDrawerLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : drawerSeasonEpisodes.length === 0 ? (
+                  <div className="text-center text-slate-400 py-8 text-sm">No episodes found.</div>
+                ) : (
+                  drawerSeasonEpisodes.map(ep => (
+                    <button
+                      key={ep.id}
+                      onClick={() => {
+                        setIsEpisodeDrawerOpen(false);
+                        navigate(`/watch/tv/${mediaId}/${drawerSeasonNumber}/${ep.episode_number}`);
+                      }}
+                      className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-colors ${
+                        ep.episode_number === episodeNumber && drawerSeasonNumber === seasonNumber
+                          ? 'bg-brand-600/20 border-brand-500/50 text-white'
+                          : 'bg-surface-100/60 border-white/5 text-slate-300 hover:bg-surface-100'
+                      }`}
+                    >
                     <div className="w-20 aspect-video rounded bg-surface-300 overflow-hidden flex-shrink-0 relative">
                       <img
                         src={getStillUrl(ep.still_path, 'small')}
@@ -299,7 +407,8 @@ export const Watch: React.FC = () => {
                       </div>
                     </div>
                   </button>
-                ))}
+                ))
+              )}
               </div>
             </div>
           </div>

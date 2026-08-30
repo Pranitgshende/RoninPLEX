@@ -94,8 +94,8 @@ class TMDBService {
   }
 
   // --- Trending ---
-  async getTrending(mediaType: 'all' | 'movie' | 'tv' = 'all', timeWindow: 'day' | 'week' = 'day'): Promise<(Movie | TVShow)[]> {
-    const data = await this.fetchFromTMDB<TMDBResponse<Movie | TVShow>>(`/trending/${mediaType}/${timeWindow}`);
+  async getTrending(mediaType: 'all' | 'movie' | 'tv' = 'all', timeWindow: 'day' | 'week' = 'day', page: number = 1): Promise<(Movie | TVShow)[]> {
+    const data = await this.fetchFromTMDB<TMDBResponse<Movie | TVShow>>(`/trending/${mediaType}/${timeWindow}`, { page });
     if (data && data.results) {
       return data.results;
     }

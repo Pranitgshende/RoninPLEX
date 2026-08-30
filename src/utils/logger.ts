@@ -1,4 +1,4 @@
-﻿import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 
 export async function logRuntime(tag: string, message: string): Promise<void> {
   const formatted = `[${tag}] ${message}`;
@@ -14,8 +14,4 @@ export async function logRuntime(tag: string, message: string): Promise<void> {
 
 export function logPlayback(message: string): void {
   logRuntime('PLAYBACK', message);
-}
-
-export function logVlc(message: string): void {
-  logRuntime('VLC', message);
 }

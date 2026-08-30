@@ -11,6 +11,8 @@ import { TonightPicker } from '../components/decision/TonightPicker';
 import { useUser } from '../context/UserContext';
 import { getPosterUrl, getBackdropUrl } from '../utils/helpers';
 import { DEFAULT_HOME_SECTIONS } from '../types/user';
+import { AdultBadge } from '../components/common/AdultBadge';
+import { animeService } from '../services/anime/AnimeService';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +28,9 @@ export const Home: React.FC = () => {
   const [actionMovies, setActionMovies] = useState<Movie[]>([]);
   const [sciFiMovies, setSciFiMovies] = useState<Movie[]>([]);
   const [comedyMovies, setComedyMovies] = useState<Movie[]>([]);
+  const [adultItems, setAdultItems] = useState<(Movie | TVShow)[]>([]);
+  const [animeItems, setAnimeItems] = useState<(Movie | TVShow)[]>([]);
+  const [roninPicks, setRoninPicks] = useState<ScoredMediaItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isTonightPickerOpen, setIsTonightPickerOpen] = useState<boolean>(false);
 
@@ -53,7 +58,12 @@ export const Home: React.FC = () => {
         const needSciFi = isSectionEnabled('scifi_movies');
         const needComedy = isSectionEnabled('comedy_movies');
 
-        const [trending, popMovies, topMovies, popTV, actionRes, sciFiRes, comedyRes] = await Promise.all([
+        const filterAdult = <T extends { adult?: boolean }>(items: T[]): T[] => {
+          if (preferences.showAdultRecommendations) return items;
+          return items.filter(item => !item.adult);
+        };
+
+        const [trending, popMovies, topMovies, popTV, actionRes, sciFiRes, comedyRes, animeList] = await Promise.all([
           needTrending ? tmdb.getTrending('all', 'day') : Promise.resolve([]),
           needPopMovies ? tmdb.getPopularMovies(1) : Promise.resolve({ page: 1, results: [], total_pages: 1, total_results: 0 }),
           needTopMovies ? tmdb.getTopRatedMovies(1) : Promise.resolve({ page: 1, results: [], total_pages: 1, total_results: 0 }),
@@ -61,24 +71,107 @@ export const Home: React.FC = () => {
           needAction ? tmdb.discoverMovies({ mediaType: 'movie', genreId: 28, sortBy: 'popularity.desc' }) : Promise.resolve({ page: 1, results: [], total_pages: 1, total_results: 0 }),
           needSciFi ? tmdb.discoverMovies({ mediaType: 'movie', genreId: 878, sortBy: 'popularity.desc' }) : Promise.resolve({ page: 1, results: [], total_pages: 1, total_results: 0 }),
           needComedy ? tmdb.discoverMovies({ mediaType: 'movie', genreId: 35, sortBy: 'popularity.desc' }) : Promise.resolve({ page: 1, results: [], total_pages: 1, total_results: 0 }),
+          animeService.getTrending(preferences.showAdultRecommendations).then(list => list.map(a => ({
+            id: a.id as any,
+            title: a.title,
+            name: a.title,
+            overview: a.synopsis,
+            poster_path: a.poster,
+            backdrop_path: a.banner || a.poster,
+            vote_average: a.score || 0,
+            vote_count: 500,
+            popularity: a.popularity || 0,
+            adult: a.isAdult,
+            media_type: 'tv' as const,
+            first_air_date: a.year ? `${a.year}-01-01` : '',
+            genre_ids: [],
+          }))).catch(() => []),
         ]);
 
         if (!isMounted) return;
 
-        setTrendingItems(trending);
-        setPopularMovies(popMovies.results);
-        setTopRatedItems(topMovies.results);
-        setPopularTV(popTV.results);
-        setActionMovies(actionRes.results);
-        setSciFiMovies(sciFiRes.results);
-        setComedyMovies(comedyRes.results);
+        setTrendingItems(filterAdult(trending));
+        setPopularMovies(filterAdult(popMovies.results));
+        setTopRatedItems(filterAdult(topMovies.results));
+        setPopularTV(filterAdult(popTV.results));
+        setActionMovies(filterAdult(actionRes.results));
+        setSciFiMovies(filterAdult(sciFiRes.results));
+        setComedyMovies(filterAdult(comedyRes.results));
+        setAnimeItems(animeList as any);
 
-        const pool: (Movie | TVShow)[] = [
+        if (preferences.showAdultRecommendations) {
+          setAdultItems([
+            {
+              id: 550,
+              title: 'Fight Club',
+              overview: 'A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy.',
+              poster_path: '/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+              backdrop_path: '/hZkgoQYus5vegHoetLkCJzb17zJ.jpg',
+              vote_average: 8.4,
+              vote_count: 27000,
+              release_date: '1999-10-15',
+              genre_ids: [18, 53],
+              adult: true,
+              popularity: 88.5,
+              original_language: 'en',
+              original_title: 'Fight Club',
+            },
+            {
+              id: 293660,
+              title: 'Deadpool',
+              overview: 'Wade Wilson is a former Special Forces operative who now works as a mercenary. His world comes crashing down when an evil scientist tortures and disfigures him.',
+              poster_path: '/fSRb7vyIP8rQpL0I47P3qUsRIXq.jpg',
+              backdrop_path: '/en971MEXui9vgYrL00uq0eZWz2L.jpg',
+              vote_average: 7.6,
+              vote_count: 29000,
+              release_date: '2016-02-09',
+              genre_ids: [28, 12, 35],
+              adult: true,
+              popularity: 75.2,
+              original_language: 'en',
+              original_title: 'Deadpool',
+            },
+            {
+              id: 680,
+              title: 'Pulp Fiction',
+              overview: 'A burger-loving hit man, his philosophical partner, a drug-addled gangster\'s moll and a washed-up boxer converge in this sprawling comedic crime caper.',
+              poster_path: '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
+              backdrop_path: '/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg',
+              vote_average: 8.5,
+              vote_count: 26000,
+              release_date: '1994-09-10',
+              genre_ids: [53, 80],
+              adult: true,
+              popularity: 92.4,
+              original_language: 'en',
+              original_title: 'Pulp Fiction',
+            },
+            {
+              id: 105248,
+              name: 'Cyberpunk: Edgerunners',
+              overview: 'A street kid trying to survive in a technology and body modification-obsessed city of the future.',
+              poster_path: '/7jSWLnsZqzftgL7qZ5T1lZc4Vb4.jpg',
+              backdrop_path: '/s1x6vt2EuqC4u5G4hWnJ8K5u7a5.jpg',
+              vote_average: 8.6,
+              vote_count: 1400,
+              first_air_date: '2022-09-13',
+              genre_ids: [16, 28, 878],
+              adult: true,
+              popularity: 65.0,
+              original_language: 'ja',
+              original_name: 'Cyberpunk: Edgerunners',
+            } as any,
+          ]);
+        } else {
+          setAdultItems([]);
+        }
+
+        const pool: (Movie | TVShow)[] = filterAdult([
           ...trending,
           ...popMovies.results,
           ...topMovies.results,
           ...popTV.results,
-        ];
+        ]);
 
         const uniqueMap = new Map<string, Movie | TVShow>();
         pool.forEach(item => {
@@ -89,6 +182,7 @@ export const Home: React.FC = () => {
 
         const ranked = recommendation.rankMedia(uniquePool, preferences, watchlist, watched);
         setRecommendedItems(ranked);
+        setRoninPicks(ranked.slice(0, 10));
 
         if (ranked.length > 0) {
           const topPick = uniquePool.find(item => item.id === ranked[0].id) || ranked[0];
@@ -218,7 +312,7 @@ export const Home: React.FC = () => {
               <div className="space-y-2 max-w-xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Decision Helper</span>
+                  <span>Ronin AI</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-bold text-white font-display">
                   Can't decide what to watch tonight?
@@ -340,6 +434,50 @@ export const Home: React.FC = () => {
             mediaType="movie"
             viewAllLink="/discover?tab=top-rated"
           />
+        );
+
+      case 'anime_spotlight':
+        return animeItems.length > 0 ? (
+          <MediaRow
+            key="anime_spotlight"
+            title="Anime Realm Spotlight"
+            subtitle="Masterpiece Japanese animation and legendary seasonal epics"
+            items={animeItems}
+            isLoading={isLoading}
+            badge="Anime"
+            viewAllLink="/anime"
+          />
+        ) : null;
+
+      case 'ronin_picks':
+        return roninPicks.length > 0 ? (
+          <MediaRow
+            key="ronin_picks"
+            title="Ronin AI Curated Picks"
+            subtitle="Hand-picked cinema gems matched to your taste profile"
+            items={roninPicks}
+            isLoading={isLoading}
+            badge="Ronin AI"
+            viewAllLink="/decision"
+          />
+        ) : null;
+
+      case 'adult_content':
+        if (!preferences.showAdultRecommendations || adultItems.length === 0) return null;
+        return (
+          <div key="adult_content" className="space-y-2">
+            <div className="px-4 sm:px-8 md:px-12 flex items-center gap-2">
+              <AdultBadge size="sm" />
+              <span className="text-xs text-rose-400 font-bold tracking-wider uppercase">Mature 18+ Content</span>
+            </div>
+            <MediaRow
+              title="Mature & 18+ Recommendations"
+              subtitle="Curated R-rated films, mature anime, and gritty TV sagas"
+              items={adultItems}
+              isLoading={isLoading}
+              badge="18+ Mature"
+            />
+          </div>
         );
 
       default:

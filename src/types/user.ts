@@ -54,8 +54,11 @@ export type HomeSectionId =
   | 'recommended'
   | 'trending'
   | 'popular_movies'
-  | 'top_rated_movies'
   | 'popular_tv'
+  | 'anime_spotlight'
+  | 'ronin_picks'
+  | 'adult_content'
+  | 'top_rated_movies'
   | 'action_movies'
   | 'scifi_movies'
   | 'comedy_movies';
@@ -69,14 +72,13 @@ export interface HomeSectionItem {
 export const DEFAULT_HOME_SECTIONS: HomeSectionItem[] = [
   { id: 'hero', label: 'Hero / Featured Title', enabled: true },
   { id: 'continue_watching', label: 'Continue Watching', enabled: true },
-  { id: 'recommended', label: 'Recommended For You', enabled: true },
-  { id: 'decision_helper', label: 'Tonight Decision Helper', enabled: true },
   { id: 'trending', label: 'Trending Today', enabled: true },
   { id: 'popular_movies', label: 'Popular Movies', enabled: true },
   { id: 'popular_tv', label: 'Binge-Worthy TV Shows', enabled: true },
-  { id: 'action_movies', label: 'High-Octane Action', enabled: true },
-  { id: 'scifi_movies', label: 'Sci-Fi & Futuristic', enabled: true },
-  { id: 'comedy_movies', label: 'Comedy & Laughs', enabled: true },
+  { id: 'anime_spotlight', label: 'Anime Realm Spotlight', enabled: true },
+  { id: 'recommended', label: 'Recommended For You', enabled: true },
+  { id: 'ronin_picks', label: 'Ronin AI Picks', enabled: true },
+  { id: 'adult_content', label: '18+ Mature Recommendations', enabled: true },
   { id: 'top_rated_movies', label: 'Top Rated Masterpieces', enabled: true },
 ];
 
@@ -91,8 +93,8 @@ export interface UserPreferences {
   enableHoverTrailers: boolean;
   reduceMotion: boolean;
   adultContent: boolean;
-  // v1.2.0 Playback & External Player
-  useVlc: boolean;
+  showAdultRecommendations: boolean;
+  // Playback & Built-in Player Engine
   seekAmount: SeekAmount;
   autoNextEpisode: boolean;
   autoNextCountdown: number; // in seconds, default 10
@@ -111,7 +113,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   enableHoverTrailers: true,
   reduceMotion: false,
   adultContent: false,
-  useVlc: false,
+  showAdultRecommendations: false,
   seekAmount: 10,
   autoNextEpisode: true,
   autoNextCountdown: 10,

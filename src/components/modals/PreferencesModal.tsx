@@ -3,6 +3,7 @@ import { X, Sliders, Check, Film, Globe, User, Save, RotateCcw } from 'lucide-re
 import { useUser } from '../../context/UserContext';
 import { MOCK_GENRES } from '../../services/mockData';
 import { DEFAULT_USER_PREFERENCES } from '../../types/user';
+import { AdultBadge } from '../common/AdultBadge';
 
 export const PreferencesModal: React.FC = () => {
   const { isPreferencesOpen, closePreferences, preferences, updatePreferences } = useUser();
@@ -14,6 +15,7 @@ export const PreferencesModal: React.FC = () => {
   const [actorsList, setActorsList] = useState<string[]>(preferences.favoriteActors);
   const [directorInput, setDirectorInput] = useState<string>('');
   const [directorsList, setDirectorsList] = useState<string[]>(preferences.favoriteDirectors);
+  const [showAdult, setShowAdult] = useState<boolean>(preferences.showAdultRecommendations || false);
 
   useEffect(() => {
     if (isPreferencesOpen) {
@@ -22,6 +24,7 @@ export const PreferencesModal: React.FC = () => {
       setSelectedLanguage(preferences.preferredLanguages[0] || 'en');
       setActorsList(preferences.favoriteActors);
       setDirectorsList(preferences.favoriteDirectors);
+      setShowAdult(preferences.showAdultRecommendations || false);
     }
   }, [isPreferencesOpen, preferences]);
 
@@ -59,6 +62,7 @@ export const PreferencesModal: React.FC = () => {
     setSelectedLanguage(DEFAULT_USER_PREFERENCES.preferredLanguages[0]);
     setActorsList(DEFAULT_USER_PREFERENCES.favoriteActors);
     setDirectorsList(DEFAULT_USER_PREFERENCES.favoriteDirectors);
+    setShowAdult(DEFAULT_USER_PREFERENCES.showAdultRecommendations || false);
   };
 
   const handleSave = () => {
@@ -68,6 +72,7 @@ export const PreferencesModal: React.FC = () => {
       preferredLanguages: [selectedLanguage],
       favoriteActors: actorsList,
       favoriteDirectors: directorsList,
+      showAdultRecommendations: showAdult,
     });
     closePreferences();
   };
@@ -250,6 +255,26 @@ export const PreferencesModal: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* 18+ Mature Content Toggle */}
+            <div className="p-4 rounded-xl bg-surface-100/80 border border-white/5 flex items-center justify-between mt-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Mature & 18+ Recommendations</span>
+                  <AdultBadge size="sm" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">Include mature and adult recommendations on Home</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showAdult}
+                  onChange={(e) => setShowAdult(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+              </label>
             </div>
           </div>
         </div>

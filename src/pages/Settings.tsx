@@ -24,7 +24,6 @@ import {
   ExternalLink,
   Palette,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
 import { providerConfigService } from '../services/streaming/providerConfig';
 import { ProviderConfig, DEFAULT_PROVIDER_CONFIG } from '../services/streaming/types';
 import { streamingManager } from '../services/streaming/StreamingManager';
@@ -32,6 +31,7 @@ import { useUser } from '../context/UserContext';
 import { useApiKey } from '../context/ApiKeyContext';
 import { tmdb } from '../services/tmdb';
 import { SeekAmount } from '../types/user';
+import { AdultBadge } from '../components/common/AdultBadge';
 
 export type SettingsTab = 'home' | 'playback' | 'streaming' | 'tmdb' | 'appearance' | 'storage' | 'about';
 
@@ -56,22 +56,6 @@ export const Settings: React.FC = () => {
 
   // Active Tab: 7 desktop categories
   const [activeTab, setActiveTab] = useState<SettingsTab>('home');
-
-  // VLC Installation Check
-  const [vlcInstalled, setVlcInstalled] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const checkVlc = async () => {
-      try {
-        const installed = await invoke<boolean>('check_vlc_installed');
-        setVlcInstalled(installed);
-      } catch (err) {
-        console.warn('VLC check failed:', err);
-        setVlcInstalled(false);
-      }
-    };
-    checkVlc();
-  }, []);
 
   // Home Page Section Reordering & Toggles
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
@@ -233,7 +217,7 @@ export const Settings: React.FC = () => {
             }`}
           >
             <PlaySquare className="w-4 h-4" />
-            <span>Playback & VLC</span>
+            <span>Playback Engine</span>
           </button>
 
           <button
@@ -381,78 +365,41 @@ export const Settings: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* SECTION 2: PLAYBACK & VLC */}
-          {activeTab === 'playback' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white font-display">Playback & VLC Player Engine</h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Configure seek duration, gesture actions, episode transitions, and optional external VLC streaming.
-                </p>
-              </div>
-
-              {/* VLC External Media Player Integration */}
+              {/* 18+ Content Controls */}
               <div className="p-5 rounded-2xl bg-surface-100/60 border border-white/10 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-white">External VLC Player Interop</h3>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
-                        Direct Streams
-                      </span>
+                      <h3 className="text-sm font-bold text-white">Mature & 18+ Content Recommendations</h3>
+                      <AdultBadge size="sm" />
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
-                      When enabled, direct HLS (.m3u8) and MP4 video streams will launch in the external VLC media player installed on your computer. Embedded iframe providers (e.g. VidSrc embeds) will continue rendering safely within RoninPLEX's built-in player.
+                      When enabled, mature 18+ titles and a dedicated Adult Recommendations shelf will appear on your Home page with explicit 18+ badges. When disabled, adult and age-restricted titles are completely filtered from all recommendations and shelves.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                     <input
                       type="checkbox"
-                      checked={preferences.useVlc === true}
-                      onChange={(e) => updatePreferences({ useVlc: e.target.checked })}
+                      checked={preferences.showAdultRecommendations === true}
+                      onChange={(e) => updatePreferences({ showAdultRecommendations: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                    <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
                   </label>
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* VLC Detection Status Callout */}
-                <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
-                  vlcInstalled === true
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    : vlcInstalled === false
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                      : 'bg-surface-200 border-white/5 text-slate-400'
-                }`}>
-                  <div className="flex items-center gap-2.5">
-                    {vlcInstalled === true ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                    )}
-                    <span>
-                      {vlcInstalled === true
-                        ? 'VLC Media Player Detected on this system (Standard Program Files / PATH).'
-                        : vlcInstalled === false
-                          ? 'VLC Media Player was not detected at standard Windows installation paths.'
-                          : 'Checking system for VLC Media Player...'}
-                    </span>
-                  </div>
-                  {vlcInstalled === false && (
-                    <a
-                      href="https://www.videolan.org/vlc/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold text-[11px] flex items-center gap-1 transition-colors flex-shrink-0"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Download VLC</span>
-                    </a>
-                  )}
-                </div>
+          {/* SECTION 2: PLAYBACK ENGINE */}
+          {activeTab === 'playback' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-white font-display">Built-in Playback Engine</h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Configure seek duration, gesture actions, and episode transitions.
+                </p>
               </div>
 
               {/* Central Seek Amount */}
@@ -1293,19 +1240,19 @@ export const Settings: React.FC = () => {
                     <span className="text-white font-semibold">React 19 + TypeScript + Vite + Tailwind CSS</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Playback Engines:</span>
-                    <span className="text-white font-semibold">HLS.js Native + HTML5 Video + Optional VLC Media Player</span>
+                    <span className="text-slate-400">Playback Engine:</span>
+                    <span className="text-white font-semibold">Built-in HLS.js + HTML5 Video Engine</span>
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-surface-100/40 border border-white/5 space-y-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">v1.2.0 Changelog Highlights</h4>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">v2.0.0 Highlights</h4>
                   <ul className="list-disc list-inside text-[11px] text-slate-400 space-y-1">
-                    <li>Home Page Customization: Reorder and toggle content shelves with zero wasted TMDB queries</li>
+                    <li>Dedicated Experiences: Distinct first-class Movies, TV Shows, Anime, and Discover sections</li>
+                    <li>Built-in Playback Engine: Resilient HLS, MP4, and embed playback with multi-provider failover</li>
                     <li>Central Seek Engine: Configurable 5s, 10s, 15s, 30s jump intervals with visual badge animation</li>
                     <li>Double-Click Player Gestures: Edge zones seek forward/backward with single-click disambiguation</li>
-                    <li>TV Auto-Next Episode: Automated countdown transition card with next episode preview and cancel control</li>
-                    <li>VLC External Player Integration: Route direct HLS and MP4 streams to local VLC desktop player</li>
+                    <li>Auto-Next Episode: Automated countdown transition card with next episode preview and cancel control</li>
                     <li>Multi-Provider Health Manager: 5-minute fast-fail penalty expiration and automated fallback</li>
                   </ul>
                 </div>

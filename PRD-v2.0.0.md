@@ -1,897 +1,572 @@
-# RoninPLEX v2.0.0
-# Product Requirements Document + Ralph Loop Specification
+# RoninPLEX v2.0.0 — Product Requirements Document
 
-Repository:
-https://github.com/Pranitgshende/RoninPLEX
+## 1. Product Vision
 
-Target Version:
-2.0.0
+RoninPLEX v2.0.0 is a major redesign of the application into a unified, cinematic entertainment platform for Movies, TV Shows, and Anime.
 
----
+The application should feel like a premium modern streaming/discovery experience rather than a conventional media browser.
 
-# 1. PRODUCT VISION
-
-RoninPLEX is a Windows desktop entertainment platform for discovering
-and watching Movies, TV Shows, and Anime.
-
-Version 2.0.0 is a major product evolution.
-
-The goal is to transform RoninPLEX into a polished, cinematic,
-stable, intelligent entertainment application with:
+The core experience must include:
 
 - Dedicated Movies experience
 - Dedicated TV Shows experience
-- Dedicated Anime experience
-- Unified built-in video playback
-- Multi-provider playback failover
-- Complete VLC removal
-- Glassmorphism UI
-- High-quality animations
-- Improved fullscreen behavior
-- 18+ content controls
-- Ronin AI companion
-- AI-powered Decision Helper
-- Animated Ronin character
-- Ronin-style movie/TV/anime descriptions
-- Better navigation
-- Better performance
-- Better accessibility
-- Production-grade reliability
+- Completely isolated Anime experience
+- Unified Discover experience containing Movies, TV Shows, and Anime
+- Reliable playback with separate movie/TV and anime player architectures
+- `anime-sdk` integration for anime stream discovery/playback
+- AniList-based anime metadata
+- Full anime episode support, including long-running series with 1000+ episodes
+- Latest anime episode and upcoming episode information
+- Global 18+ content classification and filtering
+- Modern purple-tinted transparent glassmorphism UI
+- Consistent card design across Home, Movies, TV, Anime, and Discover
+- Animated Ronin AI companion
+- Ronin AI accessible directly through the RoninPLEX branding/icon
+- Long-form conversational AI recommendations
+- Context-aware recommendations grounded in real metadata
+- Reliable filtering and deduplication
+- Smooth animations and transitions
+- Strong accessibility and reduced-motion support
+- Production-ready testing and packaging
 
-RoninPLEX v2.0.0 must feel like one coherent entertainment platform,
-not a collection of disconnected pages.
-
----
-
-# 2. ABSOLUTE PRIORITY
-
-Stability is more important than adding features.
-
-Do not introduce a new feature if it causes an existing core feature
-to regress.
-
-Core functionality has priority in this order:
-
-1. Application launches
-2. Navigation works
-3. Metadata/search works
-4. Playback works
-5. Fullscreen works
-6. Progress tracking works
-7. Anime works
-8. UI/animations
-9. Ronin AI
-10. Additional enhancements
-
-Never sacrifice playback or application stability for visual effects.
+Version remains `2.0.0`.
 
 ---
 
-# 3. CURRENT PROBLEMS
+# 2. Critical Architectural Rules
 
-The current RoninPLEX application has experienced:
+## 2.1 Anime Must Be Completely Isolated
 
-- Movies/TV/Discover navigation incorrectly rendering the Discover page
-- TV Shows not having a sufficiently dedicated experience
-- Fullscreen inconsistencies
-- Provider playback failures
-- Black-screen playback regressions
-- Poor playback recovery
-- VLC incompatibility with web embed streams
-- Unnecessary VLC complexity
-- Limited anime support
-- Limited AI functionality
-- Limited application-wide animation
-- Inconsistent UI design
-- Lack of clear 18+ controls
-- Lack of a recognizable application personality
+Anime is a separate content domain.
+
+Anime must NOT depend on TMDB for:
+
+- Anime metadata
+- Anime episode information
+- Anime episode counts
+- Anime genres
+- Anime airing schedules
+- Anime search
+- Anime recommendations
+- Anime IDs
+- Anime stream resolution
+
+TMDB may continue to power Movies and TV Shows.
+
+Anime must have its own backend/domain environment and service architecture.
+
+Recommended structure:
+
+    src/services/anime/
+        AnimeTypes.ts
+        AnimeRepository.ts
+        AnimeService.ts
+        AnimeMapper.ts
+        AnimeCache.ts
+        AnimeSdkAdapter.ts
+        AnimeStreamService.ts
+
+Anime code must not import TMDB services or TMDB-specific domain models.
+
+Anime data should use AniList as the primary metadata source.
+
+The architecture should remain flexible enough to support additional metadata sources such as:
+
+- AniList
+- MyAnimeList
+- AniDB
+
+However, the first-class implementation must use AniList and `anime-sdk`.
 
 ---
 
-# 4. VERSION 2.0.0 GOALS
+# 3. Anime SDK Integration
 
-RoninPLEX v2.0.0 must provide:
+The project must genuinely integrate:
 
-- Correct navigation
-- Dedicated Movies page
-- Dedicated TV Shows page
-- Dedicated Anime page
-- Reliable built-in playback
-- Provider failover
-- HLS playback
-- MP4 playback
+`https://github.com/hexxt-git/anime-sdk`
+
+Do not create a fake adapter that merely contains the package name.
+
+The actual SDK functionality must be inspected and used.
+
+Before implementation:
+
+1. Inspect the repository.
+2. Understand its API.
+3. Identify supported providers.
+4. Identify browser compatibility requirements.
+5. Identify stream/episode resolution capabilities.
+6. Determine whether it requires Node-only APIs.
+7. Create appropriate browser/Tauri compatibility layers where necessary.
+8. Verify the SDK actually resolves usable streams.
+
+Use an adapter so the rest of RoninPLEX does not directly depend on SDK implementation details.
+
+Example architecture:
+
+    AnimeSdkAdapter
+          ↓
+    AnimeStreamService
+          ↓
+    AnimeService
+          ↓
+    Anime UI / Anime Player
+
+The application must test actual stream resolution instead of assuming that a provider exists.
+
+A source is only considered usable when:
+
+1. Anime is resolved.
+2. Episode is resolved.
+3. Stream source is returned.
+4. Source format is recognized.
+5. Player can initialize it.
+6. Media actually loads.
+7. Playback time advances.
+
+Failed providers must automatically fall through to the next available provider.
+
+---
+
+# 4. Anime Metadata Architecture
+
+AniList should be the primary anime metadata source.
+
+The anime repository should support:
+
+- Trending anime
+- Popular anime
+- Top-rated anime
+- Currently airing anime
+- Seasonal anime
+- New releases
+- Search
+- Genres
+- Studios
+- Characters where useful
+- Rankings
+- Scores
+- Format
+- Status
+- Start date
+- End date
+- Episode count
+- Episode duration
+- Airing schedule
+- Adult classification
+
+Anime metadata should be normalized into RoninPLEX's own anime domain models.
+
+Example:
+
+    AnimeItem
+    AnimeEpisode
+    AnimeAiring
+    AnimeStreamSource
+
+Do not leak AniList-specific response structures throughout the application.
+
+---
+
+# 5. Anime Episode System
+
+The application must correctly support long-running anime.
+
+The episode system must NOT arbitrarily cap episodes at 100, 500, or another artificial limit.
+
+For example, One Piece must be able to represent its complete available episode count.
+
+The UI should support:
+
+- Episode search
+- Jump to episode
+- Episode pagination/chunking
+- 1–100
+- 101–200
+- 201–300
+- etc.
+- Final chunk containing remaining episodes
+
+The system must distinguish between:
+
+- Official metadata episode count
+- Currently available playable episodes
+- Episodes not yet released
+- Missing/unavailable streams
+
+Do not claim an episode is playable merely because metadata says it exists.
+
+---
+
+# 6. Anime Latest Episode & Airing System
+
+The Anime page must contain a dedicated airing/release section.
+
+It should display:
+
+- Recently released episodes
+- Anime title
+- Episode number
+- Release date
+- Release time when available
+- Current airing status
+- Next episode number
+- Next episode release date
+- Countdown until next episode
+
+Example:
+
+    Latest Releases
+
+    One Piece
+    Episode 1175
+    Released: Aug 29, 2026
+
+    Next Episode
+    Episode 1176
+    In: 6d 14h
+
+Countdowns should update without requiring a full page refresh.
+
+---
+
+# 7. Anime Page
+
+The Anime section must be a first-class section in the top navigation.
+
+It should NOT look like Movies or TV with a TMDB-style implementation.
+
+The Anime page should contain:
+
+1. Anime Spotlight
+2. Trending Anime
+3. New Releases
+4. Currently Airing
+5. Seasonal Anime
+6. Popular Anime
+7. Top Rated Anime
+8. Latest Episodes
+9. Upcoming Episodes
+10. Genre exploration
+11. 18+ Anime when enabled
+
+The Anime card system should use the same visual card language as the Home page.
+
+Do not create a separate inferior or outdated anime card style.
+
+---
+
+# 8. Anime Details
+
+Anime detail pages must include:
+
+- Cover/poster
+- Banner where available
+- English title
+- Romaji title
+- Japanese title where available
+- Synopsis
+- Score
+- Format
+- Status
+- Release dates
+- Studios
+- Genres
+- Episode count
+- Current available episodes
+- Airing information
+- Adult classification
+- Episode selector
+- Search/jump-to-episode control
+
+Episode lists must work for 1000+ episode anime.
+
+---
+
+# 9. Dedicated Anime Player
+
+Anime must use a dedicated player architecture.
+
+Do NOT force anime playback through the exact same player implementation used for Movies and TV.
+
+Create:
+
+    AnimeVideoPlayer.tsx
+
+The anime player should support:
+
+- HLS
+- MP4
+- WebVTT subtitles
+- Multiple subtitle tracks
+- Sub/Dub selection where the source provides it
+- Episode switching
+- Next episode
+- Previous episode
+- Intro skip
+- Outro skip where metadata permits
+- Auto-play next episode
+- Playback progress
+- Continue watching
 - Fullscreen
-- Continue Watching
-- 18+ filtering and labeling
-- Glass-style UI
-- Consistent animation system
-- Ronin animated character
-- Ronin AI
-- Conversational Decision Helper
-- Ronin-generated spoiler-free descriptions
-- Production-ready Windows installer
-- No VLC
+- Playback speed
+- Volume
+- Seeking
+- Provider failover
+
+The generic Movie/TV player and Anime player may share lower-level utilities, but their domain logic must remain separate.
 
 ---
 
-# 5. NAVIGATION
+# 10. Movie and TV Player
 
-Primary navigation:
+Movies and TV Shows should retain their own unified movie/TV playback architecture.
 
-- Home
+The system must support:
+
+- HLS
+- MP4
+- Embedded sources where supported
+- Provider failover
+- Playback watchdog
+- Continue watching
+- Next episode
+- Previous episode
+- Fullscreen
+- Seeking
+- Resume position
+
+The player must verify actual playback rather than only successful URL resolution.
+
+---
+
+# 11. Stream Failover
+
+All playback providers must use a controlled failover system.
+
+Provider flow:
+
+    Provider A
+        ↓
+    Resolve
+        ↓
+    Initialize
+        ↓
+    Media Load
+        ↓
+    Playback Starts
+        ↓
+    currentTime Advances
+
+If any critical stage fails:
+
+    Provider B
+        ↓
+    Provider C
+        ↓
+    Provider D
+
+Prevent:
+
+- Infinite retries
+- Repeated failed providers
+- UI freezing
+- Silent black screens
+
+The player should clearly tell the user when a provider fails and automatically attempt the next eligible provider.
+
+---
+
+# 12. Unified Discover
+
+Discover must be a true unified media discovery page.
+
+It must display:
+
+- Movies
+- TV Shows
+- Anime
+
+All three content types should coexist in the same Discover experience.
+
+Every result must carry a clear media type.
+
+Examples:
+
+    MOVIE
+    TV
+    ANIME
+
+Anime results must come from the anime domain.
+
+Movie and TV results must come from the movie/TV domain.
+
+Discover must not convert Anime into TMDB media objects.
+
+---
+
+# 13. Discover Deduplication
+
+Discover must never show duplicate cards caused by:
+
+- Duplicate API results
+- Multiple pages
+- ID collisions
+- Cross-media ID collisions
+- Provider merging
+- Filter changes
+
+Use a discriminated media model.
+
+Recommended key:
+
+    `${mediaType}:${id}`
+
+Examples:
+
+    movie:123
+    tv:123
+    anime:123
+
+These are separate entities.
+
+---
+
+# 14. Discover Filters
+
+Discover filters must never break or corrupt the result set.
+
+Filters should support:
+
+- All
+- Movies
+- TV Shows
+- Anime
+- Genre
+- Year
+- Rating
+- Language where applicable
+- Adult content
+
+When filters change:
+
+1. Existing results should be cleared or safely replaced.
+2. The correct query should execute.
+3. Results should be normalized.
+4. Results should be deduplicated.
+5. Results should be filtered.
+6. Loading state should be displayed.
+7. The final result set should contain only valid results for that filter.
+
+No stale results from the previous filter should remain.
+
+Changing:
+
+    All → Anime → Movies → TV → All
+
+must work repeatedly.
+
+---
+
+# 15. Universal Search
+
+Universal search must search:
+
+- Movies
+- TV Shows
+- Anime
+
+Results must clearly identify their media type.
+
+Anime searches must use AniList/anime services.
+
+Movie/TV searches may use TMDB.
+
+Search must not merge incompatible models.
+
+---
+
+# 16. 18+ Content System
+
+18+ content must be classified consistently across:
+
 - Movies
 - TV Shows
 - Anime
 - Discover
-- Decision Helper
-
-Secondary navigation:
-
-- Watchlist
-- Settings
-
-Required routes:
-
-/
- /movies
- /tv
- /anime
- /discover
- /decision
- /movie/:id
- /tv/:id
- /anime/:id
- /watch/movie/:id
- /watch/tv/:id/:season/:episode
- /watch/anime/:id/:episode
- /watchlist
- /settings
-
-Navigation requirements:
-
-- Movies must always open Movies.
-- TV Shows must always open TV Shows.
-- Anime must always open Anime.
-- Discover must always open Discover.
-- Decision Helper must always open Decision Helper.
-- Direct navigation must work.
-- Page refresh must preserve the current page.
-- Active navigation state must match the current route.
-- No section may accidentally render another section.
-
-Use Chrome DevTools/CDP and Playwright to verify runtime navigation.
-
----
-
-# 6. MOVIES
-
-Movies must become a first-class experience.
-
-Movies page should include:
-
-- Trending Movies
-- Popular Movies
-- Top Rated Movies
-- Genre sections
 - Search
 - Recommendations
-- Continue Watching
+- Home
+- Anime pages
+- Detail pages
+- Cards
 
-Movie cards should display:
+The system must use an explicit textual `+18` label.
 
-- Poster
-- Title
-- Release year
-- Rating
-- Runtime where available
-- Maturity information
-- 18+ indicator when applicable
+Do not rely only on red color.
 
-Movie detail pages should provide:
+The badge should include:
 
-- Hero artwork
-- Title
-- Description
-- Metadata
-- Genres
-- Cast
-- Rating
-- Maturity information
-- Watch button
-- Watchlist action
-- Recommendations
+    +18
+
+with an appropriate icon and accessible label.
+
+Example:
+
+    aria-label="18+ Adult Content"
 
 ---
 
-# 7. TV SHOWS
+# 17. 18+ Filtering
 
-TV Shows must have a dedicated experience.
-
-TV page should include:
-
-- Trending TV
-- Popular TV
-- Top Rated TV
-- Genres
-- Search
-- Continue Watching
-
-TV navigation:
-
-TV Show
-→ Details
-→ Season
-→ Episode
-→ Playback
-
-Episode interface should provide:
-
-- Season selector
-- Episode selector
-- Episode title
-- Episode description
-- Episode progress
-- Previous episode
-- Next episode
-
-Continue Watching should preserve episode and playback progress.
-
-Existing TV next-episode functionality must be preserved and improved.
-
----
-
-# 8. ANIME
-
-Anime must become a completely separate first-class section.
-
-Anime must have its own:
-
-- Top navigation item
-- Landing page
-- Search
-- Details page
-- Episode page
-- Recommendations
-- Playback experience
-
-Anime must NOT simply be mixed into Movies or TV pages.
-
----
-
-# 9. ANIME SDK
-
-Use this exact Anime SDK:
-
-GitHub:
-https://github.com/hexxt-git/anime-sdk
-
-Documentation:
-https://anime-sdk.hexxt.dev/
-
-DO NOT substitute Jikan for Anime SDK as the primary anime source
-without first investigating Anime SDK.
-
-Before implementation:
-
-1. Inspect the Anime SDK repository.
-2. Inspect current documentation.
-3. Use Context7 where available.
-4. Inspect the SDK architecture.
-5. Inspect available providers.
-6. Inspect metadata capabilities.
-7. Inspect mapping capabilities.
-8. Inspect episode resolution.
-9. Inspect stream/source resolution.
-10. Inspect subtitle/track support.
-11. Inspect caching.
-12. Determine whether direct SDK integration or HTTP-server mode
-   is better for Tauri.
-
-Do not invent undocumented endpoints.
-
-Do not assume an API exists because an old example references it.
-
----
-
-# 10. ANIME END-TO-END REQUIREMENT
-
-Anime is NOT complete when search works.
-
-The complete pipeline must be verified:
-
-Search
-↓
-Metadata
-↓
-Anime Details
-↓
-Episodes
-↓
-Episode Selection
-↓
-Source Resolution
-↓
-Media URL
-↓
-HLS/MP4
-↓
-RoninPLEX Player
-↓
-Actual Playback
-
-The final media must actually play.
-
-If Anime SDK cannot reliably provide the required source pipeline:
-
-STOP.
-
-Investigate alternatives before implementing a fake or incomplete
-streaming architecture.
-
-Jikan/MAL may be used as a supplementary metadata source only when
-useful and justified.
-
----
-
-# 11. ANIME SERVICE ARCHITECTURE
-
-Anime must be isolated behind an abstraction.
-
-Recommended architecture:
-
-React
-↓
-AnimeService
-↓
-Anime SDK Adapter
-↓
-Anime SDK
-↓
-Providers
-↓
-Source
-↓
-RoninPLEX Player
-
-The rest of RoninPLEX must not become tightly coupled to the SDK.
-
-If Anime SDK HTTP-server mode is more appropriate:
-
-React
-↓
-AnimeService
-↓
-Local Anime SDK Server
-↓
-Anime SDK
-↓
-Providers
-
-Investigate both architectures before selecting one.
-
----
-
-# 12. UNIFIED PLAYBACK
-
-RoninPLEX must use the built-in player.
-
-VLC must NOT be required.
-
-Supported media should include:
-
-- HLS
-- MP4
-- DASH where practical
-- Embedded web streams where required
-
-HLS should use:
-
-- Native HLS when supported
-- HLS.js when required
-
-Playback state must distinguish:
-
-1. Source resolved
-2. Player initialized
-3. Media loaded
-4. Playback started
-5. Playback progressing
-
-A source URL existing does NOT mean playback succeeded.
-
----
-
-# 13. PLAYBACK FAILOVER
-
-When playback fails:
-
-Provider A
-↓
-Failure
-↓
-Provider B
-↓
-Failure
-↓
-Provider C
-↓
-Success
-
-The system must:
-
-- Detect playback failure
-- Detect stalled playback
-- Detect unrecoverable loading
-- Record failed providers
-- Prevent infinite retry loops
-- Attempt the next eligible provider
-- Preserve useful playback state where possible
-- Display a meaningful error after all providers fail
-
-Provider failover must work for Movies and TV.
-
-Anime source failover should be handled through the Anime source layer
-where supported.
-
----
-
-# 14. BLACK SCREEN PROTECTION
-
-A black screen must never become an indefinite terminal state.
-
-Implement runtime playback detection.
-
-Potential failure conditions:
-
-- iframe loads but playback never starts
-- media element exists but currentTime never advances
-- HLS initialization fails
-- video error event
-- source becomes unavailable
-- player remains stalled beyond a reasonable timeout
-
-When failure is detected:
-
-1. Log the failure.
-2. Display recovery UI.
-3. Attempt the next provider where appropriate.
-4. Prevent infinite loops.
-5. Allow manual retry.
-
-Do not hide the loading state simply because an iframe document
-finished loading.
-
----
-
-# 15. VLC — COMPLETE REMOVAL
-
-VLC must be completely removed from RoninPLEX.
-
-This is mandatory.
-
-Remove:
-
-- VLC executable detection
-- VLC launching
-- VLC settings
-- VLC buttons
-- VLC modals
-- VLC process management
-- VLC Tauri commands
-- VLC IPC
-- VLC diagnostics
-- VLC preferences
-- useVlc
-- VLC tests
-- VLC documentation
-
-Search repository-wide for:
-
-VLC
-vlc
-useVlc
-open_stream_in_vlc
-check_vlc_installed
-get_vlc_info
-find_vlc_path
-
-Expected result:
-
-No production VLC integration.
-
-All playback must occur through RoninPLEX's built-in player.
-
----
-
-# 16. FULLSCREEN
-
-Fullscreen must work reliably.
-
-Verify:
-
-- Enter fullscreen
-- Exit fullscreen
-- ESC
-- Window resize
-- Window maximize
-- Window restore
-- Player controls
-- Provider switching
-- Episode switching
-- HLS playback
-- MP4 playback
-- Embedded playback
-
-Use Chrome DevTools/CDP and Playwright to reproduce and verify
-fullscreen behavior.
-
-Do not blindly combine browser fullscreen and native Tauri fullscreen
-unless runtime testing proves it is necessary.
-
----
-
-# 17. CONTINUE WATCHING
-
-Continue Watching must support:
-
-- Movies
-- TV episodes
-- Anime episodes
-
-Persist:
-
-- Media ID
-- Media type
-- Season
-- Episode
-- Playback position
-- Duration where available
-- Last watched timestamp
-
-Progress should update efficiently without excessive storage writes.
-
----
-
-# 18. 18+ CONTENT
-
-Add a setting:
-
-Show 18+ Recommendations
-
-Default behavior should be conservative and appropriate.
+Settings should contain a preference controlling adult recommendations.
 
 When disabled:
 
-- Hide dedicated 18+ recommendation shelf.
-- Filter adult recommendations where practical.
+- Adult content must not appear in normal recommendations.
+- Adult content must not appear in normal Discover results.
+- Adult anime must not appear in normal anime shelves.
+- Adult search results should be filtered according to the application's adult-content policy.
 
 When enabled:
 
-- Show dedicated 18+ recommendation section.
+- A dedicated `+18` section should become visible.
+- Adult content should be clearly marked.
+- Adult anime should appear in its own mature anime shelf.
+- Adult movies and TV should be clearly marked.
 
-All qualifying content should clearly display:
+The dedicated mature section must contain enough valid results when data sources provide them.
 
-18+
-
-The label must appear on:
-
-- Movie cards
-- TV cards
-- Anime cards where applicable
-- Detail pages where applicable
-
-Do not rely solely on color.
-
-Use text and/or iconography.
+Do not manufacture adult entries simply to fill the shelf.
 
 ---
 
-# 19. 18+ SAFETY UX
+# 18. 18+ UI Label
 
-18+ controls must be clear and intentional.
+The mature section should be explicitly named:
 
-Do not accidentally surface adult recommendations when disabled.
+    +18 Mature Recommendations
 
-Do not bury the setting.
+or an equivalent clear label.
 
-The setting must persist between sessions.
+Cards must display:
 
----
+    +18
 
-# 20. GLASS UI REDESIGN
+The same requirement applies to:
 
-The entire application should receive a cinematic glass-style redesign.
-
-Design direction:
-
-- Premium
-- Cinematic
-- Dark
-- Modern
-- Glassmorphism
-- Minimal
-- Accessible
-- Responsive
-
-Use StitchMCP for UI exploration and design generation.
-
-Available StitchMCP tools should be actively used for relevant UI work.
-
-Create a consistent design system.
-
-Components should include:
-
-- Glass navigation
-- Glass cards
-- Glass panels
-- Glass buttons
-- Glass inputs
-- Glass modals
-- Glass dropdowns
-- Glass badges
-- Glass player controls
-
-Avoid excessive blur.
-
-Maintain readability and contrast.
+- Movies
+- TV Shows
+- Anime
 
 ---
 
-# 21. STITCHMCP
+# 19. Home Page
 
-StitchMCP must be used for UI and design-related work.
+Home should be rebuilt as a premium cinematic dashboard.
 
-Use it to explore:
-
-- Layout concepts
-- Navigation
-- Home page
-- Movies page
-- TV page
-- Anime page
-- Decision Helper
-- Ronin UI
-- Player UI
-- Glass components
-- Responsive layouts
-- Animation concepts
-
-Do not blindly copy generated designs.
-
-Adapt designs to the actual RoninPLEX architecture.
-
----
-
-# 22. ANIMATION SYSTEM
-
-Create a unified motion system.
-
-Animations should include:
-
-- Page transitions
-- Navigation transitions
-- Card hover
-- Card entrance
-- Modal entrance
-- Modal exit
-- Search transitions
-- Carousel transitions
-- Loading states
-- Player control transitions
-- Notification animations
-- Ronin animations
-
-Animations must be:
-
-- Smooth
-- Purposeful
-- Performant
-- Consistent
-
-Respect:
-
-prefers-reduced-motion
-
-When reduced motion is enabled, replace complex animations with
-instant or minimal transitions.
-
----
-
-# 23. RONIN CHARACTER
-
-Introduce the application's AI character:
-
-# Ronin
-
-Ronin is a small animated ronin/samurai character.
-
-He should feel like the personality of the application.
-
-Personality:
-
-- Calm
-- Intelligent
-- Confident
-- Mysterious
-- Helpful
-- Slightly playful
-
-Avoid excessive roleplay.
-
-Ronin should feel like a helpful guide, not a mascot constantly
-interrupting the user.
-
----
-
-# 24. RONIN ANIMATIONS
-
-Ronin should have subtle idle animations:
-
-- Breathing
-- Looking around
-- Adjusting sword
-- Small posture changes
-- Sword practice
-- Short combat-inspired practice animations
-
-Ronin can move around appropriate areas of the application.
-
-Examples:
-
-- Home
-- Discover
-- Decision Helper
-- Recommendation areas
-
-Animations should be event-driven where possible.
-
-Do not run expensive animation loops unnecessarily.
-
-Ronin must never obstruct important UI.
-
----
-
-# 25. RONIN AVATAR
-
-Create:
-
-src/components/ronin/RoninAvatar.tsx
-
-The component should support states such as:
-
-- idle
-- thinking
-- talking
-- excited
-- recommending
-- celebrating
-- sword-practice
-
-The visual style should match the glass cinematic UI.
-
----
-
-# 26. RONIN AI
-
-Create an AI abstraction:
-
-src/services/ai/AIService.ts
-
-Architecture:
-
-UI
-↓
-AIService
-↓
-AI Provider
-
-Do not place AI API calls directly inside React components.
-
-The AI system should support:
-
-- Conversation
-- Recommendations
-- Movie descriptions
-- TV descriptions
-- Anime descriptions
-- Decision Helper
-
----
-
-# 27. RONIN DECISION HELPER
-
-Decision Helper becomes a conversational AI experience.
-
-The user should be able to say:
-
-"What should I watch?"
-
-"I want something funny."
-
-"I want something dark."
-
-"I only have 90 minutes."
-
-"Recommend an anime."
-
-"Give me something like Interstellar."
-
-"I want something I can finish tonight."
-
-Ronin should ask useful follow-up questions when necessary.
-
-Possible factors:
-
-- Mood
-- Genre
-- Runtime
-- Media type
-- Language
-- Release year
-- Intensity
-- Familiarity
-- Actors
-- Directors
-- Anime preferences
-
-The final recommendation must correspond to actual metadata
-available in RoninPLEX.
-
----
-
-# 28. RONIN DESCRIPTIONS
-
-Ronin should describe titles in his own voice.
-
-Descriptions must be:
-
-- Short
-- Spoiler-free
-- Accurate
-- Based on actual metadata
-
-Ronin must not invent:
-
-- Actors
-- Characters
-- Plot events
-- Endings
-- Directors
-- Release information
-
-AI personality must never override factual accuracy.
-
----
-
-# 29. AI FALLBACK
-
-AI failure must never crash RoninPLEX.
-
-If external AI is unavailable:
-
-Use a deterministic local recommendation/fallback engine where practical.
-
-Possible fallback behavior:
-
-- Metadata-based recommendations
-- Genre matching
-- Rating matching
-- Runtime matching
-- Keyword matching
-- User preference matching
-
-The rest of the application must continue working even when AI
-services are unavailable.
-
-Never expose AI API keys in frontend bundles.
-
----
-
-# 30. HOME EXPERIENCE
-
-Home should become the central entertainment hub.
-
-Suggested order:
+Recommended order:
 
 1. Hero
 2. Continue Watching
@@ -899,785 +574,1014 @@ Suggested order:
 4. Popular Movies
 5. Popular TV
 6. Anime Spotlight
-7. Personalized Recommendations
-8. Ronin Recommendations
-9. 18+ Recommendations when enabled
+7. Anime Latest Episodes
+8. Recommended For You
+9. Ronin Picks
+10. +18 Mature Recommendations when enabled
 
-Sections should be lazy-loaded where appropriate.
-
-Ronin should appear naturally without overwhelming the interface.
-
----
-
-# 31. DISCOVER
-
-Discover should remain distinct from Movies and TV.
-
-Discover may provide:
-
-- Mixed recommendations
-- Genre exploration
-- Trending content
-- Mood-based exploration
-- Search
-- Curated collections
-
-Discover must not accidentally render Movies or TV pages.
+The anime cards used here should be the same card system used in the Anime section.
 
 ---
 
-# 32. PERFORMANCE
+# 20. Glassmorphism Design System
 
-Use:
+The current grey solid card appearance must be removed.
 
-@react-best-practices
-@performance-optimization
+Movie, TV, Anime, Discover, and Home cards must use a true transparent glass finish.
 
-Audit:
+Cards should visually resemble:
 
-- React rendering
-- API waterfalls
-- API caching
-- Video timeupdate events
-- HLS lifecycle
-- Memory usage
-- Animation performance
-- Event listener cleanup
-- Timer cleanup
-- Observer cleanup
+- Transparent dark glass
+- Purple/indigo tint
+- Subtle luminous border
+- Backdrop blur
+- Soft internal highlight
+- Slight reflection/sheEN
+- Layered transparency
+- Cinematic depth
 
-Avoid unnecessary network requests.
+Avoid:
 
-Avoid unnecessary state updates.
+- Flat grey backgrounds
+- Opaque solid cards
+- Excessive neon
+- Cheap gradients
+- Excessive glow
 
-Throttle high-frequency playback events.
-
----
-
-# 33. SECURITY
-
-Use:
-
-@security-and-hardening
-@rust-pro
-@typescript-pro
-
-Audit:
-
-- Tauri IPC
-- External URLs
-- Streaming URLs
-- User input
-- AI input
-- API keys
-- TMDB keys
-- Navigation guards
-- Embedded content
-- Local services
-
-Never execute untrusted input through a shell.
-
-Never expose secrets in frontend source.
+The glass effect must remain visible against posters/background imagery.
 
 ---
 
-# 34. ACCESSIBILITY
+# 21. Application Colour Scheme
 
-Support:
+Use a cohesive cinematic purple palette.
 
-- Keyboard navigation
-- Focus states
-- Accessible labels
-- Screen-reader-friendly controls
-- Adequate contrast
-- Reduced motion
-- Accessible dialogs
-- Accessible player controls
+Primary visual direction:
 
----
+- Deep near-black background
+- Midnight purple
+- Indigo
+- Violet
+- Soft lavender highlights
+- Subtle crimson for mature/18+ states
+- White/soft-gray typography
 
-# 35. TESTING
+Suggested design tokens:
 
-Use:
+    Background:
+    #08060F
 
-@testing-qa
+    Surface:
+    rgba(25, 18, 45, 0.55)
 
-Add tests for:
+    Glass:
+    rgba(70, 45, 110, 0.28)
 
-- Routing
-- Movies
-- TV
-- Anime
-- Playback
-- Provider failover
-- Fullscreen
-- Continue Watching
-- 18+ filtering
-- AI fallback
-- Decision Helper
-- Ronin states
+    Border:
+    rgba(170, 130, 255, 0.22)
 
-Use Playwright for browser/runtime E2E testing where appropriate.
+    Primary:
+    Violet / Indigo
 
-Use Chrome DevTools/CDP for deep runtime inspection.
+    Accent:
+    Lavender
 
----
+    Mature:
+    Crimson
 
-# 36. TOOLING REQUIREMENTS
+Do not apply these values blindly if StitchMCP provides a better coherent design system.
 
-The following tools are available and should be actively used where
-appropriate.
-
-## StitchMCP
-
-Use for:
-
-- UI design
-- Layout exploration
-- Glass UI
-- Animation concepts
-- Responsive design
-
-## Chrome DevTools
-
-Use for:
-
-- Runtime debugging
-- Console inspection
-- Network inspection
-- DOM inspection
-- Media debugging
-- Fullscreen debugging
-- Playback debugging
-
-## Context7
-
-Use for:
-
-- Current library documentation
-- API verification
-- Framework documentation
-- Anime SDK documentation where available
-- HLS.js documentation
-- Tauri documentation
-- React documentation
-- Animation libraries
-
-Do not rely on stale knowledge when current documentation is available.
-
-## Memory Bank
-
-Use Memory Bank to preserve:
-
-- Architectural decisions
-- Important discoveries
-- Known regressions
-- Testing findings
-- Provider behavior
-- Anime SDK findings
-- AI architecture decisions
-- UI decisions
-
-Do not repeatedly rediscover already documented project knowledge.
-
-## Playwright
-
-Use for:
-
-- Navigation testing
-- UI interaction testing
-- Playback UI testing
-- Fullscreen workflows where supported
-- Decision Helper testing
-- Regression testing
-
-## Sequential Thinking
-
-Use for:
-
-- Complex debugging
-- Architecture decisions
-- Playback failures
-- Provider failover
-- Anime source pipeline
-- Fullscreen problems
-- Difficult runtime issues
-
-## Serena
-
-Use for:
-
-- Codebase exploration
-- Symbol navigation
-- Architecture understanding
-- Safe refactoring
-- Dependency relationships
-
-## GSD
-
-Use for:
-
-- Task decomposition
-- Vertical slices
-- Checkpoints
-- Acceptance criteria
-- Implementation sequencing
+Use StitchMCP to design/refine the actual visual system.
 
 ---
 
-# 37. AGENTIC AWESOME SKILLS
+# 22. Card System
 
-The development agent MUST actively invoke relevant skills.
+Create one shared cinematic card foundation.
 
-Available relevant skills include:
+The same visual language should be used for:
 
-@software-architecture
-@planning-and-task-breakdown
-@react-best-practices
-@typescript-pro
-@rust-pro
-@security-and-hardening
-@performance-optimization
-@testing-qa
-@code-review-and-quality
-@pre-release-review
-@documentation
-
-Additional skills should be used when available and relevant,
-especially for:
-
-- UI
-- Animation
-- Character design
-- AI
-- Testing
-- Performance
-
-Do not merely mention a skill.
-
-Actually invoke the skill.
-
----
-
-# 38. RALPH LOOP
-
-Ralph must continuously iterate until all requirements pass.
-
-The core loop is:
-
-INSPECT
-↓
-PLAN
-↓
-IMPLEMENT
-↓
-BUILD
-↓
-RUN
-↓
-TEST
-↓
-OBSERVE
-↓
-FIX
-↓
-RETEST
-↓
-REGRESSION CHECK
-↓
-CHECKPOINT
-↓
-NEXT TASK
-
----
-
-# 39. RALPH TASK SELECTION
-
-At the start of every iteration:
-
-1. Read this PRD.
-2. Read the current implementation plan.
-3. Read Memory Bank/project state.
-4. Inspect git status.
-5. Identify unfinished requirements.
-6. Select the highest-priority unfinished task.
-7. Work on one logical vertical slice.
-
-Do not attempt to implement the entire PRD in one iteration.
-
----
-
-# 40. RALPH INSPECTION
-
-Before changing code:
-
-- Inspect relevant files.
-- Understand dependencies.
-- Search existing implementations.
-- Check tests.
-- Check git history when useful.
-- Use Serena.
-- Use Context7 when APIs are involved.
-- Use Sequential Thinking for complex problems.
-
-Do not guess.
-
----
-
-# 41. RALPH IMPLEMENTATION
-
-Implement the smallest complete vertical slice.
-
-Avoid unrelated refactoring.
-
-Do not rewrite working systems without evidence.
-
-Preserve existing functionality unless the PRD explicitly requires
-changing it.
-
----
-
-# 42. RALPH VERIFICATION
-
-After implementation:
-
-Run the smallest relevant verification first.
-
-Frontend:
-
-npm.cmd run build
-
-Tests:
-
-npm.cmd test
-
-Rust:
-
-cargo check
-cargo test
-
-Then perform runtime verification when appropriate.
-
----
-
-# 43. RALPH FAILURE RULE
-
-If a test fails:
-
-DO NOT move forward.
-
-Instead:
-
-1. Reproduce.
-2. Inspect.
-3. Trace.
-4. Identify root cause.
-5. Fix.
-6. Build.
-7. Retest.
-8. Repeat.
-
-Never suppress errors merely to make tests pass.
-
-Never delete tests simply because they fail.
-
-Never declare a feature complete because the code compiles.
-
----
-
-# 44. RALPH REGRESSION RULE
-
-Every completed feature must be checked against previously completed
-core functionality.
-
-Examples:
-
-Playback change:
-
-Check:
-- Movies
-- TV
-- Anime
-- Fullscreen
-- Continue Watching
-
-Routing change:
-
-Check:
 - Home
 - Movies
 - TV
 - Anime
 - Discover
-- Decision Helper
+- Search
+- Recommendations
 
-UI change:
+Cards should support:
 
-Check:
+- Poster
+- Title
+- Year
+- Rating
+- Media type
+- +18 badge
+- Hover state
+- Glass surface
+- Subtle lift
+- Shine/reflection
+- Smooth transition
+
+Anime cards should NOT use a separate outdated visual style.
+
+---
+
+# 23. Glass Navigation
+
+The top navigation should use the same glass design language.
+
+It should include:
+
+- RoninPLEX branding/icon
+- Home
+- Movies
+- TV Shows
+- Anime
+- Discover
+- Other required navigation
+
+Do NOT keep a separate `Ronin AI` navigation button in the top-right.
+
+---
+
+# 24. RoninPLEX Branding Navigation
+
+The top-left RoninPLEX branding has two distinct interaction areas.
+
+The RoninPLEX icon itself:
+
+    click → Home
+
+The RoninPLEX wordmark/branding area:
+
+    click → Ronin AI
+
+These interactions must be intentionally separated so users can understand them.
+
+Remove the previous dedicated `Ronin AI` button from the top-right.
+
+---
+
+# 25. Ronin AI
+
+Ronin AI is the application's entertainment companion.
+
+It should no longer be called:
+
+    Decision Maker
+    Decision Helper
+
+The user-facing branding must be:
+
+    Ronin AI
+
+The old "Decision Maker" terminology should be removed from:
+
+- UI
+- headings
+- buttons
+- menus
+- page titles
+- tooltips
+- accessibility labels
+- documentation where it refers to the user-facing product
+
+The internal route may remain `/decision` temporarily if required for compatibility, but the visible UI must say Ronin AI.
+
+---
+
+# 26. Ronin AI Access
+
+Ronin AI should be accessible from the RoninPLEX branding in the top-left.
+
+The interaction should feel intentional and integrated into the identity of the application.
+
+The separate top-right Ronin AI button must be removed.
+
+---
+
+# 27. Ronin Character
+
+Ronin should appear as a small animated ronin/samurai companion.
+
+States should include:
+
+- idle
+- breathing
+- thinking
+- talking
+- happy
+- curious
+- recommending
+- surprised
+- sword-practice
+- celebrating
+
+Ronin should feel alive rather than like a static image.
+
+Possible ambient behaviors:
+
+- breathing
+- looking around
+- adjusting sword
+- practicing sword movements
+- subtle idle movement
+- reacting to recommendations
+- reacting to user messages
+
+Animations must not become distracting.
+
+---
+
+# 28. Ronin Sword Practice
+
+Ronin may periodically perform small sword-practice animations around the application.
+
+These should be:
+
+- brief
+- subtle
+- non-blocking
+- context-aware
+
+Clicking Ronin may trigger a sword-practice animation.
+
+---
+
+# 29. Ronin AI Conversation
+
+Ronin AI must behave as a conversational entertainment companion.
+
+It should NOT immediately output one generic recommendation.
+
+The conversation should feel like a real interaction.
+
+Example:
+
+User:
+
+    I don't know what to watch.
+
+Ronin:
+
+    Then sit by the fire, traveler.
+    Tell me — what kind of journey calls to you tonight?
+
+User:
+
+    Something like Marvel.
+
+Ronin should understand that the user is asking for Marvel-related recommendations.
+
+It should retrieve relevant candidates rather than repeatedly returning the same generic titles.
+
+---
+
+# 30. Ronin AI Intelligence
+
+The AI system should be grounded in actual entertainment data.
+
+Architecture:
+
+    User
+      ↓
+    Ronin AI
+      ↓
+    Intent Detection
+      ↓
+    Candidate Retrieval
+      ↓
+    Metadata Validation
+      ↓
+    Ranking
+      ↓
+    Ronin Personality Layer
+      ↓
+    Response
+
+Ronin should understand requests such as:
+
+- Marvel movies
+- DC movies
+- horror
+- comedy
+- anime
+- One Piece
+- short movies
+- long movies
+- underrated movies
+- movies like Interstellar
+- movies from a specific actor
+- movies from a specific director
+- currently trending
+- newly released
+- highly rated
+- something similar to a specific title
+
+Recommendations must be based on actual available metadata.
+
+---
+
+# 31. Ronin AI Real-Time Data
+
+The system should be designed to support fresh information.
+
+Possible external information sources may include:
+
+- TMDB
+- AniList
+- approved public APIs
+- Reddit/public forums where legally and technically appropriate
+- web search where appropriate
+
+Do not blindly scrape arbitrary websites.
+
+External data must be:
+
+- normalized
+- validated
+- deduplicated
+- attributed where appropriate
+- filtered for relevance
+- protected from prompt injection
+- prevented from overriding system instructions
+
+The AI must never invent current information when the application cannot verify it.
+
+---
+
+# 32. AI Knowledge Architecture
+
+Do NOT attempt to "train" the model by blindly dumping Reddit or Google data into it.
+
+Instead implement retrieval-based intelligence where appropriate:
+
+    Query
+      ↓
+    Intent
+      ↓
+    Search/Retrieval
+      ↓
+    Candidate Data
+      ↓
+    Metadata Validation
+      ↓
+    Ranking
+      ↓
+    Ronin Response
+
+This allows Ronin to provide fresher recommendations without requiring model retraining.
+
+A future vector/RAG layer may be introduced if justified.
+
+---
+
+# 33. Ronin AI Conversation Timing
+
+Ronin must NOT answer instantly.
+
+Conversation flow:
+
+    User message
+        ↓
+    Thinking animation
+        ↓
+    Retrieval / reasoning
+        ↓
+    Typing animation
+        ↓
+    Ronin talking animation
+        ↓
+    Response
+        ↓
+    Recommendation cards
+
+The timing should feel intentional.
+
+Avoid artificial delays that become annoying.
+
+The system should use natural variable pacing based on response length and operation complexity.
+
+---
+
+# 34. Ronin AI Descriptions
+
+Ronin should describe movies, TV shows, and anime in his own personality.
+
+Descriptions should be:
+
+- spoiler-free
+- grounded in real metadata
+- concise but immersive
+- themed around the Ronin persona
+- different from raw API synopses
+
+Example style:
+
+    "A quiet voyage into the stars, traveler.
+    Interstellar is less a battle against space
+    than a battle against time itself."
+
+Do not fabricate plot details.
+
+---
+
+# 35. AI Recommendation Cards
+
+Ronin AI responses may include cards containing:
+
+- Poster
+- Title
+- Media type
+- Rating
+- Year
+- +18 status
+- Ronin description
+- Watch button
+- Details button
+
+Recommendations must link to real RoninPLEX content.
+
+---
+
+# 36. Animations
+
+Use a unified motion system.
+
+Required animations:
+
+- Page transitions
+- Card hover
+- Card lift
+- Glass sheen
+- Modal entrance
+- Modal exit
+- Button feedback
+- Loading states
+- Skeleton loading
+- Ronin reactions
+- AI typing
+- AI thinking
+- Player transitions
+- Episode transitions
+
+Animations should be smooth and cinematic.
+
+---
+
+# 37. Reduced Motion
+
+Respect:
+
+    prefers-reduced-motion: reduce
+
+When enabled:
+
+- Reduce or disable decorative animation.
+- Avoid excessive movement.
+- Preserve functionality.
+- Keep transitions understandable.
+
+---
+
+# 38. StitchMCP
+
+Use StitchMCP for:
+
+- UI redesign
+- Glassmorphism system
+- Component visual design
+- Layout refinement
+- Card design
 - Navigation
-- Cards
-- Player
-- Accessibility
+- Anime page design
+- Ronin AI UI
+- Player UI where applicable
+- Responsive behavior
+- Animation direction
+
+Do not merely add CSS classes called `glass-card` and consider the UI complete.
+
+The actual rendered interface must visibly have a transparent glass appearance.
 
 ---
 
-# 45. RALPH CHECKPOINT
+# 39. Required Development Skills / Tools
 
-After a meaningful verified slice:
+When implementing the PRD, actively use the available skills/tools where relevant.
 
-- Update Memory Bank/project state.
-- Record completed requirement.
-- Record tests.
-- Record remaining work.
-- Create a Git checkpoint when appropriate.
+Required:
 
-Do not checkpoint known-broken code merely to claim progress.
+- StitchMCP
+- Chrome DevTools
+- Context7
+- Memory Bank
+- Playwright
+- Sequential Thinking
+- Serena
+- GSD
+- Agentic Awesome Skills
+- Ralph Loop
+
+Use the actual skills through their supported invocation mechanism.
+
+Do not merely mention the tools.
 
 ---
 
-# 46. PRODUCTION VERIFICATION
+# 40. Serena
+
+Use Serena for repository-aware code navigation and refactoring.
+
+Before modifying major systems:
+
+- inspect existing architecture
+- identify reusable components
+- understand dependencies
+- avoid unnecessary rewrites
+- preserve working functionality
+
+---
+
+# 41. Context7
+
+Use Context7 when library/framework/API documentation is needed.
+
+Especially use it for:
+
+- React
+- Vite
+- Tauri
+- HLS.js
+- AniList/API clients
+- anime-sdk dependencies
+- animation libraries
+- relevant frontend libraries
+
+Do not rely on outdated assumptions when current documentation is available.
+
+---
+
+# 42. Chrome DevTools
+
+Use Chrome DevTools for runtime investigation.
+
+Verify:
+
+- console errors
+- network requests
+- API responses
+- failed streams
+- HLS loading
+- player state
+- layout problems
+- glass rendering
+- filter behavior
+- navigation
+- animation behavior
+
+---
+
+# 43. Playwright
+
+Use Playwright for automated runtime testing.
+
+Test:
+
+- Home
+- Movies
+- TV
+- Anime
+- Anime Details
+- Discover
+- Search
+- Ronin AI
+- 18+ filtering
+- Player behavior
+- Filters
+- Episode selection
+- navigation
+- responsive behavior
+
+---
+
+# 44. Memory Bank
+
+Maintain project context using Memory Bank.
+
+Document:
+
+- architectural decisions
+- anime isolation
+- anime-sdk integration
+- player architecture
+- design system
+- AI architecture
+- known limitations
+- verification results
+
+Do not allow the implementation to drift from the PRD.
+
+---
+
+# 45. Sequential Thinking
+
+Use structured reasoning for complex changes involving:
+
+- anime architecture
+- provider failover
+- player separation
+- AI retrieval
+- unified Discover
+- filter normalization
+- episode scheduling
+
+Break complex problems into verifiable steps before implementation.
+
+---
+
+# 46. Ralph Loop
+
+Implementation must follow `RALPH-LOOP.md`.
+
+Ralph Loop must be treated as an iterative development and verification process.
+
+For every major slice:
+
+    PLAN
+      ↓
+    IMPLEMENT
+      ↓
+    TEST
+      ↓
+    RUN
+      ↓
+    INSPECT
+      ↓
+    FIX
+      ↓
+    VERIFY
+      ↓
+    NEXT SLICE
+
+Do not mark a requirement complete merely because the source code exists.
+
+Runtime behavior must be verified.
+
+If verification fails:
+
+1. identify root cause
+2. fix it
+3. rerun tests
+4. rerun runtime verification
+5. continue only when the gate passes
+
+---
+
+# 47. Ralph Loop Completion Gates
+
+A slice is complete only when:
+
+- Implementation exists
+- Unit/integration tests pass
+- Runtime behavior is verified where applicable
+- No critical console errors exist
+- No regressions are introduced
+- Screenshots/runtime evidence are captured where useful
+
+---
+
+# 48. Performance
+
+The redesign must not make the application unnecessarily slow.
+
+Optimize:
+
+- image loading
+- API requests
+- caching
+- React renders
+- animations
+- HLS lifecycle
+- player cleanup
+- event listeners
+- Discover filtering
+- anime episode rendering
+
+Use virtualization or chunked rendering for very large episode lists if required.
+
+---
+
+# 49. Caching
+
+Anime metadata should use caching.
+
+Cache:
+
+- trending
+- popular
+- seasonal
+- airing
+- search
+- anime details
+- episode metadata where appropriate
+
+Use TTL-based caching.
+
+Do not cache failed stream resolutions indefinitely.
+
+---
+
+# 50. Error Handling
+
+Errors must be user-friendly.
+
+Do not expose:
+
+- raw stack traces
+- internal API errors
+- meaningless provider exceptions
+
+Examples:
+
+    "Ronin could not find a playable source. Trying another path..."
+
+    "This episode is currently unavailable from our providers."
+
+    "The anime metadata service is temporarily unavailable."
+
+---
+
+# 51. Security
+
+Ensure:
+
+- API keys are not exposed unnecessarily
+- user input is sanitized
+- external content cannot execute arbitrary scripts
+- navigation restrictions remain enforced
+- remote content is handled safely
+- AI external data cannot override application instructions
+- prompt injection from retrieved content is treated as untrusted data
+
+---
+
+# 52. Accessibility
+
+Support:
+
+- keyboard navigation
+- visible focus
+- accessible labels
+- sufficient contrast
+- semantic headings
+- screen-reader labels
+- `aria-label` for 18+ badges
+- reduced motion
+- accessible player controls
+
+---
+
+# 53. Required Verification
 
 Before declaring v2.0.0 complete:
 
 Run:
 
-npm.cmd run build
+    npm test
 
-Then:
+    npm run build
 
-cd src-tauri
-cargo check
-cargo test
+    cargo check --manifest-path src-tauri/Cargo.toml
 
-Then:
+    cargo test --manifest-path src-tauri/Cargo.toml
 
-npm.cmd run tauri:build -- --bundles nsis
+Build the Windows NSIS installer.
 
-Build and verify the Windows installer.
-
-Install the production application.
-
-Test the installed executable.
-
-Use Chrome DevTools/CDP and Playwright where appropriate.
-
-Development mode is NOT sufficient evidence of production readiness.
+Then install and launch the production binary.
 
 ---
 
-# 47. PRODUCTION TEST MATRIX
+# 54. Runtime Verification Matrix
 
 Verify:
 
-## Navigation
+## Home
 
-- Home
-- Movies
-- TV
-- Anime
-- Discover
-- Decision Helper
-- Settings
-- Watchlist
+- Hero works
+- Continue Watching works
+- Movie cards have glass finish
+- TV cards have glass finish
+- Anime cards have matching glass finish
+- +18 filtering works
 
 ## Movies
 
-- Search
-- Details
-- Playback
-- Continue Watching
+- Correct movie-only data
+- No TV entries
+- No duplicate entries
+- Cards use glass design
+- Playback works
 
 ## TV
 
-- Search
-- Details
-- Seasons
-- Episodes
-- Playback
-- Next Episode
-- Continue Watching
+- Correct TV-only data
+- No movie entries
+- No duplicate entries
+- Season/episode navigation works
+- Playback works
 
 ## Anime
 
-- Search
-- Details
-- Episodes
-- Source resolution
-- HLS/MP4 playback
-- Episode switching
+- No TMDB anime dependency
+- AniList metadata works
+- anime-sdk is actually used
+- Trending works
+- Popular works
+- New Releases works
+- Seasonal works
+- Airing works
+- Latest episodes works
+- Upcoming episodes works
+- 18+ anime filtering works
+- 1000+ episode anime works
+- Anime cards match Home card system
+- Anime player actually plays video
+
+## Discover
+
+- Movies appear
+- TV appears
+- Anime appears
+- No duplicate cards
+- All filter works
+- Movie filter works
+- TV filter works
+- Anime filter works
+- Genre filters work
+- Adult filtering works
+- Repeated filter changes do not corrupt results
+
+## Ronin AI
+
+- Branding says Ronin AI
+- No Decision Maker UI remains
+- Top-right Ronin AI button removed
+- RoninPLEX icon → Home
+- RoninPLEX wordmark → Ronin AI
+- Conversation is multi-turn
+- Thinking animation works
+- Typing animation works
+- Ronin animation reacts
+- Marvel queries produce relevant results
+- Anime queries produce relevant results
+- Recommendations are grounded in real metadata
+- Responses are not identical every time
 
 ## Player
 
-- Play
-- Pause
-- Seek
-- Volume
-- Fullscreen
-- Subtitles where available
-- Error recovery
+- Movie playback
+- TV playback
+- Anime playback
 - Provider failover
-
-## 18+
-
-- Setting OFF
-- Setting ON
-- Filtering
-- Badges
-- Persistence
-
-## Ronin
-
-- Avatar
-- Idle animation
-- Sword practice
-- Thinking state
-- Conversation
-- Recommendations
-- Descriptions
-
-## Decision Helper
-
-- User conversation
-- Follow-up questions
-- Recommendations
-- Anime recommendations
-- Movie recommendations
-- TV recommendations
-- AI failure fallback
+- Fullscreen
+- Seeking
+- Resume
+- Next episode
+- Error handling
 
 ---
 
-# 48. VLC COMPLETION TEST
+# 55. Regression Protection
 
-Repository-wide search must confirm:
+Do not break working functionality while implementing new features.
 
-0 production VLC references.
+Especially protect:
 
-Search:
-
-VLC
-vlc
-useVlc
-open_stream_in_vlc
-check_vlc_installed
-get_vlc_info
-find_vlc_path
-
-Also verify:
-
-- No VLC button
-- No VLC setting
-- No VLC Tauri command
-- No VLC process
-- No VLC preference
-- No VLC documentation
-- No VLC tests
+- Movie playback
+- TV playback
+- Watchlist
+- Continue Watching
+- Settings
+- Authentication/user preferences
+- Existing TMDB functionality
+- Existing streaming providers
+- Existing navigation
 
 ---
 
-# 49. ANIME COMPLETION TEST
+# 56. Definition of Done
 
-Anime is complete only when:
+RoninPLEX v2.0.0 is complete only when all of the following are true:
 
-Search
-PASS
-
-Metadata
-PASS
-
-Details
-PASS
-
-Episodes
-PASS
-
-Source resolution
-PASS
-
-Media URL
-PASS
-
-Player initialization
-PASS
-
-Actual playback
-PASS
-
-Episode switching
-PASS
-
-Failure handling
-PASS
-
----
-
-# 50. PLAYBACK COMPLETION TEST
-
-Playback is complete only when:
-
-Source resolves
-PASS
-
-Player initializes
-PASS
-
-Media loads
-PASS
-
-Playback begins
-PASS
-
-currentTime advances
-PASS
-
-Errors are handled
-PASS
-
-Provider failover works
-PASS
-
-No indefinite black screen
-PASS
+1. Anime is completely isolated from TMDB.
+2. AniList powers anime metadata.
+3. `anime-sdk` is genuinely integrated.
+4. Anime streams actually play.
+5. Anime uses a dedicated player.
+6. Movie/TV playback remains functional.
+7. One Piece and other long-running anime support 1000+ episodes.
+8. Latest and upcoming anime episodes are displayed.
+9. Discover contains Movies, TV, and Anime.
+10. Discover filters work repeatedly without breaking.
+11. Duplicate entries are eliminated.
+12. 18+ content has visible `+18` labels.
+13. 18+ filtering works globally.
+14. Anime uses the same modern glass card language as Home.
+15. Movie/TV/Anime cards use transparent purple-tinted glass.
+16. The application has a coherent cinematic purple colour scheme.
+17. Ronin AI replaces Decision Maker terminology.
+18. Ronin AI is accessible through the RoninPLEX branding.
+19. Ronin has animated states and sword-practice behavior.
+20. Ronin conversations feel multi-turn and intentional.
+21. Ronin uses real metadata for recommendations.
+22. Ronin can handle specific requests such as Marvel and anime.
+23. AI responses have thinking/typing/talking animation.
+24. StitchMCP is used for the UI redesign.
+25. Chrome DevTools is used for runtime debugging.
+26. Playwright verifies critical user flows.
+27. Serena is used for repository-aware implementation.
+28. Context7 is used for relevant current documentation.
+29. Memory Bank is maintained.
+30. Sequential Thinking is used for complex implementation decisions.
+31. Ralph Loop is followed for iterative verification.
+32. Production frontend builds successfully.
+33. Rust backend checks and tests successfully.
+34. Windows NSIS installer builds successfully.
+35. Installed production binary is runtime-tested.
+36. No critical console/runtime errors remain.
 
 ---
 
-# 51. UI COMPLETION TEST
+# 57. Implementation Priority
 
-UI is complete only when:
+Implement in this order:
 
-- Design system is consistent
-- Glass components are consistent
-- Navigation works
-- Cards work
-- Responsive behavior works
-- Accessibility works
-- Animations work
-- Reduced motion works
-- Performance remains acceptable
+### Priority 1 — Anime Playback
 
-Use StitchMCP and runtime browser inspection.
+Fix anime stream resolution first.
 
----
+Verify `anime-sdk` actually resolves playable sources.
 
-# 52. AI COMPLETION TEST
+Do not proceed assuming playback works.
 
-AI is complete only when:
+### Priority 2 — Anime Architecture
 
-- Conversation works
-- Recommendations work
-- Metadata grounding works
-- Ronin personality works
-- Descriptions work
-- Anime recommendations work
-- AI failure does not crash the application
-- Secrets are protected
+Complete isolated anime backend/domain architecture.
 
----
+### Priority 3 — Episode & Airing Data
 
-# 53. RELEASE DEFINITION OF DONE
+Fix 1000+ episode support and latest/upcoming episode data.
 
-RoninPLEX v2.0.0 may be declared complete only when:
+### Priority 4 — Dedicated Anime Player
 
-- Movies navigation works
-- TV navigation works
-- Anime navigation works
-- Discover navigation works
-- Decision Helper works
-- Movie playback works
-- TV playback works
-- Anime playback works
-- Provider failover works
-- Fullscreen works
-- Continue Watching works
-- 18+ controls work
-- 18+ labels work
-- Glass UI is implemented
-- Animations work
-- Reduced-motion support works
-- Ronin exists
-- Ronin animations work
-- Ronin AI works
-- Decision Helper works
-- Ronin descriptions work
-- VLC is completely removed
-- Security review passes
-- Performance review passes
-- Tests pass
-- Production build passes
-- Rust tests pass
-- Installer builds
-- Installed application launches
-- Installed application passes runtime verification
-- No critical/high-severity unresolved defects remain
+Ensure anime playback is separate and reliable.
+
+### Priority 5 — Unified Discover
+
+Merge Movies, TV, and Anime safely with stable filtering.
+
+### Priority 6 — 18+ System
+
+Ensure all content types consistently classify and display `+18`.
+
+### Priority 7 — Glass UI
+
+Replace flat cards with genuine transparent purple glass.
+
+### Priority 8 — Navigation
+
+Implement the new RoninPLEX branding navigation behavior.
+
+### Priority 9 — Ronin AI
+
+Improve retrieval, conversational behavior, personality, timing, and animation.
+
+### Priority 10 — Final QA
+
+Run full Ralph Loop verification, Playwright tests, production build, installer build, installation, and runtime verification.
 
 ---
 
-# 54. FINAL RELEASE REPORT
+# 58. Final Instruction to the Implementation Agent
 
-At completion provide:
+Do not treat the existence of files, functions, CSS classes, or tests as proof that a feature works.
 
-1. Executive summary
-2. Features implemented
-3. Bugs fixed
-4. VLC removal verification
-5. Anime SDK verification
-6. Anime source pipeline result
-7. Playback verification
-8. Provider failover verification
-9. Fullscreen verification
-10. 18+ verification
-11. UI redesign summary
-12. Animation summary
-13. Ronin character summary
-14. Ronin AI summary
-15. Decision Helper summary
-16. Security review
-17. Performance review
-18. Automated tests
-19. Runtime tests
-20. Production build result
-21. Installer result
-22. Installed application verification
-23. Known limitations
-24. Git status
-25. Commit/checkpoint information
+The goal is working RoninPLEX v2.0.0.
 
----
+When a feature is claimed complete, verify it through actual runtime behavior.
 
-# 55. FINAL RALPH STOP CONDITION
+If Anime says it can play but the player produces no video, the requirement is NOT complete.
 
-Ralph MUST continue iterating until:
+If glass classes exist but cards still look grey and opaque, the requirement is NOT complete.
 
-PRD REQUIREMENTS = 100% PASS
+If Discover has an Anime filter but Anime results are missing or filters break, the requirement is NOT complete.
 
-AND
+If Ronin AI technically exists but gives the same generic answer to different questions, the requirement is NOT complete.
 
-AUTOMATED TESTS = PASS
+If 18+ content exists but lacks the visible `+18` label, the requirement is NOT complete.
 
-AND
+Use the PRD and `RALPH-LOOP.md` as the source of truth.
 
-RUNTIME TESTS = PASS
-
-AND
-
-PRODUCTION BUILD = PASS
-
-AND
-
-INSTALLER = PASS
-
-AND
-
-INSTALLED APPLICATION = VERIFIED
-
-AND
-
-NO VLC INTEGRATION REMAINS
-
-AND
-
-NO CRITICAL/HIGH-SEVERITY DEFECTS REMAIN.
-
-Only then may Ralph declare:
-
-RONINPLEX v2.0.0 COMPLETE
+Do not declare success until the application has been tested in the actual running production build.

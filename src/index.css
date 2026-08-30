@@ -43,29 +43,50 @@
     scrollbar-width: none;
   }
 
-  /* Glassmorphism Styles */
+  /* Glassmorphism Styles - Cinematic v2.0 */
+  /* Enhanced Cinematic Glass UI */
   .glass-card {
-    background: rgba(18, 20, 31, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(145deg, rgba(80, 55, 150, 0.22), rgba(30, 20, 60, 0.4));
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(139, 92, 246, 0.05), 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    position: relative;
+  }
+  
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at top left, rgba(255,255,255,0.1), transparent 50%);
+    pointer-events: none;
   }
 
   .glass-card-hover {
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .glass-card-hover:hover {
-    background: rgba(24, 26, 39, 0.85);
-    border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2);
+    background: linear-gradient(145deg, rgba(90, 60, 170, 0.35), rgba(40, 25, 80, 0.5));
+    border-color: rgba(167, 139, 250, 0.5);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.1), 0 12px 40px -10px rgba(139, 92, 246, 0.4);
+    transform: translateY(-6px);
   }
 
   .glass-nav {
-    background: rgba(9, 10, 15, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(9, 10, 15, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+  }
+
+  .glass-panel {
+    background: linear-gradient(145deg, rgba(80, 55, 150, 0.15), rgba(20, 15, 30, 0.6));
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
   .glow-border {
@@ -107,5 +128,103 @@
     min-width: 177.77vh; /* 16:9 aspect ratio */
     transform: translate(-50%, -50%) scale(1.2);
     pointer-events: none;
+  }
+
+  /* Additional v2.0.0 Glassmorphism Tokens */
+  .glass-panel {
+    background: rgba(14, 16, 25, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-modal {
+    background: rgba(10, 11, 18, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-chip {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-chip:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  /* Ronin Avatar Animations */
+  @keyframes roninBreathe {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+
+  @keyframes roninThinking {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-3deg) translateY(-2px); }
+  }
+
+  @keyframes roninTalking {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-2px) scale(1.02); }
+  }
+
+  @keyframes roninSlash {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    30% { transform: translate(8px, -8px) rotate(-15deg); }
+    60% { transform: translate(-10px, 10px) rotate(45deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+
+  @keyframes slashArc {
+    0% { stroke-dasharray: 0 200; opacity: 1; stroke-width: 6; }
+    100% { stroke-dasharray: 200 0; opacity: 0; stroke-width: 1; }
+  }
+
+  .animate-ronin-breathe {
+    animation: roninBreathe 3.5s ease-in-out infinite;
+  }
+
+  .animate-ronin-thinking {
+    animation: roninThinking 2.5s ease-in-out infinite;
+  }
+
+  .animate-ronin-talking {
+    animation: roninTalking 0.4s ease-in-out infinite;
+  }
+
+  .animate-ronin-slash {
+    animation: roninSlash 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-slash-arc {
+    animation: slashArc 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-ronin-breathe,
+    .animate-ronin-thinking,
+    .animate-ronin-talking,
+    .animate-ronin-slash,
+    .animate-slash-arc,
+    .animate-pulse,
+    .animate-bounce {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+
+  /* Accessibility: Prefers Reduced Motion override */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
