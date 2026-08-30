@@ -109,8 +109,8 @@ class AIService {
 
     // Keyword & Intent extraction
     let isAnime = q.includes('anime') || q.includes('shonen') || q.includes('shoujo') || q.includes('jujutsu') || q.includes('demon slayer') || q.includes('one piece') || q.includes('naruto');
-    let isTV = q.includes('tv') || q.includes('show') || q.includes('series');
     let isMovie = q.includes('movie') || q.includes('film') || q.includes('cinema');
+    let isTV = q.includes('tv') || q.includes('series') || q.includes('shows') || (q.match(/\bshow\b/) && !q.match(/\bshow me\b/) && !isMovie);
 
     // Default to movie if no media type specified and it's not explicitly anime/tv
     if (!isAnime && !isTV && !isMovie) {
@@ -190,8 +190,10 @@ class AIService {
         .filter((item) => {
           const idStr = String(item.id);
           const hasImage = item.poster_path || item.poster || item.coverImage?.extraLarge;
+          const mType = isAnime ? 'anime' : isTV ? 'tv' : 'movie';
+          const compositeKey = `${mType}:${idStr}`;
           // Filter out completely invalid items or adults if strict
-          return !this.session.recommendedIds.has(idStr) && hasImage;
+          return !this.session.recommendedIds.has(compositeKey) && hasImage;
         })
         .map(item => ({
           ...item,
@@ -212,8 +214,8 @@ class AIService {
         };
       }
 
-      // Record recommendations
-      candidates.forEach((r) => this.session.recommendedIds.add(String(r.id)));
+      // Record recommendations using composite keys
+      candidates.forEach((r) => this.session.recommendedIds.add(`${r.mediaType}:${r.id}`));
 
       // Generate dynamic response text based on query length and type
       let responseText = 'I have searched the vast archives for stories worthy of your evening. Consider these paths:';

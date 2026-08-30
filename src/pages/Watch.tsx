@@ -52,17 +52,27 @@ export const Watch: React.FC = () => {
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
 
   useEffect(() => {
+    let isActive = true;
+    
     if (isEpisodeDrawerOpen) {
       if (drawerSeasonNumber === seasonNumber && currentSeason) {
         setDrawerSeasonEpisodes(currentSeason.episodes || []);
       } else {
         setIsDrawerLoading(true);
         tmdb.getTVSeason(mediaId!, drawerSeasonNumber).then(season => {
-          setDrawerSeasonEpisodes(season?.episodes || []);
-          setIsDrawerLoading(false);
-        }).catch(() => setIsDrawerLoading(false));
+          if (isActive) {
+            setDrawerSeasonEpisodes(season?.episodes || []);
+            setIsDrawerLoading(false);
+          }
+        }).catch(() => {
+          if (isActive) setIsDrawerLoading(false);
+        });
       }
     }
+    
+    return () => {
+      isActive = false;
+    };
   }, [isEpisodeDrawerOpen, drawerSeasonNumber, seasonNumber, currentSeason, mediaId]);
 
   // Sync drawer to current season on load
@@ -250,6 +260,9 @@ export const Watch: React.FC = () => {
     logPlayback(`Fallback requested. Current provider: ${streamResult?.providerId || 'none'}`);
     setIsLoading(true);
     
+    // Capture request ID for race condition guarding
+    const currentRequestId = requestIdRef.current;
+    
     // Add current provider to failed list if it's not already there
     const newFailed = [...failedProviders];
     if (streamResult?.providerId && !newFailed.includes(streamResult.providerId)) {
@@ -265,20 +278,28 @@ export const Watch: React.FC = () => {
         seasonNumber,
         episodeNumber
       );
+      
+      if (currentRequestId !== requestIdRef.current) return;
+      
       logPlayback(`Next provider: ${nextStream?.stream?.providerName || 'none'} (${nextStream?.stream?.providerId || 'none'})`);
       logPlayback(`Source type: ${nextStream?.stream?.type || 'none'}`);
       const sanitizeUrl = (url?: string) => url ? url.split('?')[0] + '[REDACTED_QUERY]' : 'none';
       logPlayback(`Source URL: ${sanitizeUrl(nextStream?.stream?.url)}`);
+      
       if (nextStream?.stream && nextStream.available) {
         setStreamResult(nextStream.stream);
       } else {
         setStreamResult(null);
       }
     } catch (e: any) {
-      logPlayback(`Fallback failed: ${e?.message || e}`);
-      setStreamResult(null);
+      if (currentRequestId === requestIdRef.current) {
+        logPlayback(`Fallback failed: ${e?.message || e}`);
+        setStreamResult(null);
+      }
     } finally {
-      setIsLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

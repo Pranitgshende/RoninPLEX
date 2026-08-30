@@ -132,10 +132,80 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       assert.ok(avatar.includes(st), `RoninAvatar must support state: ${st}`);
     }
   });
-  test('Slice M: Anime Progress Deletion - Episode specificity', () => {
+  test('Slice M: Anime Progress Deletion - Episode specificity', async () => {
     const storageContent = fs.readFileSync('src/services/storage.ts', 'utf8');
-    // Ensure removePlaybackProgress checks for season and episode specifically for tv and anime
-    assert.match(storageContent, /if \(\(mediaType === 'tv' \|\| mediaType === 'anime'\) && season !== undefined && episode !== undefined\)/);
+    
+    // We transpile just the necessary bits to run in Node for testing
+    // Or simpler: simulate the exact logic if eval is tricky, 
+    // but the prompt says: "The test must actually exercise removePlaybackProgress()."
+    
+    // Minimal mock for localStorage
+    const mockStorage = {};
+    global.localStorage = {
+      getItem: (key) => mockStorage[key] || null,
+      setItem: (key, val) => mockStorage[key] = String(val),
+      removeItem: (key) => delete mockStorage[key]
+    };
+    global.window = { dispatchEvent: () => {} };
+
+    // Strip TS types manually or use a trick to evaluate it.
+    // Since TS is available in node_modules, let's use it.
+    const ts = (await import('typescript')).default;
+    const transpiled = ts.transpile(storageContent, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
+    
+    const exports = {};
+    const module = { exports };
+    const mockRequire = () => ({
+      DEFAULT_USER_PREFERENCES: {},
+      DEFAULT_HOME_SECTIONS: []
+    });
+    
+    const func = new Function('exports', 'module', 'global', 'window', 'localStorage', 'require', transpiled);
+    func(exports, module, global, global.window, global.localStorage, mockRequire);
+    
+    const storageService = exports.storage;
+
+    // Seed two Anime progress records with the same Anime ID, different episodes.
+    storageService.savePlaybackProgress({
+      id: 123,
+      mediaType: 'anime',
+      seasonNumber: 1,
+      episodeNumber: 1,
+      currentTime: 500,
+      duration: 1000,
+      progressPercent: 50,
+      lastWatchedAt: new Date().toISOString(),
+      title: 'Test Anime',
+      posterPath: null,
+      backdropPath: null
+    });
+    
+    storageService.savePlaybackProgress({
+      id: 123,
+      mediaType: 'anime',
+      seasonNumber: 1,
+      episodeNumber: 2,
+      currentTime: 600,
+      duration: 1000,
+      progressPercent: 60,
+      lastWatchedAt: new Date().toISOString(),
+      title: 'Test Anime',
+      posterPath: null,
+      backdropPath: null
+    });
+
+    // Verify both are present
+    const progressList1 = storageService.getAllPlaybackProgress();
+    assert.strictEqual(progressList1.length, 2, 'Should have 2 progress records');
+
+    // 3. Delete exactly one episode.
+    storageService.removePlaybackProgress(123, 'anime', 1, 1);
+
+    // 4. Assert the target episode is removed.
+    // 5. Assert the other episode remains.
+    const progressList2 = storageService.getAllPlaybackProgress();
+    assert.strictEqual(progressList2.length, 1, 'Should have 1 progress record remaining');
+    assert.strictEqual(progressList2[0].episodeNumber, 2, 'Episode 2 should remain');
   });
 
   test('Slice N: Universal Search includes Movies, TV Shows, and Anime', () => {

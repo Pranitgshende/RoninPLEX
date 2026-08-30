@@ -8,6 +8,19 @@ export class AnimeStreamService {
   /**
    * Main entry point to resolve an anime episode stream
    */
+  private static async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return res;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  }
+
   static async resolveEpisodeStream(
     animeTitle: string,
     episodeNumber: number,
@@ -24,7 +37,7 @@ export class AnimeStreamService {
           
           if (animeId && !animeId.startsWith('latest')) {
              logPlayback(`[AnimeStreamService] Attempting Anilist URN meta lookup for anilist:${animeId}`);
-             const metaRes = await fetch(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
+             const metaRes = await this.fetchWithTimeout(`${API_BASE}/meta/stream?provider=anilist&id=anilist:${animeId}&episode=${episodeNumber}&contentProvider=${provider}&language=${preferredLanguage}`);
              if (metaRes.ok) {
                  sourcesData = await metaRes.json();
              }
@@ -32,8 +45,7 @@ export class AnimeStreamService {
           
           if (!sourcesData || !sourcesData.streams || sourcesData.streams.length === 0) {
             logPlayback(`[AnimeStreamService] Meta stream failed. Falling back to manual search.`);
-            // 1. Search for the anime
-            const searchRes = await fetch(`${API_BASE}/search?q=${encodeURIComponent(animeTitle)}&provider=${provider}`);
+            const searchRes = await this.fetchWithTimeout(`${API_BASE}/search?q=${encodeURIComponent(animeTitle)}&provider=${provider}`);
             if (!searchRes.ok) continue;
             const searchData = await searchRes.json();
             
@@ -42,8 +54,7 @@ export class AnimeStreamService {
             const mediaId = searchData[0].id;
             logPlayback(`[AnimeStreamService] Found media ID: ${mediaId}`);
             
-            // 2. Get episodes
-            const epRes = await fetch(`${API_BASE}/content?mediaId=${encodeURIComponent(mediaId)}&provider=${provider}`);
+            const epRes = await this.fetchWithTimeout(`${API_BASE}/content?mediaId=${encodeURIComponent(mediaId)}&provider=${provider}`);
             if (!epRes.ok) continue;
             const episodes = await epRes.json();
             
@@ -52,25 +63,41 @@ export class AnimeStreamService {
             
             logPlayback(`[AnimeStreamService] Found episode ID: ${episode.id}`);
             
-            // 3. Get stream
-            const srcRes = await fetch(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}&language=${preferredLanguage}`);
+            const srcRes = await this.fetchWithTimeout(`${API_BASE}/stream?unitId=${encodeURIComponent(episode.id)}&provider=${provider}&language=${preferredLanguage}`);
             if (!srcRes.ok) continue;
             sourcesData = await srcRes.json();
           }
           
           if (!sourcesData || !sourcesData.streams || sourcesData.streams.length === 0) continue;
           
-          // Find 1080p or auto
-          const source = sourcesData.streams.find((s: any) => s.quality === '1080p') || 
-                         sourcesData.streams.find((s: any) => s.quality === 'auto') ||
-                         sourcesData.streams[0];
-                         
-          logPlayback(`[AnimeStreamService] Validating source URL: ${source.sourceUrl}`);
+          // Validate candidates in deterministic order
+          const streams = sourcesData.streams as any[];
+          const candidates = [];
+          const s1080 = streams.find(s => s.quality === '1080p');
+          if (s1080) candidates.push(s1080);
+          const sAuto = streams.find(s => s.quality === 'auto');
+          if (sAuto) candidates.push(sAuto);
           
-          // 4. Validate the stream
-          const valid = await this.validateStream(source.sourceUrl);
-          if (!valid) {
-            logPlayback(`[AnimeStreamService] Source invalid or HTML returned, failing over.`);
+          for (const s of streams) {
+            if (s.quality !== '1080p' && s.quality !== 'auto') {
+              candidates.push(s);
+            }
+          }
+          
+          let validSource = null;
+          for (const source of candidates) {
+            logPlayback(`[AnimeStreamService] Validating source URL: ${source.sourceUrl} (${source.quality})`);
+            const valid = await this.validateStream(source.sourceUrl);
+            if (valid) {
+              validSource = source;
+              break;
+            } else {
+              logPlayback(`[AnimeStreamService] Source invalid (${source.quality}), trying next quality...`);
+            }
+          }
+
+          if (!validSource) {
+            logPlayback(`[AnimeStreamService] All sources invalid for ${provider}, failing over.`);
             continue;
           }
 
@@ -83,10 +110,10 @@ export class AnimeStreamService {
           }));
           
           return {
-            sourceUrl: source.sourceUrl,
-            isHLS: source.isHLS || source.sourceUrl.includes('.m3u8') || source.sourceUrl.includes('/proxy?'),
+            sourceUrl: validSource.sourceUrl,
+            isHLS: validSource.isHLS || validSource.sourceUrl.includes('.m3u8') || validSource.sourceUrl.includes('/proxy?'),
             language: preferredLanguage,
-            quality: source.quality || 'auto',
+            quality: validSource.quality || 'auto',
             providerId: provider,
             qualities: qualities,
             subtitles: sourcesData.subtitles || []
@@ -101,15 +128,13 @@ export class AnimeStreamService {
       
     } catch (e: any) {
       logPlayback(`[AnimeStreamService] Resolution failed: ${e.message}`);
-      // Native App Error State (no HTML embeds!)
       return null;
     }
   }
 
   private static async validateStream(url: string): Promise<boolean> {
     try {
-      // Pre-flight check to see if the proxy returns a valid response rather than a 404 HTML
-      const headRes = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-1000' } });
+      const headRes = await this.fetchWithTimeout(url, { method: 'GET', headers: { 'Range': 'bytes=0-1000' } }, 5000);
       if (!headRes.ok) return false;
       const contentType = headRes.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {

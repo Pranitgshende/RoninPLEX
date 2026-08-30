@@ -45,8 +45,14 @@ class StorageService {
       for (const [legacyKey, newKey] of mappings) {
         const legacyVal = localStorage.getItem(legacyKey);
         const currentVal = localStorage.getItem(newKey);
-        if (legacyVal && !currentVal) {
-          localStorage.setItem(newKey, legacyVal);
+        
+        if (legacyVal) {
+          if (!currentVal && legacyVal !== 'cleared') {
+            localStorage.setItem(newKey, legacyVal);
+          }
+          // Remove the legacy key immediately to prevent resurrection, unless we just marked it cleared.
+          // Wait, if another tab uses it? The easiest way is just to remove the legacy key so it never resurrects.
+          localStorage.removeItem(legacyKey);
         }
       }
     } catch (e) {
@@ -306,6 +312,7 @@ class StorageService {
     try {
       if (!key) {
         localStorage.removeItem(STORAGE_KEYS.API_KEY);
+        localStorage.removeItem('cinepulse_tmdb_api_key');
       } else {
         localStorage.setItem(STORAGE_KEYS.API_KEY, key.trim());
       }
