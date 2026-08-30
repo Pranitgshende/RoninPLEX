@@ -294,12 +294,26 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       if (mod === './AnimeTypes') return { ContentLanguage: { SUB: 'sub', DUB: 'dub' } };
       return { logPlayback: () => {} };
     };
+    
+    // We need to pass setTimeout into the Function so it uses our intercepted one,
+    // or just let it use the global one since it's not strictly sandboxed.
     const func = new Function('exports', 'require', 'global', transpiled);
     
     let requestedTimeouts = [];
+    let currentTimeout = 0;
+    
     const originalFetch = global.fetch;
+    const originalSetTimeout = global.setTimeout;
+    
     try {
+      global.setTimeout = (cb, ms) => {
+        currentTimeout = ms;
+        return originalSetTimeout(cb, ms);
+      };
+      
       global.fetch = async (url, options) => {
+        requestedTimeouts.push({ url, tms: currentTimeout });
+        
         // Just return dummy data so it moves through the steps
         if (url.includes('/meta/stream')) {
            throw new Error('simulate local catch');
@@ -310,7 +324,7 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
         if (url.includes('/content?')) {
           return { ok: true, json: async () => ([{ id: 'mockEpId', number: 1 }]) };
         }
-        if (url.includes('/stream?')) {
+        if (url.includes('/stream?unitId=')) {
           return { ok: true, json: async () => ({ streams: [{ sourceUrl: 'http://valid', quality: 'auto', isHLS: true }] }) };
         }
         if (url === 'http://valid') {
@@ -321,13 +335,6 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       
       func(exports, mockRequire, global);
       const service = exports.AnimeStreamService;
-      
-      // Spy on fetchJsonWithTimeout
-      const originalFetchJson = service.fetchJsonWithTimeout;
-      service.fetchJsonWithTimeout = (url, opts, tms) => {
-         requestedTimeouts.push({ url, tms });
-         return originalFetchJson.call(service, url, opts, tms);
-      };
       
       const stream = await service.resolveEpisodeStream('Test Anime', 1, 'sub', '123');
       
@@ -340,16 +347,17 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
       assert.strictEqual(metaRequest.tms, 15000, 'Meta request should use 15000ms timeout');
       
       assert.ok(searchRequest, 'Search request was made');
-      assert.ok(searchRequest.tms === undefined || searchRequest.tms === 8000, 'Search request should use 8000ms default timeout');
+      assert.strictEqual(searchRequest.tms, 8000, 'Search request should use 8000ms default timeout');
       
       assert.ok(contentRequest, 'Content request was made');
-      assert.ok(contentRequest.tms === undefined || contentRequest.tms === 8000, 'Content request should use 8000ms default timeout');
+      assert.strictEqual(contentRequest.tms, 8000, 'Content request should use 8000ms default timeout');
       
       assert.ok(streamRequest, 'Stream request was made');
-      assert.ok(streamRequest.tms === undefined || streamRequest.tms === 8000, 'Stream request should use 8000ms default timeout');
+      assert.strictEqual(streamRequest.tms, 8000, 'Stream request should use 8000ms default timeout');
       
     } finally {
       global.fetch = originalFetch;
+      global.setTimeout = originalSetTimeout;
     }
   });
 });
