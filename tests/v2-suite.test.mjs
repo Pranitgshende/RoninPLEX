@@ -435,4 +435,24 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
     const serviceCode = fs.readFileSync('src/services/anime/AnimeService.ts', 'utf8');
     assert.match(serviceCode, /return\s+AnimeRepository\.fetchByGenre/, 'AnimeService.getByGenre must directly use repository fetchByGenre');
   });
+
+  test('Slice V: Compiled anime-server sidecar binary executes and responds to health checks', async () => {
+    const { spawn } = await import('child_process');
+    const path = await import('path');
+    const sidecarPath = path.resolve('src-tauri/bin/anime-server-x86_64-pc-windows-msvc.exe');
+    if (!fs.existsSync(sidecarPath)) return;
+
+    const child = spawn(sidecarPath, [], { stdio: 'ignore' });
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const fetch = (await import('node-fetch')).default;
+      const res = await fetch('http://127.0.0.1:4173/health');
+      const json = await res.json();
+      assert.strictEqual(json.ok, true, 'Sidecar must be healthy');
+      assert.ok(json.providers.includes('animeparadise'), 'Sidecar must include anime providers');
+    } finally {
+      child.kill();
+    }
+  });
 });
+

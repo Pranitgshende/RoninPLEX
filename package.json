@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build:sidecar": "ncc build backend/server.js -o backend/dist && pkg backend/dist/index.js -t node18-win-x64 -o src-tauri/bin/anime-server-x86_64-pc-windows-msvc",
+        "build:sidecar": "node scripts/build-sidecar.cjs",
         "build": "npm run build:sidecar && tsc -b && vite build",
         "lint": "oxlint",
         "preview": "vite preview",

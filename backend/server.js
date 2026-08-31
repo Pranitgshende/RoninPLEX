@@ -1,5 +1,5 @@
-import { startServer, HttpClient, GogoanimeProvider, AllmangaProvider, AnimeParadiseProvider, AnilistMeta } from 'anime-sdk';
-import http from 'http';
+const { startServer, HttpClient, GogoanimeProvider, AllmangaProvider, AnimeParadiseProvider, AnilistMeta } = require('anime-sdk');
+const http = require('http');
 
 const originalWriteHead = http.ServerResponse.prototype.writeHead;
 http.ServerResponse.prototype.writeHead = function(statusCode, headers) {
@@ -25,3 +25,4 @@ const httpClient = new HttpClient();
 const providers = [new GogoanimeProvider(httpClient), new AllmangaProvider(httpClient), new AnimeParadiseProvider(httpClient)];
 const metaProviders = [new AnilistMeta(httpClient)];
 startServer({ providers, metaProviders, proxy: true, port: 4173 });
+
