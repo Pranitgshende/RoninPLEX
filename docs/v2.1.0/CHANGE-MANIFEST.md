@@ -64,3 +64,14 @@
 - `PlayerErrorBoundary.tsx` - Added new React error boundary to prevent app crashes during fatal player errors.
 - `phase3-playback.test.mjs` - Added static analysis tests for session safeguards.
 - Watch.tsx` - Wrapped players in error boundaries and provided retryCount in key to guarantee fresh mounts on retry.
+
+### Phase 4 - Anime Player UX & Architecture
+| File | Action | Reason | Risk | Affected Subsystem | Verification Required |
+|------|--------|--------|------|--------------------|-----------------------|
+| src/components/player/anime/AnimeVideoPlayer.tsx | MODIFIED | Implemented ctiveQuality stream resolution, subtitle track UI mapping, and auto-next cancellation on reverse seek. Replaced ctiveQuality UI-only state with handleQualityChange mapped to hls.currentLevel. Formatted related Anime dropdown. | MED | Anime Playback UI | Yes (Test) |
+| src/pages/Watch.tsx | MODIFIED | Fixed double remounting issue by tying AnimeVideoPlayer key to deterministic mediaId/episodeNumber/
+etryCount instead of sourceUrl. Added missing
+etryCount to
+esolveEpisodeStream call to fix provider retry loop. | MED | Navigation & Playback | Yes (Test) |
+| src/services/anime/AnimeStreamService.ts | MODIFIED | Added fallback logic to re-try with SUB stream when preferredLanguage DUB fails to resolve. | LOW | Anime Stream Resolution | Yes (Test) |
+| 	ests/phase4-anime.test.mjs | CREATED | Added dedicated regression suite to enforce deterministic keys, retry counting, auto-next logic, language fallbacks, and quality switching logic. | LOW | Tests | Yes |

@@ -24,7 +24,6 @@ import { AnimeItem, AnimeEpisode, AnimeStreamSource, ContentLanguage } from '../
 import { usePlaybackSession } from '../usePlaybackSession';
 import { AnimeSubtitleManager } from './AnimeSubtitleManager';
 import { AnimeEpisodeController } from './AnimeEpisodeController';
-import { AnimePlaybackController } from './AnimePlaybackController';
 import { useUser } from '../../../context/UserContext';
 import { storage } from '../../../services/storage';
 
@@ -88,6 +87,27 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   const [activeQuality, setActiveQuality] = useState<string>(stream?.quality || 'auto');
   const [activeMenu, setActiveMenu] = useState<'none' | 'quality' | 'subtitle' | 'audio'>('none');
 
+  const handleQualityChange = (q: string) => {
+    setActiveQuality(q);
+    setActiveMenu('none');
+
+    if (hlsRef.current && hlsRef.current.levels && hlsRef.current.levels.length > 0) {
+      if (q === 'auto') {
+        hlsRef.current.currentLevel = -1;
+        return;
+      }
+      const heightMatch = q.match(/(\d+)p/i);
+      if (heightMatch) {
+        const targetHeight = parseInt(heightMatch[1], 10);
+        const levelIndex = hlsRef.current.levels.findIndex(l => l.height === targetHeight);
+        if (levelIndex !== -1) {
+          hlsRef.current.currentLevel = levelIndex;
+        }
+      }
+    }
+  };
+
+
   // Episode chunking & search for 1100+ episodes
   const [chunkIndex, setChunkIndex] = useState(0);
   const [episodeSearch, setEpisodeSearch] = useState('');
@@ -140,6 +160,12 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     // Initialize subtitles
     const sm = new AnimeSubtitleManager(stream.subtitles || []);
     setSubtitleManager(sm);
+    const active = sm.getActiveTrack();
+    if (active) {
+      setActiveSubtitle(active.language);
+    } else {
+      setActiveSubtitle('off');
+    }
 
     const progress = storage.getPlaybackProgress(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber);
     let resumeTime = progress?.currentTime || 0;
@@ -306,7 +332,21 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
   const handleSeek = (time: number) => {
     if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(time, duration));
+    let safeTime = time;
+    if (isNaN(safeTime) || safeTime < 0) safeTime = 0;
+    if (duration && safeTime > duration) safeTime = duration;
+
+    videoRef.current.currentTime = safeTime;
+    setCurrentTime(safeTime);
+
+    if (duration && safeTime < duration - 10) {
+      if (autoNextTimerRef.current) {
+        clearSessionInterval(autoNextTimerRef.current);
+        autoNextTimerRef.current = null;
+      }
+      setAutoNextCountdown(null);
+      hasStartedAutoNextRef.current = false;
+    }
   };
 
   const skipIntro = () => {
@@ -653,10 +693,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                       {stream.qualities.map(q => (
                         <button
                           key={q.quality}
-                          onClick={() => {
-                            setActiveQuality(q.quality);
-                            setActiveMenu('none');
-                          }}
+                          onClick={() => handleQualityChange(q.quality)}
                           className={`px-4 py-2 text-xs font-semibold text-left transition-colors ${activeQuality === q.quality ? 'bg-rose-600/30 text-rose-300' : 'text-slate-300 hover:bg-surface-300'}`}
                         >
                           {q.quality === 'auto' ? 'Auto' : q.quality}
@@ -804,7 +841,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                     .filter(r => r.format === 'TV' || r.format === 'TV_SHORT' || r.format === 'MOVIE' || r.format === 'ONA' || r.format === 'OVA')
                     .map(r => (
                       <option key={r.id} value={r.id}>
-                        {r.title} ({r.format})
+                        {r.title} ({r.relationType ? r.relationType.replace(/_/g, ' ') : r.format})
                       </option>
                     ))}
                 </select>

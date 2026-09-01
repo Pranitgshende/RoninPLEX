@@ -154,6 +154,10 @@ export class AnimeStreamService {
         }
       }
       
+      if (preferredLanguage === ContentLanguage.DUB) {
+        logPlayback(`[AnimeStreamService] DUB failed across all providers, falling back to SUB.`);
+        return AnimeStreamService.resolveEpisodeStream(animeTitle, episodeNumber, ContentLanguage.SUB, animeId, 0);
+      }
       throw new Error("All providers failed to resolve a playable stream.");
       
     } catch (e: any) {

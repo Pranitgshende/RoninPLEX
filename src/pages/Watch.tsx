@@ -136,7 +136,7 @@ export const Watch: React.FC = () => {
           
           const [epsData, streamData] = await Promise.all([
             animeService.getEpisodes(String(mediaId)),
-            AnimeStreamService.resolveEpisodeStream(animeData.title, episodeNumber, animeLanguage, String(mediaId))
+            AnimeStreamService.resolveEpisodeStream(animeData.title, episodeNumber, animeLanguage, String(mediaId), retryCount)
           ]);
           
           if (currentRequestId !== requestIdRef.current) return;
@@ -314,7 +314,7 @@ export const Watch: React.FC = () => {
     return (
       <PlayerErrorBoundary>
         <AnimeVideoPlayer
-          key={`${animeStreamSource?.sourceUrl || 'anime-loading'}-${retryCount}`}
+          key={`anime-${mediaId}-${episodeNumber}-${retryCount}`}
           anime={
             animeItem || {
               id: String(mediaId),
