@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
@@ -6,6 +6,7 @@ import { ToastContainer } from './components/common/Toast';
 import { OnboardingModal } from './components/modals/OnboardingModal';
 import { PreferencesModal } from './components/modals/PreferencesModal';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
+import { RoninIntro } from './components/startup/RoninIntro';
 
 // Pages
 import { Home } from './pages/Home';
@@ -26,9 +27,14 @@ import { NotFound } from './pages/NotFound';
 export const App: React.FC = () => {
   const location = useLocation();
   const isWatchPage = location.pathname.startsWith('/watch');
+  const [introFinished, setIntroFinished] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-slate-100 font-sans selection:bg-brand-600 selection:text-white">
+      {!introFinished && (
+        <RoninIntro onComplete={() => setIntroFinished(true)} isAppReady={true} />
+      )}
+
       {!isWatchPage && <Navbar />}
 
       <main className="flex-grow">
