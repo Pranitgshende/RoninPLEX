@@ -1,3 +1,4 @@
+import { useMotionPresence } from '../../animation/hooks/useMotionPresence';
 import React, { useState } from 'react';
 import { Sparkles, Check, Film, Sliders, Globe, User } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
@@ -14,7 +15,8 @@ export const OnboardingModal: React.FC = () => {
   const [directorInput, setDirectorInput] = useState<string>('');
   const [directorsList, setDirectorsList] = useState<string[]>(preferences.favoriteDirectors);
 
-  if (!isOnboardingOpen) return null;
+  const { ref, shouldRender } = useMotionPresence(isOnboardingOpen, 'slideUp');
+  if (!shouldRender) return null;
 
   const toggleGenre = (id: number) => {
     setSelectedGenres(prev =>
@@ -64,7 +66,7 @@ export const OnboardingModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-lg animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-lg "
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"

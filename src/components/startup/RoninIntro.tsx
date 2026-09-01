@@ -9,6 +9,8 @@ interface RoninIntroProps {
   isAppReady: boolean;
 }
 
+import logoUrl from '../../assets/logo.png';
+
 export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -83,12 +85,11 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
 
       {/* Logo Mark */}
       <div ref={logoRef} className="relative z-10 flex flex-col items-center">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-2xl shadow-brand-600/40 mb-4">
-          <span className="text-3xl sm:text-4xl font-black text-white">R</span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-white">
-          RoninPLEX
-        </h1>
+        <img 
+          src={logoUrl} 
+          alt="RoninPLEX Logo" 
+          className="w-48 sm:w-64 md:w-80 h-auto drop-shadow-2xl opacity-90"
+        />
       </div>
     </div>
   );

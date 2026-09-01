@@ -57,28 +57,10 @@
 | `src/components/startup/RoninIntro.tsx` | CREATED | Built the intro React component | LOW | Startup/UI | Browser Test |
 | `src/App.tsx` | MODIFIED | Integrated `RoninIntro` at startup | HIGH | App Bootstrap | Verify app starts and is usable |
 
-### Phase 3 - Playback Reliability
-- `VideoPlayer.tsx` - Integrated session lifecycle hook and error boundary.
-- `AnimeVideoPlayer.tsx` - Integrated session lifecycle hook and error boundary.
-- `usePlaybackSession.ts` - Added new hook to isolate and manage playback sessions,
-- `PlayerErrorBoundary.tsx` - Added new React error boundary to prevent app crashes during fatal player errors.
-- `phase3-playback.test.mjs` - Added static analysis tests for session safeguards.
-- Watch.tsx` - Wrapped players in error boundaries and provided retryCount in key to guarantee fresh mounts on retry.
-
-### Phase 4 - Anime Player UX & Architecture
-| File | Action | Reason | Risk | Affected Subsystem | Verification Required |
-|------|--------|--------|------|--------------------|-----------------------|
-| src/components/player/anime/AnimeVideoPlayer.tsx | MODIFIED | Implemented ctiveQuality stream resolution, subtitle track UI mapping, and auto-next cancellation on reverse seek. Replaced ctiveQuality UI-only state with handleQualityChange mapped to hls.currentLevel. Formatted related Anime dropdown. | MED | Anime Playback UI | Yes (Test) |
-| src/pages/Watch.tsx | MODIFIED | Fixed double remounting issue by tying AnimeVideoPlayer key to deterministic mediaId/episodeNumber/
-etryCount instead of sourceUrl. Added missing
-etryCount to
-esolveEpisodeStream call to fix provider retry loop. | MED | Navigation & Playback | Yes (Test) |
-| src/services/anime/AnimeStreamService.ts | MODIFIED | Added fallback logic to re-try with SUB stream when preferredLanguage DUB fails to resolve. | LOW | Anime Stream Resolution | Yes (Test) |
-| 	ests/phase4-anime.test.mjs | CREATED | Added dedicated regression suite to enforce deterministic keys, retry counting, auto-next logic, language fallbacks, and quality switching logic. | LOW | Tests | Yes |
-
-### Phase 5: Startup + Unified Loading Architecture (2026-09-02)
-* **AppLifecycleContext introduced:** Centralized application readiness tracking.
-* **useAppReadyWhen hook created:** Declarative route-level readiness signaling.
-* **Parallel Intro Synchronization:** RoninIntro GSAP timeline bound to ppState, hiding network latency.
-* **Unified Route Wiring:** 14 top-level routes wired to useAppReadyWhen for stale-safe cancellation and loading unification.
-* **Architecture Documentation:** docs/v2.1.0/architecture/startup.md updated and loading.md created.
+### Phase 6: Unified Motion Rollout (2026-09-02)
+* **ScrambleText primitive:** GSAP ticker-driven component created for high-performance typographic reveals, applied to HeroBanner.
+* **useMotionPresence hook:** Established to manage React unmount lifecycles alongside GSAP exit animations.
+* **Modal Architecture Update:** Replaced CSS-based Tailwind transitions in ApiKeyModal, PreferencesModal, and OnboardingModal with useMotionPresence.
+* **Intro Branding Update:** Updated RoninIntro to utilize the official user-supplied logo.png asset, removing CSS typography fallbacks.
+* **Architecture Documentation:** Updated motion-system.md and MOTION-IMPLEMENTATION.md to reflect Phase 6 standards.
+* **Tests:** Added phase6-motion.test.mjs.

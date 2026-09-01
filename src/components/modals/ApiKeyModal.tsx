@@ -1,3 +1,4 @@
+import { useMotionPresence } from '../../animation/hooks/useMotionPresence';
 import React, { useState, useEffect } from 'react';
 import { X, Key, CheckCircle, AlertCircle, ExternalLink, ShieldCheck, Loader2 } from 'lucide-react';
 import { useApiKey } from '../../context/ApiKeyContext';
@@ -13,7 +14,8 @@ export const ApiKeyModal: React.FC = () => {
     setStatusMessage(null);
   }, [apiKey, isModalOpen]);
 
-  if (!isModalOpen) return null;
+  const { ref, shouldRender } = useMotionPresence(isModalOpen, 'slideUp');
+  if (!shouldRender) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +54,7 @@ export const ApiKeyModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md "
       onClick={closeModal}
       role="dialog"
       aria-modal="true"

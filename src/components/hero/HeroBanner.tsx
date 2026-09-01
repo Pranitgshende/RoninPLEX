@@ -1,3 +1,4 @@
+import { ScrambleText } from '../../animation/components/ScrambleText';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Info, Bookmark, BookmarkCheck, Volume2, VolumeX, Sparkles, Compass, PlayCircle } from 'lucide-react';
@@ -114,7 +115,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             {/* Title */}
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white font-display tracking-tight leading-tight drop-shadow-2xl">
-              {normalized.displayTitle}
+              <ScrambleText text={normalized.displayTitle} duration={1.2} />
             </h1>
 
             {/* Metadata Bar */}

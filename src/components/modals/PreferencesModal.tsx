@@ -1,3 +1,4 @@
+import { useMotionPresence } from '../../animation/hooks/useMotionPresence';
 import React, { useState, useEffect } from 'react';
 import { X, Sliders, Check, Film, Globe, User, Save, RotateCcw } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
@@ -28,7 +29,8 @@ export const PreferencesModal: React.FC = () => {
     }
   }, [isPreferencesOpen, preferences]);
 
-  if (!isPreferencesOpen) return null;
+  const { ref, shouldRender } = useMotionPresence(isPreferencesOpen, 'slideUp');
+  if (!shouldRender) return null;
 
   const toggleGenre = (id: number) => {
     setSelectedGenres(prev =>
@@ -78,8 +80,8 @@ export const PreferencesModal: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+    <div ref={ref}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md "
       onClick={closePreferences}
       role="dialog"
       aria-modal="true"
