@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tv, Search, Star, Clock, Play, Layers } from 'lucide-react';
@@ -30,6 +31,8 @@ export const TvShows: React.FC = () => {
   const tvContinueWatching = useMemo(() => {
     return continueWatching.filter(item => item.mediaType === 'tv');
   }, [continueWatching]);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     let isMounted = true;
@@ -282,7 +285,7 @@ export const TvShows: React.FC = () => {
                       {item.title}
                     </h4>
                     <p className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                      S{item.seasonNumber || 1} E{item.episodeNumber || 1} · {Math.round(item.progressPercent)}%
+                      S{item.seasonNumber || 1} E{item.episodeNumber || 1}  {Math.round(item.progressPercent)}%
                     </p>
                   </div>
                   <button

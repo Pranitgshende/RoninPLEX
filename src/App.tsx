@@ -24,15 +24,17 @@ import { Watchlist } from './pages/Watchlist';
 import { Settings } from './pages/Settings';
 import { NotFound } from './pages/NotFound';
 
+import { useAppLifecycle } from './context/AppLifecycleContext';
+
 export const App: React.FC = () => {
   const location = useLocation();
   const isWatchPage = location.pathname.startsWith('/watch');
-  const [introFinished, setIntroFinished] = useState(false);
+  const { isIntroComplete, completeIntro, appState } = useAppLifecycle();
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-slate-100 font-sans selection:bg-brand-600 selection:text-white">
-      {!introFinished && (
-        <RoninIntro onComplete={() => setIntroFinished(true)} isAppReady={true} />
+      {!isIntroComplete && (
+        <RoninIntro onComplete={completeIntro} isAppReady={appState === 'ready'} />
       )}
 
       {!isWatchPage && <Navbar />}

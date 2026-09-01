@@ -1,8 +1,11 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Film, Home } from 'lucide-react';
 
 export const NotFound: React.FC = () => {
+  useAppReadyWhen(true);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-20">
       <div className="text-center space-y-5 max-w-md">

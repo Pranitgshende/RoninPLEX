@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Film, Tv, Sparkles, X, AlertCircle } from 'lucide-react';
@@ -30,6 +31,8 @@ export const Search: React.FC = () => {
   const [searchedQuery, setSearchedQuery] = useState<string>(initialQuery);
 
   const debouncedQuery = useDebounce(query, 350);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     if (!debouncedQuery.trim()) {

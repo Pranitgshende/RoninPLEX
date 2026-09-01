@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -35,6 +36,8 @@ export const AnimeDetails: React.FC = () => {
   const [jumpInput, setJumpInput] = useState<string>('');
 
   const inWatchlist = anime ? isInWatchlist(anime.id as any, 'anime') : false;
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     if (!id) return;

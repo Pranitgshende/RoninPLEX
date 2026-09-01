@@ -75,3 +75,10 @@ etryCount to
 esolveEpisodeStream call to fix provider retry loop. | MED | Navigation & Playback | Yes (Test) |
 | src/services/anime/AnimeStreamService.ts | MODIFIED | Added fallback logic to re-try with SUB stream when preferredLanguage DUB fails to resolve. | LOW | Anime Stream Resolution | Yes (Test) |
 | 	ests/phase4-anime.test.mjs | CREATED | Added dedicated regression suite to enforce deterministic keys, retry counting, auto-next logic, language fallbacks, and quality switching logic. | LOW | Tests | Yes |
+
+### Phase 5: Startup + Unified Loading Architecture (2026-09-02)
+* **AppLifecycleContext introduced:** Centralized application readiness tracking.
+* **useAppReadyWhen hook created:** Declarative route-level readiness signaling.
+* **Parallel Intro Synchronization:** RoninIntro GSAP timeline bound to ppState, hiding network latency.
+* **Unified Route Wiring:** 14 top-level routes wired to useAppReadyWhen for stale-safe cancellation and loading unification.
+* **Architecture Documentation:** docs/v2.1.0/architecture/startup.md updated and loading.md created.

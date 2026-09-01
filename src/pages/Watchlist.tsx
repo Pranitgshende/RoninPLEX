@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bookmark, CheckCircle2, ThumbsUp, ThumbsDown, Trash2, Play, Film, Tv, ArrowUpDown, Clock } from 'lucide-react';
@@ -60,6 +61,8 @@ export const Watchlist: React.FC = () => {
       navigate(`/watch/tv/${item.id}/${item.seasonNumber || 1}/${item.episodeNumber || 1}`);
     }
   };
+  useAppReadyWhen(true);
+
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8">

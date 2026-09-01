@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -63,6 +64,8 @@ export const Anime: React.FC = () => {
       return (item.mediaType as string) === 'anime' || (item as any).isAnime;
     });
   }, [continueWatching]);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     let isMounted = true;

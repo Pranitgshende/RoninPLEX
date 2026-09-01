@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Clock, Calendar, Film, ChevronLeft, PlayCircle, MonitorPlay } from 'lucide-react';
@@ -22,6 +23,8 @@ export const MovieDetails: React.FC = () => {
   const [isStreamAvailable, setIsStreamAvailable] = useState<boolean>(false);
 
   const { isInWatchlist, toggleWatchlist, isWatched, toggleWatched, toggleLike, toggleDislike, watched } = useUser();
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     if (!movieId) return;

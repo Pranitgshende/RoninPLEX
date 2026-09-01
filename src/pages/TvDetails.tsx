@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Tv, Calendar, Layers, ChevronLeft, PlayCircle, MonitorPlay } from 'lucide-react';
@@ -25,6 +26,8 @@ export const TvDetails: React.FC = () => {
   const [isStreamAvailable, setIsStreamAvailable] = useState<boolean>(false);
 
   const { isInWatchlist, toggleWatchlist, isWatched, toggleWatched, toggleLike, toggleDislike, watched } = useUser();
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     if (!tvId) return;

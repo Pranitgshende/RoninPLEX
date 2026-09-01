@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, Sparkles, Play, Bookmark, BookmarkCheck, Star, User, ArrowRight, RotateCcw, ShieldAlert } from 'lucide-react';
@@ -43,6 +44,8 @@ export const DecisionHelper: React.FC = () => {
       });
     }
   };
+  useAppReadyWhen(true);
+
 
   useEffect(() => {
     scrollToBottom();

@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import {
   Server,
@@ -180,6 +181,8 @@ export const Settings: React.FC = () => {
       : [...current, genreId];
     updatePreferences({ favoriteGenreIds: next });
   };
+  useAppReadyWhen(true);
+
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8">

@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -88,6 +89,8 @@ export const Discover: React.FC = () => {
 
   // Cancellation token counter to eliminate race conditions
   const requestIdRef = useRef<number>(0);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     tmdb.getGenres('movie').then(setGenres);

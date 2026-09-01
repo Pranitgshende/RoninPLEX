@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, RefreshCw, PlayCircle, X, Layers, Terminal } from 'lucide-react';
@@ -51,6 +52,8 @@ export const Watch: React.FC = () => {
   const [drawerSeasonNumber, setDrawerSeasonNumber] = useState<number>(seasonNumber);
   const [drawerSeasonEpisodes, setDrawerSeasonEpisodes] = useState<Episode[]>([]);
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     let isActive = true;

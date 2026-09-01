@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, Search, Star, Clock, Play } from 'lucide-react';
@@ -31,6 +32,8 @@ export const Movies: React.FC = () => {
   const movieContinueWatching = useMemo(() => {
     return continueWatching.filter(item => item.mediaType === 'movie');
   }, [continueWatching]);
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     let isMounted = true;

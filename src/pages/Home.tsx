@@ -1,3 +1,4 @@
+import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Compass, Play, X, Clock } from 'lucide-react';
@@ -42,6 +43,8 @@ export const Home: React.FC = () => {
     const section = activeLayout.find(s => s.id === id);
     return section ? section.enabled : true;
   };
+  useAppReadyWhen(!isLoading);
+
 
   useEffect(() => {
     let isMounted = true;
