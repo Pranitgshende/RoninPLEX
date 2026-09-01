@@ -7,6 +7,7 @@ import { Movie } from '../types/tmdb';
 import { RatingBadge } from '../components/common/RatingBadge';
 import { TrailerModal } from '../components/common/TrailerModal';
 import { MediaRow } from '../components/common/MediaRow';
+import { AmbientTrailerHero } from '../components/common/AmbientTrailerHero';
 import { getBackdropUrl, getPosterUrl, getProfileUrl, extractBestTrailerKey } from '../utils/helpers';
 import { formatRuntime, formatDate, formatCurrency, formatYear } from '../utils/formatting';
 import { useUser } from '../context/UserContext';
@@ -124,15 +125,11 @@ export const MovieDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pb-20">
-      <div className="relative w-full h-[60vh] lg:h-[70vh] overflow-hidden">
-        <img
-          src={getBackdropUrl(movie.backdrop_path, 'original')}
-          alt={movie.title}
-          className="w-full h-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-black/30" />
-        <div className="absolute inset-0 bg-hero-side-gradient opacity-80" />
-
+      <AmbientTrailerHero
+        backdropPath={movie.backdrop_path}
+        trailerKey={trailerKey}
+        title={movie.title}
+      >
         <div className="absolute top-24 left-4 sm:left-8 md:left-12 z-20">
           <Link
             to="/"
@@ -142,7 +139,7 @@ export const MovieDetails: React.FC = () => {
             <span>Back</span>
           </Link>
         </div>
-      </div>
+      </AmbientTrailerHero>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 -mt-36 sm:-mt-48 relative z-30 space-y-10">
         <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
@@ -343,19 +340,7 @@ export const MovieDetails: React.FC = () => {
           </div>
         )}
 
-        {trailerKey && (
-          <div className="space-y-4 pt-6 border-t border-white/5">
-            <h2 className="text-xl sm:text-2xl font-bold font-display text-white">Trailer & Video</h2>
-            <div className="w-full max-w-4xl aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black shadow-2xl">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${trailerKey}?rel=0&modestbranding=1`}
-                title={`${movie.title} Trailer`}
-                className="w-full h-full border-0"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        )}
+
 
         {similarMovies.length > 0 && (
           <MediaRow

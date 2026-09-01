@@ -7,6 +7,7 @@ import { TVShow, Season } from '../types/tmdb';
 import { RatingBadge } from '../components/common/RatingBadge';
 import { TrailerModal } from '../components/common/TrailerModal';
 import { MediaRow } from '../components/common/MediaRow';
+import { AmbientTrailerHero } from '../components/common/AmbientTrailerHero';
 import { getBackdropUrl, getPosterUrl, getProfileUrl, getStillUrl, extractBestTrailerKey } from '../utils/helpers';
 import { formatDate, formatYear, formatRuntime } from '../utils/formatting';
 import { useUser } from '../context/UserContext';
@@ -147,15 +148,11 @@ export const TvDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pb-20">
-      <div className="relative w-full h-[60vh] lg:h-[70vh] overflow-hidden">
-        <img
-          src={getBackdropUrl(tvShow.backdrop_path, 'original')}
-          alt={tvShow.name}
-          className="w-full h-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-black/30" />
-        <div className="absolute inset-0 bg-hero-side-gradient opacity-80" />
-
+      <AmbientTrailerHero
+        backdropPath={tvShow.backdrop_path}
+        trailerKey={trailerKey}
+        title={tvShow.name}
+      >
         <div className="absolute top-24 left-4 sm:left-8 md:left-12 z-20">
           <Link
             to="/"
@@ -165,7 +162,7 @@ export const TvDetails: React.FC = () => {
             <span>Back</span>
           </Link>
         </div>
-      </div>
+      </AmbientTrailerHero>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 -mt-36 sm:-mt-48 relative z-30 space-y-10">
         <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
