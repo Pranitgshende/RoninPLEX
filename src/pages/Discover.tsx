@@ -83,6 +83,29 @@ export const Discover: React.FC = () => {
   const [genres, setGenres] = useState<Genre[]>(MOCK_GENRES);
 
   const [items, setItems] = useState<DiscoverItem[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnter = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    // Live reordering via state
+    setItems((prev) => {
+      const newItems = [...prev];
+      const draggedItem = newItems[draggedIndex];
+      newItems.splice(draggedIndex, 1);
+      newItems.splice(index, 0, draggedItem);
+      return newItems;
+    });
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
   const [page, setPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
@@ -510,7 +533,7 @@ export const Discover: React.FC = () => {
     sortBy !== 'popularity.desc';
 
   return (
-    <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen w-full bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl sm:text-4xl font-black font-display tracking-tight text-white">
           Explore & Discover
@@ -733,13 +756,13 @@ export const Discover: React.FC = () => {
 
       {/* Main Grid Display */}
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 18 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 w-full">
+          {Array.from({ length: 21 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-fade-in">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 animate-fade-in w-full pb-8">
           {items.map((item) => (
             <MovieCard
               key={`${item.mediaType}-${item.id}`}
