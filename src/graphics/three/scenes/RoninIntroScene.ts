@@ -1,4 +1,3 @@
-// @ts-ignore
 import * as THREE from 'three';
 import { VisualScene } from '../lifecycle/VisualScene';
 
