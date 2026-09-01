@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Hls from 'hls.js';
+import { usePlaybackSession } from './usePlaybackSession';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Play,
@@ -79,6 +80,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const { preferences, savePlaybackProgress } = useUser();
 
+
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scrubBarRef = useRef<HTMLDivElement>(null);
@@ -137,6 +139,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [diagnosticStream, setDiagnosticStream] = useState<StreamingResult | null>(null);
   const effectiveStream = diagnosticStream || stream;
 
+  const {
+    getActiveSessionId,
+    setSessionState,
+    setSessionInterval,
+    setSessionTimeout,
+    clearSessionInterval,
+    clearSessionTimeout,
+    disposeCurrentSession
+  } = usePlaybackSession(mediaId, mediaType, seasonNumber, episodeNumber, effectiveStream.providerId || null, effectiveStream.type || '', effectiveStream.url || '');
+
+
   // Provider-aware iframe embed policy resolution
   const resolvedEmbedPolicy = React.useMemo(() => {
     if (effectiveStream.embedPolicy) {
@@ -165,10 +178,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeoutRef.current) {
-      window.clearTimeout(hideControlsTimeoutRef.current);
+      clearSessionTimeout(hideControlsTimeoutRef.current);
     }
     if (isPlaying) {
-      hideControlsTimeoutRef.current = window.setTimeout(() => {
+      hideControlsTimeoutRef.current = setSessionTimeout(getActiveSessionId(), () => {
         setShowControls(false);
         setIsSpeedMenuOpen(false);
         setIsSubtitleMenuOpen(false);
@@ -208,7 +221,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Fullscreen change listener
   useEffect(() => {
     let unmounted = false;
-    
+
     // Auto-enter fullscreen on mount
     getCurrentWindow().setFullscreen(true).then(() => {
       if (!unmounted) setIsFullscreen(true);
@@ -231,10 +244,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Master unmount timer cleanup
   useEffect(() => {
     return () => {
-      if (singleClickTimerRef.current) window.clearTimeout(singleClickTimerRef.current);
-      if (seekFeedbackTimeoutRef.current) window.clearTimeout(seekFeedbackTimeoutRef.current);
-      if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
-      if (hideControlsTimeoutRef.current) window.clearTimeout(hideControlsTimeoutRef.current);
+      if (singleClickTimerRef.current) clearSessionTimeout(singleClickTimerRef.current);
+      if (seekFeedbackTimeoutRef.current) clearSessionTimeout(seekFeedbackTimeoutRef.current);
+      if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
+      if (hideControlsTimeoutRef.current) clearSessionTimeout(hideControlsTimeoutRef.current);
     };
   }, []);
 
@@ -267,7 +280,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 const mins = Math.floor(match.currentTime / 60);
                 const secs = Math.floor(match.currentTime % 60);
                 setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-                setTimeout(() => setResumeNotification(null), 5000);
+                setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
               }
             } catch (e) {
               console.warn('Could not read resume position:', e);
@@ -295,13 +308,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.src = effectiveStream.url;
     }
 
+    const sessionId = getActiveSessionId();
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+      disposeCurrentSession(sessionId);
     };
-  }, [effectiveStream.url, effectiveStream.type]);
+  }, [effectiveStream.url, effectiveStream.type, disposeCurrentSession, getActiveSessionId]);
 
   // Reset embed loading state when stream URL changes
   useEffect(() => {
@@ -310,10 +325,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       logPlayback('Player initialized');
       setIsIframeLoading(true);
       setShowSlowBufferHelp(false);
-      const timer = window.setTimeout(() => {
+      const timer = setSessionTimeout(getActiveSessionId(), () => {
         setShowSlowBufferHelp(true);
       }, 7000);
-      return () => window.clearTimeout(timer);
+      return () => { if (timer !== null) clearSessionTimeout(timer); };
     }
   }, [effectiveStream.url, effectiveStream.type, iframeKey]);
 
@@ -322,7 +337,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (stream.type !== 'embed') return;
 
     let watchedSeconds = 0;
-    const interval = window.setInterval(() => {
+    const sessionId = getActiveSessionId();
+    const interval = setSessionInterval(sessionId, () => {
       watchedSeconds += 5;
       const estDuration = mediaType === 'tv' ? 2700 : 7200;
       const percent = Math.min(Math.round((watchedSeconds / estDuration) * 100), 90);
@@ -342,8 +358,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       });
     }, 5000);
 
-    return () => window.clearInterval(interval);
-  }, [stream.type, mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress]);
+    return () => {
+      if (interval) clearSessionInterval(interval );
+    };
+  }, [stream.type, mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, getActiveSessionId, setSessionInterval]);
 
   // Periodic progress saving for native video (every 5 seconds)
   useEffect(() => {
@@ -352,7 +370,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const flushProgress = () => {
       const current = videoRef.current?.currentTime || 0;
       const dur = videoRef.current?.duration || 0;
-      
+
       if (dur > 0 && current > 15) {
         const percent = Math.round((current / dur) * 100);
         savePlaybackProgress({
@@ -372,13 +390,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
 
-    const interval = setInterval(flushProgress, 5000);
+    const sessionId = getActiveSessionId();
+    const interval = setSessionInterval(sessionId, flushProgress, 5000);
 
     return () => {
-      clearInterval(interval);
+      if (interval) clearSessionInterval(interval );
       flushProgress();
     };
-  }, [mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type]);
+  }, [mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type, getActiveSessionId, setSessionInterval]);
 
   // Single Click Play/Pause toggle
   const togglePlay = useCallback(() => {
@@ -396,10 +415,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Trigger temporary animated seek badge
   const triggerSeekFeedback = useCallback((direction: 'forward' | 'backward', amount: number) => {
     if (seekFeedbackTimeoutRef.current) {
-      window.clearTimeout(seekFeedbackTimeoutRef.current);
+      clearSessionTimeout(seekFeedbackTimeoutRef.current);
     }
     setSeekFeedback({ direction, amount, id: Date.now() });
-    seekFeedbackTimeoutRef.current = window.setTimeout(() => {
+    seekFeedbackTimeoutRef.current = setSessionTimeout(getActiveSessionId(), () => {
       setSeekFeedback(null);
     }, 750);
   }, []);
@@ -436,7 +455,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isDouble) {
       // Cancel any pending single-click play/pause
       if (singleClickTimerRef.current) {
-        window.clearTimeout(singleClickTimerRef.current);
+        clearSessionTimeout(singleClickTimerRef.current);
         singleClickTimerRef.current = null;
       }
       if (region === 'left') {
@@ -449,9 +468,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     } else {
       // Single click: schedule responsive play/pause toggle
       if (singleClickTimerRef.current) {
-        window.clearTimeout(singleClickTimerRef.current);
+        clearSessionTimeout(singleClickTimerRef.current);
       }
-      singleClickTimerRef.current = window.setTimeout(() => {
+      singleClickTimerRef.current = setSessionTimeout(getActiveSessionId(), () => {
         togglePlay();
         resetControlsTimer();
         singleClickTimerRef.current = null;
@@ -474,15 +493,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       let lastTime = videoRef.current?.currentTime || 0;
       let checkCount = 0;
 
-      progressInterval = window.setInterval(() => {
+      const sessionId = getActiveSessionId();
+      progressInterval = setSessionInterval(sessionId, () => {
         const current = videoRef.current?.currentTime || 0;
-        
+
         if (current > lastTime) {
           lastTime = current;
           checkCount = 0; // Reset checks on progress
-          if (watchdogPhase !== 'currentTime_advances') {
-            setWatchdogPhase('currentTime_advances');
-          }
+          setWatchdogPhase(prev => prev !== 'currentTime_advances' ? 'currentTime_advances' : prev);
         } else {
           checkCount++;
           if (checkCount >= 6) { // 30 seconds of no progress while playing
@@ -491,16 +509,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (effectiveStream.providerId) {
               streamingManager.reportPlaybackFailure(effectiveStream.providerId, 'Watchdog detected playback stall (currentTime did not advance)');
             }
-            if (progressInterval) window.clearInterval(progressInterval);
+            if (progressInterval) clearSessionInterval(progressInterval );
           }
         }
-      }, 5000);
+      }, 5000) ;
     }
 
     return () => {
-      if (progressInterval) window.clearInterval(progressInterval);
+      if (progressInterval !== null) clearSessionInterval(progressInterval);
     };
-  }, [effectiveStream.url, effectiveStream.type, iframeKey, videoError, isPlaying, watchdogPhase]);
+  }, [effectiveStream.url, effectiveStream.type, iframeKey, videoError, isPlaying, getActiveSessionId, setSessionInterval]);
 
   const toggleMute = () => {
     if (!videoRef.current) return;
@@ -1066,7 +1084,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setDuration(videoRef.current.duration);
             setWatchdogPhase('media_loaded');
             logPlayback('Watchdog [Phase 3/5]: media loaded');
-            
+
             // Safely apply resume position after metadata is loaded
             if (!hasAppliedResumeRef.current) {
               hasAppliedResumeRef.current = true;
@@ -1077,7 +1095,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   const mins = Math.floor(match.currentTime / 60);
                   const secs = Math.floor(match.currentTime % 60);
                   setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-                  setTimeout(() => setResumeNotification(null), 5000);
+                  setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
                 }
               } catch (e) {
                 console.warn('Could not read resume position:', e);
@@ -1092,11 +1110,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (preferences.autoNextEpisode !== false) {
               const countdownStart = preferences.autoNextCountdown || 10;
               setNextCountdown(countdownStart);
-              if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
-              nextCountdownTimerRef.current = window.setInterval(() => {
+              if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
+              nextCountdownTimerRef.current = setSessionInterval(getActiveSessionId(), () => {
                 setNextCountdown(prev => {
                   if (prev <= 1) {
-                    if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                    if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
                     setShowNextEpisodeCard(false);
                     onNextEpisode();
                     return 0;
@@ -1515,7 +1533,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
             <button
               onClick={() => {
-                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
                 setShowNextEpisodeCard(false);
               }}
               className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
@@ -1549,7 +1567,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={() => {
-                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
                 setShowNextEpisodeCard(false);
                 onNextEpisode?.();
               }}
@@ -1560,7 +1578,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </button>
             <button
               onClick={() => {
-                if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+                if (nextCountdownTimerRef.current) clearSessionInterval(nextCountdownTimerRef.current);
                 setShowNextEpisodeCard(false);
               }}
               className="px-4 py-2.5 rounded-xl bg-surface-100 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-colors"

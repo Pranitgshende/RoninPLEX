@@ -56,3 +56,11 @@
 | `src/graphics/three/scenes/RoninIntroScene.ts` | CREATED | Created Three.js intro visual | MED | Graphics/Memory | Browser Test, Memory Profile |
 | `src/components/startup/RoninIntro.tsx` | CREATED | Built the intro React component | LOW | Startup/UI | Browser Test |
 | `src/App.tsx` | MODIFIED | Integrated `RoninIntro` at startup | HIGH | App Bootstrap | Verify app starts and is usable |
+
+### Phase 3 - Playback Reliability
+- `VideoPlayer.tsx` - Integrated session lifecycle hook and error boundary.
+- `AnimeVideoPlayer.tsx` - Integrated session lifecycle hook and error boundary.
+- `usePlaybackSession.ts` - Added new hook to isolate and manage playback sessions,
+- `PlayerErrorBoundary.tsx` - Added new React error boundary to prevent app crashes during fatal player errors.
+- `phase3-playback.test.mjs` - Added static analysis tests for session safeguards.
+- Watch.tsx` - Wrapped players in error boundaries and provided retryCount in key to guarantee fresh mounts on retry.

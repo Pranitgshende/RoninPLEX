@@ -21,6 +21,7 @@ import {
   Search,
 } from 'lucide-react';
 import { AnimeItem, AnimeEpisode, AnimeStreamSource, ContentLanguage } from '../../../services/anime/AnimeTypes';
+import { usePlaybackSession } from '../usePlaybackSession';
 import { AnimeSubtitleManager } from './AnimeSubtitleManager';
 import { AnimeEpisodeController } from './AnimeEpisodeController';
 import { AnimePlaybackController } from './AnimePlaybackController';
@@ -60,6 +61,17 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+
+  const {
+    getActiveSessionId,
+    setSessionState,
+    setSessionInterval,
+    setSessionTimeout,
+    clearSessionInterval,
+    clearSessionTimeout,
+    disposeCurrentSession
+  } = usePlaybackSession(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber, null, stream?.isHLS ? 'hls' : 'mp4', stream?.sourceUrl || '');
+
   const { savePlaybackProgress } = useUser();
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -88,8 +100,8 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   const controlsTimeoutRef = useRef<any>(null);
   const triggerActivity = () => {
     setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => {
+    if (controlsTimeoutRef.current) clearSessionTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setSessionTimeout(getActiveSessionId(), () => {
       if (isPlaying) {
         setShowControls(false);
         setActiveMenu('none');
@@ -102,18 +114,18 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     setHasError(false);
     setIsBuffering(false);
     if (autoNextTimerRef.current) {
-      clearInterval(autoNextTimerRef.current);
+      clearSessionInterval(autoNextTimerRef.current);
       autoNextTimerRef.current = null;
     }
     setAutoNextCountdown(null);
 
     const video = videoRef.current;
-    
+
     if (!isLoading && !stream) {
       setHasError(true);
       return;
     }
-    
+
     if (!video || !stream) return;
 
     if (stream.language && stream.language !== activeLanguage) {
@@ -154,7 +166,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       });
 
       const retryCountRef = { current: 0 };
-      
+
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
@@ -184,12 +196,14 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     }
 
     return () => {
+    const sessionId = getActiveSessionId();
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+      disposeCurrentSession(sessionId);
     };
-  }, [stream, anime.id, episodeNumber]);
+  }, [stream, anime.id, episodeNumber, disposeCurrentSession, getActiveSessionId]);
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
@@ -214,10 +228,10 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       }
     };
 
-    const interval = setInterval(flushProgress, 5000);
+    const interval = setSessionInterval(getActiveSessionId(), flushProgress, 5000);
 
     return () => {
-      clearInterval(interval);
+      if (interval !== null) clearSessionInterval(interval);
       flushProgress();
     };
   }, [anime.id, anime.title, anime.poster, anime.banner, episodeNumber, savePlaybackProgress]);
@@ -245,13 +259,13 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   }, [episodeNumber]);
 
   const startAutoNextCountdown = () => {
-    if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current);
+    if (autoNextTimerRef.current) clearSessionInterval(autoNextTimerRef.current);
     let count = 8;
     setAutoNextCountdown(count);
-    autoNextTimerRef.current = setInterval(() => {
+    autoNextTimerRef.current = setSessionInterval(getActiveSessionId(), () => {
       count -= 1;
       if (count <= 0) {
-        if (autoNextTimerRef.current) clearInterval(autoNextTimerRef.current);
+        if (autoNextTimerRef.current) clearSessionInterval(autoNextTimerRef.current);
         autoNextTimerRef.current = null;
         setAutoNextCountdown(null);
         handleNextEpisode();
@@ -264,7 +278,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   useEffect(() => {
     return () => {
       if (autoNextTimerRef.current) {
-        clearInterval(autoNextTimerRef.current);
+        clearSessionInterval(autoNextTimerRef.current);
         autoNextTimerRef.current = null;
       }
     };
@@ -495,7 +509,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
             <button
               onClick={() => {
                 if (autoNextTimerRef.current) {
-                  clearInterval(autoNextTimerRef.current);
+                  clearSessionInterval(autoNextTimerRef.current);
                   autoNextTimerRef.current = null;
                 }
                 setAutoNextCountdown(null);
@@ -578,7 +592,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
               <button onClick={() => handleSeek(currentTime - 10)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white" title="-10s">
                 <RotateCcw className="w-5 h-5" />
               </button>
-              
+
               <button onClick={() => handleSeek(currentTime + 10)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white mr-2" title="+10s">
                 <RotateCw className="w-5 h-5" />
               </button>
@@ -624,11 +638,11 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
             {/* Right Controls */}
             <div className="flex items-center gap-3 relative">
-              
+
               {/* Quality Menu */}
               {stream?.qualities && stream.qualities.length > 1 && (
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setActiveMenu(activeMenu === 'quality' ? 'none' : 'quality')}
                     className={`px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold transition-colors ${activeMenu === 'quality' ? 'bg-white/30 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-200'}`}
                   >
@@ -637,7 +651,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                   {activeMenu === 'quality' && (
                     <div className="absolute bottom-full right-0 mb-2 w-32 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1">
                       {stream.qualities.map(q => (
-                        <button 
+                        <button
                           key={q.quality}
                           onClick={() => {
                             setActiveQuality(q.quality);
@@ -665,7 +679,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                   // Better: Just don't render the Dub button if not supported.
                   return (
                     <div className="relative">
-                      <button 
+                      <button
                         onClick={() => setActiveMenu(activeMenu === 'audio' ? 'none' : 'audio')}
                         className={`px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold transition-colors ${activeMenu === 'audio' ? 'bg-white/30 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-200'}`}
                       >
@@ -673,7 +687,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                       </button>
                       {activeMenu === 'audio' && (
                         <div className="absolute bottom-full right-0 mb-2 w-32 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1">
-                          <button 
+                          <button
                             onClick={() => {
                               setActiveLanguage(ContentLanguage.SUB);
                               onLanguageChange(ContentLanguage.SUB);
@@ -684,7 +698,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                             Sub
                           </button>
                           {supportsDub !== false && (
-                            <button 
+                            <button
                               onClick={() => {
                                 setActiveLanguage(ContentLanguage.DUB);
                                 onLanguageChange(ContentLanguage.DUB);
@@ -705,7 +719,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
               {/* Subtitles Menu */}
               {subtitleManager.getTracks().length > 0 && (
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setActiveMenu(activeMenu === 'subtitle' ? 'none' : 'subtitle')}
                     className={`p-2 rounded-xl transition-colors ${activeMenu === 'subtitle' || activeSubtitle ? 'text-white' : 'text-slate-400 hover:text-white'} ${activeMenu === 'subtitle' ? 'bg-white/20' : 'bg-white/10'}`}
                   >
@@ -714,7 +728,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                   {activeMenu === 'subtitle' && (
                     <div className="absolute bottom-full right-0 mb-2 w-48 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1 max-h-64 overflow-y-auto">
                       <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-white/5">Captions</div>
-                      <button 
+                      <button
                         onClick={() => {
                           subtitleManager.setTrack('off');
                           setActiveSubtitle(null);
@@ -725,7 +739,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                         Off
                       </button>
                       {subtitleManager.getTracks().map(t => (
-                        <button 
+                        <button
                           key={t.language}
                           onClick={() => {
                             subtitleManager.setTrack(t.language);
@@ -746,7 +760,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                 <Layers className="w-4 h-4 text-rose-400" />
                 <span>Episodes</span>
               </button>
-              
+
               <button onClick={toggleFullscreen} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
@@ -774,7 +788,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
             {/* Seasons / Related Anime */}
             {anime.relations && anime.relations.filter(r => r.format === 'TV' || r.format === 'TV_SHORT' || r.format === 'MOVIE' || r.format === 'ONA' || r.format === 'OVA').length > 0 && (
               <div className="py-4 border-b border-white/5">
-                <select 
+                <select
                   onChange={(e) => {
                     if (e.target.value !== anime.id && onSelectRelated) {
                       onSelectRelated(e.target.value);

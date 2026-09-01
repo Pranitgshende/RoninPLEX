@@ -10,6 +10,7 @@ import { VideoPlayer } from '../components/player/VideoPlayer';
 import { AnimeVideoPlayer } from '../components/player/anime/AnimeVideoPlayer';
 import { AnimeItem, AnimeEpisode, AnimeStreamSource } from '../services/anime/AnimeTypes';
 import { AnimeStreamService } from '../services/anime/AnimeStreamService';
+import { PlayerErrorBoundary } from '../components/player/PlayerErrorBoundary';
 import { TrailerModal } from '../components/common/TrailerModal';
 import { extractBestTrailerKey, getStillUrl, getPosterUrl, getBackdropUrl } from '../utils/helpers';
 import { formatRuntime } from '../utils/formatting';
@@ -311,33 +312,36 @@ export const Watch: React.FC = () => {
   // Dedicated Anime Player Architecture
   if (isAnime) {
     return (
-      <AnimeVideoPlayer
-        anime={
-          animeItem || {
-            id: String(mediaId),
-            title: 'Anime',
-            synopsis: '',
-            genres: [],
-            studios: [],
-            status: 'RELEASING',
-            episodeCount: 1200,
-            poster: '',
-            isAdult: false,
+      <PlayerErrorBoundary>
+        <AnimeVideoPlayer
+          key={`${animeStreamSource?.sourceUrl || 'anime-loading'}-${retryCount}`}
+          anime={
+            animeItem || {
+              id: String(mediaId),
+              title: 'Anime',
+              synopsis: '',
+              genres: [],
+              studios: [],
+              status: 'RELEASING',
+              episodeCount: 1200,
+              poster: '',
+              isAdult: false,
+            }
           }
-        }
-        episodeNumber={episodeNumber}
-        episodes={animeEpisodes}
-        stream={animeStreamSource}
-        isLoading={isLoading}
-        onSelectEpisode={(epNum) => navigate(`/watch/anime/${mediaId}/${epNum}`)}
-        onSelectRelated={(relatedId) => {
-          setIsEpisodeDrawerOpen(false);
-          navigate(`/watch/anime/${relatedId}/1`);
-        }}
-        onLanguageChange={(lang) => setAnimeLanguage(lang)}
-        onBack={() => navigate(`/anime/${mediaId}`)}
-        onRetry={() => setRetryCount((c) => c + 1)}
-      />
+          episodeNumber={episodeNumber}
+          episodes={animeEpisodes}
+          stream={animeStreamSource}
+          isLoading={isLoading}
+          onSelectEpisode={(epNum) => navigate(`/watch/anime/${mediaId}/${epNum}`)}
+          onSelectRelated={(relatedId) => {
+            setIsEpisodeDrawerOpen(false);
+            navigate(`/watch/anime/${relatedId}/1`);
+          }}
+          onLanguageChange={(lang) => setAnimeLanguage(lang)}
+          onBack={() => navigate(`/anime/${mediaId}`)}
+          onRetry={() => setRetryCount((c) => c + 1)}
+        />
+      </PlayerErrorBoundary>
     );
   }
 
@@ -354,26 +358,29 @@ export const Watch: React.FC = () => {
   if (streamResult && streamResult.url) {
     return (
       <div className="relative w-full h-screen bg-black">
-        <VideoPlayer
-          stream={streamResult}
-          title={isTV ? (tvShow?.name || 'TV Series') : (movie?.title || 'Movie')}
-          mediaType={isTV ? 'tv' : 'movie'}
-          mediaId={mediaId}
-          seasonNumber={isTV ? seasonNumber : undefined}
-          episodeNumber={isTV ? episodeNumber : undefined}
-          episodeTitle={currentEpisode?.name}
-          posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
-          backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
-          onBack={() => navigate(isAnime ? `/anime/${mediaId}` : isTV ? `/tv/${mediaId}` : `/movie/${mediaId}`)}
-          onPrevEpisode={handlePrevEpisode}
-          hasPrevEpisode={hasPrevEpisode}
-          onNextEpisode={handleNextEpisode}
-          hasNextEpisode={hasNextEpisode}
-          nextEpisodeInfo={nextEpisodeInfo}
-          onOpenEpisodeDrawer={() => setIsEpisodeDrawerOpen(true)}
-          onTryNextProvider={handleTryNextProvider}
-          onPlaybackError={() => handleTryNextProvider()}
-        />
+        <PlayerErrorBoundary>
+          <VideoPlayer
+            key={`${streamResult.url}-${retryCount}`}
+            stream={streamResult}
+            title={isTV ? (tvShow?.name || 'TV Series') : (movie?.title || 'Movie')}
+            mediaType={isTV ? 'tv' : 'movie'}
+            mediaId={mediaId}
+            seasonNumber={isTV ? seasonNumber : undefined}
+            episodeNumber={isTV ? episodeNumber : undefined}
+            episodeTitle={currentEpisode?.name}
+            posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
+            backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
+            onBack={() => navigate(isAnime ? `/anime/${mediaId}` : isTV ? `/tv/${mediaId}` : `/movie/${mediaId}`)}
+            onPrevEpisode={handlePrevEpisode}
+            hasPrevEpisode={hasPrevEpisode}
+            onNextEpisode={handleNextEpisode}
+            hasNextEpisode={hasNextEpisode}
+            nextEpisodeInfo={nextEpisodeInfo}
+            onOpenEpisodeDrawer={() => setIsEpisodeDrawerOpen(true)}
+            onTryNextProvider={handleTryNextProvider}
+            onPlaybackError={() => handleTryNextProvider()}
+          />
+        </PlayerErrorBoundary>
 
         {/* TV Episode Selector Drawer Overlay */}
         {isTV && isEpisodeDrawerOpen && (

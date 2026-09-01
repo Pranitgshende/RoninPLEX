@@ -162,3 +162,14 @@ Unmount:
 - Consider debouncing/batching progress saves to reduce re-renders
 - Consider separating playback state from UserContext
 - Consider adding player error boundary
+
+
+### Phase 3 Update: usePlaybackSession Lifecycle Management
+
+In RoninPLEX v2.1.0, a new `usePlaybackSession` hook was introduced to guarantee safe session teardown, preventing race conditions, memory leaks, and stale closure bugs.
+
+Key improvements:
+- __Session Boundary__: Every playback instance generates a unique `sessionId` based on media identity. Stale intervals and callbacks from old sessions are automatically rejected.
+- __Safe Timers__: `setInterval` has been replaced with `setSessionInterval` which binds watchdog and progress timers to the active session.
+- __HLS Disposal__: Now explicitly tied to `disposeCurrentSession`, guaranteeing clean teardown when stream sources change.
+- __Error Boundary__: A `PlayerErrorBoundary` component wraps the player to isolate catastrophic React failures from the rest of the app.
