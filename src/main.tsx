@@ -5,6 +5,7 @@ import { HashRouter } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
 import { ApiKeyProvider } from './context/ApiKeyContext';
 import { AppLifecycleProvider } from './context/AppLifecycleContext';
+import { PlaybackProvider } from './context/PlaybackContext';
 import App from './App';
 import './index.css';
 
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ApiKeyProvider>
         <UserProvider>
           <AppLifecycleProvider>
-            <App />
+            <PlaybackProvider>
+              <App />
+            </PlaybackProvider>
           </AppLifecycleProvider>
         </UserProvider>
       </ApiKeyProvider>

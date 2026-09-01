@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from \'react\';
-import gsap from \'gsap\';
-import { useReducedMotion } from \'../hooks/useReducedMotion\';
-import { motionTokens } from \'../../design/tokens/motion\';
+import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { motionTokens } from '../../design/tokens/motion';
 
 interface MotionPresenceProps {
   show: boolean;
   children: React.ReactNode;
-  animation?: \'fade\' | \'slideUp\' | \'scale\';
+  animation?: 'fade' | 'slideUp' | 'scale';
   duration?: number;
   unmountDelay?: number; // fallback, usually duration * 1000
 }
@@ -14,7 +14,7 @@ interface MotionPresenceProps {
 export const MotionPresence: React.FC<MotionPresenceProps> = ({
   show,
   children,
-  animation = \'fade\',
+  animation = 'fade',
   duration = motionTokens.duration.medium,
   unmountDelay
 }) => {
@@ -40,10 +40,10 @@ export const MotionPresence: React.FC<MotionPresenceProps> = ({
         let fromVars: gsap.TweenVars = { opacity: 0 };
         let toVars: gsap.TweenVars = { opacity: 1, duration: actualDuration, ease: motionTokens.ease.standard };
         
-        if (animation === \'slideUp\') {
+        if (animation === 'slideUp') {
           fromVars.y = 20;
           toVars.y = 0;
-        } else if (animation === \'scale\') {
+        } else if (animation === 'scale') {
           fromVars.scale = 0.95;
           toVars.scale = 1;
         }
@@ -63,9 +63,9 @@ export const MotionPresence: React.FC<MotionPresenceProps> = ({
           onComplete: () => setShouldRender(false)
         };
         
-        if (animation === \'slideUp\') {
+        if (animation === 'slideUp') {
           toVars.y = 10;
-        } else if (animation === \'scale\') {
+        } else if (animation === 'scale') {
           toVars.scale = 0.95;
         }
         
@@ -78,7 +78,7 @@ export const MotionPresence: React.FC<MotionPresenceProps> = ({
   if (!shouldRender) return null;
 
   return (
-    <div ref={containerRef} style={{ display: \'contents\' }}>
+    <div ref={containerRef} style={{ display: 'contents' }}>
       {children}
     </div>
   );

@@ -7,6 +7,7 @@ import { OnboardingModal } from './components/modals/OnboardingModal';
 import { PreferencesModal } from './components/modals/PreferencesModal';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
 import { RoninIntro } from './components/startup/RoninIntro';
+import { PersistentPlayerHost } from './components/player/PersistentPlayerHost';
 
 // Pages
 import { Home } from './pages/Home';
@@ -66,6 +67,7 @@ export const App: React.FC = () => {
       <OnboardingModal />
       <PreferencesModal />
       <ApiKeyModal />
+      <PersistentPlayerHost />
       <ToastContainer />
     </div>
   );
