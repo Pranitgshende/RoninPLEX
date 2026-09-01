@@ -21,6 +21,7 @@ import { SkeletonCard } from '../components/common/SkeletonCard';
 import { MOCK_GENRES } from '../services/mockData';
 import { useUser } from '../context/UserContext';
 import { AdultBadge } from '../components/common/AdultBadge';
+import { useSpatialGridNavigation } from '../hooks/useSpatialGridNavigation';
 
 export type DiscoverMediaType = 'all' | 'movie' | 'tv' | 'anime';
 
@@ -83,6 +84,7 @@ export const Discover: React.FC = () => {
   const [genres, setGenres] = useState<Genre[]>(MOCK_GENRES);
 
   const [items, setItems] = useState<DiscoverItem[]>([]);
+  const { containerRef, activeIndex, handleKeyDown } = useSpatialGridNavigation(items.length);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const handleDragStart = (index: number) => {
@@ -762,13 +764,49 @@ export const Discover: React.FC = () => {
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 animate-fade-in w-full pb-8">
-          {items.map((item) => (
-            <MovieCard
+        <div 
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 animate-fade-in w-full pb-8 outline-none"
+          ref={containerRef}
+          onKeyDown={handleKeyDown}
+          tabIndex={-1}
+          role="list"
+          aria-label="Discover Media List"
+        >
+          {items.map((item, index) => (
+            <div
               key={`${item.mediaType}-${item.id}`}
-              item={item.raw}
-              mediaType={item.mediaType as any}
-            />
+              role="listitem"
+              draggable
+              tabIndex={activeIndex === index ? 0 : -1}
+              onFocus={() => setActiveIndex(index)}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', '');
+                e.dataTransfer.effectAllowed = 'move';
+                handleDragStart(index);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                handleDragEnter(index);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDragEnd={handleDragEnd}
+              onDrop={(e) => e.preventDefault()}
+              className={`transition-all duration-300 ease-out cursor-grab active:cursor-grabbing rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-100 ${
+                draggedIndex === index ? 'opacity-50 scale-95 z-10' : 'opacity-100 scale-100'
+              }`}
+              style={{
+                transformOrigin: 'center center',
+                willChange: 'transform, opacity'
+              }}
+            >
+              <MovieCard
+                item={item.raw}
+                mediaType={item.mediaType as any}
+              />
+            </div>
           ))}
         </div>
       ) : (
