@@ -1,6 +1,7 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import {
   Play,
   Bookmark,
@@ -24,6 +25,7 @@ const CHUNK_SIZE = 100;
 export const AnimeDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const { isInWatchlist, toggleWatchlist } = useUser();
 
   const [anime, setAnime] = useState<AnimeItem | null>(null);
@@ -150,11 +152,11 @@ export const AnimeDetails: React.FC = () => {
 
         {/* Back Button */}
         <button
-          onClick={() => navigate('/anime')}
+          onClick={goBack}
           className="absolute top-20 left-4 sm:left-8 z-20 px-3.5 py-2 rounded-xl bg-surface-100/80 hover:bg-surface-200/90 text-white text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md border border-white/10 transition-all"
         >
           <ChevronLeft className="w-4 h-4" />
-          <span>Back to Anime</span>
+          <span>Back</span>
         </button>
       </div>
 

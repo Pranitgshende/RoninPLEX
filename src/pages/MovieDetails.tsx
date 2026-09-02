@@ -1,6 +1,7 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Clock, Calendar, Film, ChevronLeft, PlayCircle, MonitorPlay } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
 import { Movie } from '../types/tmdb';
@@ -16,6 +17,7 @@ import { streamingManager } from '../services/streaming/StreamingManager';
 export const MovieDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const movieId = id ? parseInt(id, 10) : null;
 
   const [movie, setMovie] = useState<Movie | null>(null);
@@ -70,13 +72,13 @@ export const MovieDetails: React.FC = () => {
           <p className="text-xs text-slate-400">
             We couldn't retrieve the details for this movie. It may have been removed or TMDB is temporarily unavailable.
           </p>
-          <Link
-            to="/"
+          <button
+            onClick={goBack}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Return to Home</span>
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -131,13 +133,13 @@ export const MovieDetails: React.FC = () => {
         title={movie.title}
       >
         <div className="absolute top-24 left-4 sm:left-8 md:left-12 z-20">
-          <Link
-            to="/"
+          <button
+            onClick={goBack}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white text-xs font-semibold backdrop-blur-md border border-white/10 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Back</span>
-          </Link>
+          </button>
         </div>
       </AmbientTrailerHero>
 

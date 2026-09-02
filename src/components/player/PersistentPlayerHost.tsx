@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { usePlayback } from '../../context/PlaybackContext';
+import { useGoBack } from '../../hooks/useGoBack';
 import { VideoPlayer } from './VideoPlayer';
 import { AnimeVideoPlayer } from './anime/AnimeVideoPlayer';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary';
@@ -11,6 +12,8 @@ import { useReducedMotion } from '../../animation/hooks/useReducedMotion';
 export const PersistentPlayerHost: React.FC = () => {
   const playback = usePlayback();
   const navigate = useNavigate();
+  const goBackFallback = playback.mediaType === 'anime' ? '/anime' : '/';
+  const handlePlayerBack = useGoBack(goBackFallback);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ isDragging: boolean; startX: number; startY: number; currentX: number; currentY: number }>({
     isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0
@@ -132,7 +135,7 @@ export const PersistentPlayerHost: React.FC = () => {
             onSelectEpisode={playback.onSelectEpisode}
             onSelectRelated={playback.onSelectRelated}
             onLanguageChange={playback.setAnimeLanguage}
-            onBack={handleRestore}
+            onBack={handlePlayerBack}
             onRetry={playback.triggerRetry}
           />
         </PlayerErrorBoundary>
@@ -153,7 +156,7 @@ export const PersistentPlayerHost: React.FC = () => {
             episodeTitle={currentEpisode?.name}
             posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
             backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
-            onBack={handleRestore}
+            onBack={handlePlayerBack}
             onPrevEpisode={playback.handlePrevEpisode}
             hasPrevEpisode={playback.hasPrevEpisode}
             onNextEpisode={playback.handleNextEpisode}
