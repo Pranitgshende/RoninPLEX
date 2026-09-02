@@ -162,7 +162,7 @@ export const AnimeDetails: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 -mt-44 sm:-mt-56 relative z-10">
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {/* Poster Card */}
-          <div className="w-48 sm:w-60 md:w-64 flex-shrink-0 rounded-2xl overflow-hidden glass-card border border-white/10 shadow-2xl">
+          <div className="w-48 sm:w-60 md:w-64 flex-shrink-0 rounded-2xl overflow-hidden glass-standard border border-white/10 shadow-2xl">
             <img
               src={anime.poster}
               alt={anime.title}
@@ -191,7 +191,7 @@ export const AnimeDetails: React.FC = () => {
                 </span>
               )}
               {anime.studios && anime.studios.length > 0 && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-surface-100 border border-white/10 text-slate-300">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold glass-subtle text-slate-300">
                   {anime.studios.join(', ')}
                 </span>
               )}
@@ -330,7 +330,7 @@ export const AnimeDetails: React.FC = () => {
                   value={jumpInput}
                   onChange={(e) => setJumpInput(e.target.value)}
                   placeholder="Jump to ep #..."
-                  className="w-28 px-3 py-1.5 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
+                  className="w-28 px-3 py-1.5 rounded-xl glass-subtle text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
                 />
                 <button
                   type="submit"
@@ -347,7 +347,7 @@ export const AnimeDetails: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter episodes..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
+                  className="pl-8 pr-3 py-1.5 rounded-xl glass-subtle text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
                 />
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               </div>
@@ -384,7 +384,7 @@ export const AnimeDetails: React.FC = () => {
               <div
                 key={ep.id}
                 onClick={() => navigate(`/watch/anime/${anime.id}/${ep.number}`)}
-                className="p-3.5 rounded-2xl bg-surface-100/60 hover:bg-surface-200/90 border border-white/10 hover:border-brand-500/40 cursor-pointer transition-all duration-200 group flex gap-3.5 items-center glass-card"
+                className="p-3.5 rounded-2xl bg-surface-100/60 hover:bg-surface-200/90 border border-white/10 hover:border-brand-500/40 cursor-pointer transition-all duration-200 group flex gap-3.5 items-center glass-standard"
               >
                 <div className="w-12 h-12 rounded-xl bg-surface-300 flex-shrink-0 flex items-center justify-center text-slate-400 group-hover:bg-brand-600 group-hover:text-white transition-all shadow-md">
                   <Play className="w-4 h-4 fill-current ml-0.5" />

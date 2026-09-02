@@ -166,7 +166,7 @@ export const TvDetails: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 -mt-36 sm:-mt-48 relative z-30 space-y-10">
         <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
-          <div className="w-44 sm:w-60 md:w-72 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-surface-200 aspect-[2/3] mx-auto md:mx-0">
+          <div className="w-44 sm:w-60 md:w-72 flex-shrink-0 rounded-2xl overflow-hidden glass-standard aspect-[2/3] mx-auto md:mx-0">
             <img
               src={getPosterUrl(tvShow.poster_path, 'large')}
               alt={tvShow.name}
@@ -181,13 +181,13 @@ export const TvDetails: React.FC = () => {
               </span>
               <RatingBadge rating={tvShow.vote_average} size="lg" />
               {tvShow.number_of_seasons && (
-                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md bg-surface-100 border border-white/5 flex items-center gap-1">
+                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md glass-subtle flex items-center gap-1">
                   <Layers className="w-3.5 h-3.5 text-slate-400" />
                   {tvShow.number_of_seasons} {tvShow.number_of_seasons === 1 ? 'Season' : 'Seasons'}
                 </span>
               )}
               {tvShow.first_air_date && (
-                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md bg-surface-100 border border-white/5 flex items-center gap-1">
+                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md glass-subtle flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   {formatDate(tvShow.first_air_date)}
                 </span>
@@ -343,7 +343,7 @@ export const TvDetails: React.FC = () => {
                 <select
                   value={selectedSeasonNumber}
                   onChange={(e) => setSelectedSeasonNumber(parseInt(e.target.value, 10))}
-                  className="px-3 py-1.5 rounded-xl bg-surface-100 border border-white/10 text-xs font-semibold text-white focus:outline-none focus:border-brand-500"
+                  className="px-3 py-1.5 rounded-xl glass-subtle text-xs font-semibold text-white focus:outline-none focus:border-brand-500"
                 >
                   {tvShow.seasons.map(s => (
                     <option key={s.id} value={s.season_number}>
@@ -361,7 +361,7 @@ export const TvDetails: React.FC = () => {
                 {seasonData.episodes.map(ep => (
                   <div
                     key={ep.id}
-                    className="flex flex-col sm:flex-row gap-3.5 p-3.5 rounded-xl bg-surface-100/60 border border-white/5 hover:border-brand-500/40 transition-all group"
+                    className="flex flex-col sm:flex-row gap-3.5 p-3.5 rounded-xl glass-subtle hover:border-brand-500/40 transition-all group"
                   >
                     <div
                       onClick={() => navigate(`/watch/tv/${tvShow.id}/${selectedSeasonNumber}/${ep.episode_number}`)}
@@ -432,7 +432,7 @@ export const TvDetails: React.FC = () => {
               {cast.map(person => (
                 <div
                   key={person.id}
-                  className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-100/60 border border-white/5"
+                  className="flex items-center gap-3 p-2.5 rounded-xl glass-subtle"
                 >
                   <img
                     src={getProfileUrl(person.profile_path, 'medium')}

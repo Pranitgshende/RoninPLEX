@@ -511,7 +511,7 @@ export const Settings: React.FC = () => {
               </div>
 
               {/* Active Provider Selector */}
-              <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-3">
+              <div className="p-4 rounded-xl glass-subtle space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold text-slate-300">
                     Preferred Streaming Provider:
@@ -666,7 +666,7 @@ export const Settings: React.FC = () => {
               </div>
 
               {/* Status Banner */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-100 border border-white/5">
+              <div className="flex items-center justify-between p-3.5 rounded-xl glass-subtle">
                 <div className="flex items-center gap-2.5">
                   <div
                     className={`w-3 h-3 rounded-full ${
@@ -702,7 +702,7 @@ export const Settings: React.FC = () => {
               </div>
 
               {/* Provider Health & Failover Diagnostics Table */}
-              <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-3">
+              <div className="p-4 rounded-xl glass-subtle space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider">
                     Provider Health & Failover Diagnostics
@@ -771,7 +771,7 @@ export const Settings: React.FC = () => {
                       value={providerConfig.name}
                       onChange={(e) => setProviderConfig({ ...providerConfig, name: e.target.value })}
                       placeholder="e.g. My Authorized Stream Server"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                     />
                   </div>
 
@@ -782,7 +782,7 @@ export const Settings: React.FC = () => {
                       value={providerConfig.baseUrl}
                       onChange={(e) => setProviderConfig({ ...providerConfig, baseUrl: e.target.value })}
                       placeholder="https://api.your-provider.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                     />
                   </div>
 
@@ -794,7 +794,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.apiKey}
                         onChange={(e) => setProviderConfig({ ...providerConfig, apiKey: e.target.value })}
                         placeholder="Optional X-API-Key header"
-                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                       />
                       <button
                         type="button"
@@ -814,7 +814,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.apiToken}
                         onChange={(e) => setProviderConfig({ ...providerConfig, apiToken: e.target.value })}
                         placeholder="Optional Authorization Bearer token"
-                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                       />
                       <button
                         type="button"
@@ -839,7 +839,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.movieEndpoint}
                         onChange={(e) => setProviderConfig({ ...providerConfig, movieEndpoint: e.target.value })}
                         placeholder="/movies/{tmdbId}"
-                        className="w-full px-3 py-2 rounded-lg bg-surface-100 border border-white/10 text-xs text-white font-mono"
+                        className="w-full px-3 py-2 rounded-lg glass-subtle text-xs text-white font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -849,7 +849,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.tvEndpoint}
                         onChange={(e) => setProviderConfig({ ...providerConfig, tvEndpoint: e.target.value })}
                         placeholder="/tv/{tmdbId}"
-                        className="w-full px-3 py-2 rounded-lg bg-surface-100 border border-white/10 text-xs text-white font-mono"
+                        className="w-full px-3 py-2 rounded-lg glass-subtle text-xs text-white font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -859,7 +859,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.episodeEndpoint}
                         onChange={(e) => setProviderConfig({ ...providerConfig, episodeEndpoint: e.target.value })}
                         placeholder="/tv/{tmdbId}/season/{season}/episode/{episode}"
-                        className="w-full px-3 py-2 rounded-lg bg-surface-100 border border-white/10 text-xs text-white font-mono"
+                        className="w-full px-3 py-2 rounded-lg glass-subtle text-xs text-white font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -869,7 +869,7 @@ export const Settings: React.FC = () => {
                         value={providerConfig.searchEndpoint}
                         onChange={(e) => setProviderConfig({ ...providerConfig, searchEndpoint: e.target.value })}
                         placeholder="/search?q={query}"
-                        className="w-full px-3 py-2 rounded-lg bg-surface-100 border border-white/10 text-xs text-white font-mono"
+                        className="w-full px-3 py-2 rounded-lg glass-subtle text-xs text-white font-mono"
                       />
                     </div>
                   </div>
@@ -924,7 +924,7 @@ export const Settings: React.FC = () => {
                       value={tmdbInput}
                       onChange={(e) => setTmdbInput(e.target.value)}
                       placeholder="Enter your free 32-character TMDB API Key"
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                     />
                     <button
                       type="button"
@@ -956,7 +956,7 @@ export const Settings: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="p-4 rounded-xl bg-surface-100 border border-white/5 text-xs text-slate-300 space-y-2">
+                <div className="p-4 rounded-xl glass-subtle text-xs text-slate-300 space-y-2">
                   <h4 className="font-semibold text-white">Need a TMDB API Key?</h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     TMDB API keys are 100% free for personal use. Simply create an account at{' '}
@@ -989,7 +989,7 @@ export const Settings: React.FC = () => {
                 <div className="p-5 rounded-2xl bg-surface-100/60 border border-white/10 space-y-4">
                   <h3 className="text-sm font-bold text-white">Visuals & Motion</h3>
                   <div className="space-y-3">
-                    <label className="flex items-center justify-between p-3.5 rounded-xl bg-surface-100 border border-white/5 cursor-pointer hover:bg-surface-50 transition-colors">
+                    <label className="flex items-center justify-between p-3.5 rounded-xl glass-subtle cursor-pointer hover:bg-surface-50 transition-colors">
                       <div className="space-y-0.5">
                         <div className="text-xs font-semibold text-white">Enable Hover Trailer Previews</div>
                         <div className="text-[11px] text-slate-400">
@@ -1004,7 +1004,7 @@ export const Settings: React.FC = () => {
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-3.5 rounded-xl bg-surface-100 border border-white/5 cursor-pointer hover:bg-surface-50 transition-colors">
+                    <label className="flex items-center justify-between p-3.5 rounded-xl glass-subtle cursor-pointer hover:bg-surface-50 transition-colors">
                       <div className="space-y-0.5">
                         <div className="text-xs font-semibold text-white">Autoplay Hero Trailer</div>
                         <div className="text-[11px] text-slate-400">
@@ -1019,7 +1019,7 @@ export const Settings: React.FC = () => {
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-3.5 rounded-xl bg-surface-100 border border-white/5 cursor-pointer hover:bg-surface-50 transition-colors">
+                    <label className="flex items-center justify-between p-3.5 rounded-xl glass-subtle cursor-pointer hover:bg-surface-50 transition-colors">
                       <div className="space-y-0.5">
                         <div className="text-xs font-semibold text-white">Reduced Motion</div>
                         <div className="text-[11px] text-slate-400">
@@ -1034,7 +1034,7 @@ export const Settings: React.FC = () => {
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-3.5 rounded-xl bg-surface-100 border border-white/5 cursor-pointer hover:bg-surface-50 transition-colors">
+                    <label className="flex items-center justify-between p-3.5 rounded-xl glass-subtle cursor-pointer hover:bg-surface-50 transition-colors">
                       <div className="space-y-0.5">
                         <div className="text-xs font-semibold text-white">Include Adult Content</div>
                         <div className="text-[11px] text-slate-400">
@@ -1107,7 +1107,7 @@ export const Settings: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-2">
+                <div className="p-4 rounded-xl glass-subtle space-y-2">
                   <div className="text-xs text-slate-400">Continue Watching</div>
                   <div className="text-2xl font-bold text-white">{continueWatching.length} titles</div>
                   <button
@@ -1122,7 +1122,7 @@ export const Settings: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-2">
+                <div className="p-4 rounded-xl glass-subtle space-y-2">
                   <div className="text-xs text-slate-400">Watchlist</div>
                   <div className="text-2xl font-bold text-white">{watchlist.length} saved</div>
                   <button
@@ -1137,7 +1137,7 @@ export const Settings: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="p-4 rounded-xl bg-surface-100/60 border border-white/5 space-y-2">
+                <div className="p-4 rounded-xl glass-subtle space-y-2">
                   <div className="text-xs text-slate-400">Watched History</div>
                   <div className="text-2xl font-bold text-white">{watched.length} watched</div>
                   <button

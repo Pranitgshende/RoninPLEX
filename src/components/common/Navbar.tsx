@@ -108,7 +108,7 @@ export const Navbar: React.FC = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
         isScrolled
-          ? 'glass-nav py-3 shadow-xl shadow-black/50'
+          ? 'glass-subtle !border-x-0 !border-t-0 py-3 shadow-xl shadow-black/50'
           : 'bg-gradient-to-b from-black/90 via-black/40 to-transparent py-4 sm:py-5'
       }`}
     >
@@ -297,7 +297,7 @@ export const Navbar: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search movies & shows..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-100 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
+              className="w-full pl-9 pr-4 py-2 rounded-xl glass-subtle text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-500"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </form>

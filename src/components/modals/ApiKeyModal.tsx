@@ -54,17 +54,17 @@ export const ApiKeyModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md "
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm"
       onClick={closeModal}
       role="dialog"
       aria-modal="true"
       aria-labelledby="api-modal-title"
     >
       <div
-        className="relative w-full max-w-lg bg-surface-200 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-scale-in"
+        className="relative w-full max-w-lg glass-elevated rounded-2xl overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-surface-300/80">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-surface-300/40">
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-xl bg-brand-500/20 text-brand-400">
               <Key className="w-5 h-5" />
@@ -104,7 +104,7 @@ export const ApiKeyModal: React.FC = () => {
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
                 placeholder="e.g. 3a7b9c1d2e8f..."
-                className="w-full px-4 py-2.5 rounded-xl bg-surface-300 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
+                className="w-full px-4 py-2.5 rounded-xl glass-subtle text-white placeholder-slate-500 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
               />
               {isValidating && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">

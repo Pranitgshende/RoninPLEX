@@ -249,7 +249,7 @@ export const Home: React.FC = () => {
                 return (
                   <div
                     key={`${item.mediaType}-${item.id}-${item.seasonNumber || 0}-${item.episodeNumber || 0}`}
-                    className="group relative rounded-xl overflow-hidden bg-surface-100/60 border border-white/5 hover:border-brand-500/40 transition-all hover:shadow-xl hover:shadow-indigo-500/10"
+                    className="group relative rounded-xl overflow-hidden glass-subtle hover:border-brand-500/40 transition-all hover:shadow-xl hover:shadow-indigo-500/10"
                   >
                     <div
                       onClick={() => handleResume(item)}

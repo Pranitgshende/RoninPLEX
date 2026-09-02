@@ -15,7 +15,7 @@ export const SkeletonCard: React.FC<SkeletonCardProps> = ({
   return (
     <div
       className={cn(
-        'relative rounded-xl overflow-hidden bg-surface-100/60 border border-white/5 animate-pulse',
+        'relative rounded-xl overflow-hidden glass-subtle animate-pulse',
         aspectClass,
         className
       )}

@@ -259,7 +259,7 @@ export const TvShows: React.FC = () => {
               <div
                 key={`${item.id}-${item.seasonNumber}-${item.episodeNumber}`}
                 onClick={() => navigate(`/watch/tv/${item.id}/${item.seasonNumber || 1}/${item.episodeNumber || 1}`)}
-                className="group relative rounded-2xl overflow-hidden bg-surface-100 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer shadow-lg"
+                className="group relative rounded-2xl overflow-hidden glass-subtle hover:border-cyan-500/40 transition-all cursor-pointer shadow-lg"
               >
                 <div className="aspect-video relative overflow-hidden bg-surface-200">
                   <img

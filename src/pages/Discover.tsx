@@ -84,7 +84,7 @@ export const Discover: React.FC = () => {
   const [genres, setGenres] = useState<Genre[]>(MOCK_GENRES);
 
   const [items, setItems] = useState<DiscoverItem[]>([]);
-  const { containerRef, activeIndex, handleKeyDown } = useSpatialGridNavigation(items.length);
+  const { containerRef, activeIndex, setActiveIndex, handleKeyDown } = useSpatialGridNavigation(items.length);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const handleDragStart = (index: number) => {

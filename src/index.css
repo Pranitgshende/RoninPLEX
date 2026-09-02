@@ -43,50 +43,54 @@
     scrollbar-width: none;
   }
 
-  /* Glassmorphism Styles - Cinematic v2.0 */
-  /* Enhanced Cinematic Glass UI */
-  .glass-card {
-    background: linear-gradient(145deg, rgba(80, 55, 150, 0.22), rgba(30, 20, 60, 0.4));
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(167, 139, 250, 0.25);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(139, 92, 246, 0.05), 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  /* Cinematic v2.1.0 Phase 11 Glass Tokens */
+  .glass-subtle {
+    background: rgba(20, 22, 35, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-standard {
+    background: linear-gradient(145deg, rgba(80, 55, 150, 0.15), rgba(30, 20, 60, 0.4));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 4px 24px -4px rgba(0, 0, 0, 0.5);
     position: relative;
   }
   
-  .glass-card::before {
+  .glass-standard::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(circle at top left, rgba(255,255,255,0.1), transparent 50%);
+    background: radial-gradient(circle at top left, rgba(255,255,255,0.06), transparent 50%);
     pointer-events: none;
   }
 
-  .glass-card-hover {
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .glass-card-hover:hover {
-    background: linear-gradient(145deg, rgba(90, 60, 170, 0.35), rgba(40, 25, 80, 0.5));
-    border-color: rgba(167, 139, 250, 0.5);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.1), 0 12px 40px -10px rgba(139, 92, 246, 0.4);
-    transform: translateY(-6px);
-  }
-
-  .glass-nav {
-    background: rgba(9, 10, 15, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
-  }
-
-  .glass-panel {
-    background: linear-gradient(145deg, rgba(80, 55, 150, 0.15), rgba(20, 15, 30, 0.6));
+  .glass-elevated {
+    background: linear-gradient(145deg, rgba(90, 60, 170, 0.25), rgba(40, 25, 80, 0.6));
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(139, 92, 246, 0.1), 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  .glass-interactive {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-interactive:hover, .glass-interactive:focus-visible {
+    background: linear-gradient(145deg, rgba(100, 70, 190, 0.3), rgba(60, 40, 120, 0.5));
+    border-color: rgba(167, 139, 250, 0.5);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), inset 0 0 24px rgba(139, 92, 246, 0.2), 0 12px 40px -10px rgba(139, 92, 246, 0.4);
+    transform: translateY(-4px);
+    outline: none;
+  }
+
+  .glass-interactive:active {
+    transform: translateY(-2px);
   }
 
   .glow-border {
@@ -128,33 +132,6 @@
     min-width: 177.77vh; /* 16:9 aspect ratio */
     transform: translate(-50%, -50%) scale(1.2);
     pointer-events: none;
-  }
-
-  /* Additional v2.0.0 Glassmorphism Tokens */
-  .glass-panel {
-    background: rgba(14, 16, 25, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .glass-modal {
-    background: rgba(10, 11, 18, 0.85);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-
-  .glass-chip {
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-chip:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(99, 102, 241, 0.4);
   }
 
   /* Ronin Avatar Animations */

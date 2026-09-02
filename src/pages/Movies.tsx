@@ -261,7 +261,7 @@ export const Movies: React.FC = () => {
               <div
                 key={item.id}
                 onClick={() => navigate(`/watch/movie/${item.id}`)}
-                className="group relative rounded-2xl overflow-hidden bg-surface-100 border border-white/10 hover:border-brand-500/40 transition-all cursor-pointer shadow-lg"
+                className="group relative rounded-2xl overflow-hidden glass-subtle hover:border-brand-500/40 transition-all cursor-pointer shadow-lg"
               >
                 <div className="aspect-video relative overflow-hidden bg-surface-200">
                   <img

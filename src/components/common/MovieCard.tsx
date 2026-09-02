@@ -173,7 +173,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
         ref={cardRef as any}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="group relative rounded-xl glass-card glass-card-hover p-2 flex flex-col h-full"
+        className="group relative rounded-xl glass-standard glass-interactive p-2 flex flex-col h-full"
       >
         <Link to={detailsUrl} className="block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0">
           {!imageLoaded && (

@@ -66,14 +66,14 @@ export const OnboardingModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-lg "
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-surface-200 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-in">
+      <div className="relative w-full max-w-2xl max-h-[90vh] glass-elevated rounded-2xl overflow-hidden flex flex-col animate-scale-in">
         {/* Header */}
-        <div className="px-6 py-6 bg-gradient-to-r from-brand-900/40 via-surface-300 to-surface-300 border-b border-white/5">
+        <div className="px-6 py-6 bg-gradient-to-r from-brand-900/40 via-surface-300/40 to-surface-300/40 border-b border-white/5">
           <div className="flex items-center space-x-3 mb-2">
             <div className="p-2.5 rounded-xl bg-brand-500/20 text-brand-300 border border-brand-500/30 shadow-lg shadow-brand-500/20">
               <Sparkles className="w-6 h-6 text-brand-400" />
@@ -127,7 +127,7 @@ export const OnboardingModal: React.FC = () => {
           {/* Step 2: Minimum Rating & Language */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/5">
             {/* Rating */}
-            <div className="space-y-2 p-4 rounded-xl bg-surface-100/60 border border-white/5">
+            <div className="space-y-2 p-4 rounded-xl glass-subtle">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5 text-amber-400" />
@@ -153,7 +153,7 @@ export const OnboardingModal: React.FC = () => {
             </div>
 
             {/* Language */}
-            <div className="space-y-2 p-4 rounded-xl bg-surface-100/60 border border-white/5">
+            <div className="space-y-2 p-4 rounded-xl glass-subtle">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-cyan-400" />
                 Primary Language
@@ -161,7 +161,7 @@ export const OnboardingModal: React.FC = () => {
               <select
                 value={selectedLanguage}
                 onChange={e => setSelectedLanguage(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-surface-300 border border-white/10 text-xs text-white focus:outline-none focus:border-brand-500"
+                className="w-full px-3 py-2 rounded-lg glass-subtle text-xs text-white focus:outline-none focus:border-brand-500"
               >
                 <option value="en">English (en)</option>
                 <option value="es">Spanish (es)</option>
@@ -195,7 +195,7 @@ export const OnboardingModal: React.FC = () => {
                   onChange={e => setDirectorInput(e.target.value)}
                   onKeyDown={handleAddDirector}
                   placeholder="Type director name and press enter..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-surface-300 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                  className="flex-1 px-3 py-1.5 rounded-lg glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                 />
                 <button
                   type="button"
@@ -230,7 +230,7 @@ export const OnboardingModal: React.FC = () => {
                   onChange={e => setActorInput(e.target.value)}
                   onKeyDown={handleAddActor}
                   placeholder="Type actor name and press enter..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-surface-300 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                  className="flex-1 px-3 py-1.5 rounded-lg glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
                 />
                 <button
                   type="button"

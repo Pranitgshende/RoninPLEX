@@ -720,19 +720,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="space-y-2 font-mono text-[11px]">
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">Active Provider:</span>
               <span className="text-white font-semibold">{stream.providerName || streamingManager.getActiveProviderName()}</span>
             </div>
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">Stream Type:</span>
               <span className="text-brand-400 uppercase font-semibold">{effectiveStream.type || 'embed'}</span>
             </div>
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">Quality:</span>
               <span className="text-white">{effectiveStream.quality || 'Auto HD'}</span>
             </div>
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">Player State:</span>
               <span className={isIframeLoading && effectiveStream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
                 {effectiveStream.type === 'embed'
@@ -768,7 +768,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </div>
             </div>
             {fallbackHistory.length > 0 && (
-              <div className="p-2 rounded bg-surface-100 border border-white/5 space-y-1">
+              <div className="p-2 rounded glass-subtle space-y-1">
                 <span className="text-slate-400 block">Fallback Attempts:</span>
                 {fallbackHistory.map((att, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
@@ -780,17 +780,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 ))}
               </div>
             )}
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">IFrame Sandboxing:</span>
               <span className={resolvedEmbedPolicy.sandbox ? 'text-emerald-400 font-mono text-[10px]' : 'text-amber-400'}>
                 {resolvedEmbedPolicy.sandbox || 'Standard (Anti-Sandbox Protected)'}
               </span>
             </div>
-            <div className="flex justify-between p-2 rounded bg-surface-100 border border-white/5">
+            <div className="flex justify-between p-2 rounded glass-subtle">
               <span className="text-slate-400">Top Window Navigation:</span>
               <span className="text-emerald-400 font-semibold">Blocked (Native OS Guard Active)</span>
             </div>
-            <div className="p-2 rounded bg-surface-100 border border-white/5 break-all">
+            <div className="p-2 rounded glass-subtle break-all">
               <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
               <div className="text-cyan-400 font-semibold">{effectiveStream.url}</div>
             </div>

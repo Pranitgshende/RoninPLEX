@@ -18,6 +18,11 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
   
   const sceneRef = useRef<RoninIntroScene | null>(null);
   const reducedMotion = useReducedMotion();
+  const isAppReadyRef = useRef(isAppReady);
+
+  useEffect(() => {
+    isAppReadyRef.current = isAppReady;
+  }, [isAppReady]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -61,7 +66,7 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
         containerRef.current,
         logoRef.current,
         onComplete,
-        () => isAppReady, // Use a getter so the timeline checks current state
+        () => isAppReadyRef.current, // Use a getter so the timeline checks current state
         reducedMotion,
         sceneRef.current?.uniforms
       );

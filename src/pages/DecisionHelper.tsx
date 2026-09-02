@@ -233,7 +233,7 @@ export const DecisionHelper: React.FC = () => {
                 className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-lg ${
                   msg.sender === 'user'
                     ? 'bg-brand-600 text-white rounded-tr-sm ml-auto'
-                    : 'bg-surface-100/90 border border-white/10 text-slate-200 rounded-tl-sm glass-panel'
+                    : 'bg-surface-100/90 border border-white/10 text-slate-200 rounded-tl-sm glass-elevated'
                 }`}
               >
                 {msg.text || (isTypingStream ? '...' : '')}
@@ -257,7 +257,7 @@ export const DecisionHelper: React.FC = () => {
                     return (
                       <div
                         key={item.id}
-                        className="min-w-[280px] max-w-[280px] p-3.5 rounded-2xl bg-surface-200/90 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all shadow-xl glass-card group snap-start"
+                        className="min-w-[280px] max-w-[280px] p-3.5 rounded-2xl bg-surface-200/90 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all shadow-xl glass-standard group snap-start"
                       >
                         <div className="flex gap-3 relative z-10">
                           <div className="w-20 aspect-[2/3] rounded-xl overflow-hidden bg-surface-300 flex-shrink-0 relative shadow-md">
@@ -310,7 +310,7 @@ export const DecisionHelper: React.FC = () => {
 
                               <button
                                 onClick={() => handleDetails(item)}
-                                className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-surface-50 border border-white/10 text-slate-300 hover:text-white text-[11px] font-bold transition-all"
+                                className="px-3 py-1.5 rounded-lg bg-surface-100 hover:glass-subtle text-slate-300 hover:text-white text-[11px] font-bold transition-all"
                               >
                                 Details
                               </button>
@@ -368,7 +368,7 @@ export const DecisionHelper: React.FC = () => {
             <div className="flex-shrink-0">
               <RoninAvatar size="sm" state="thinking" interactive={false} />
             </div>
-            <div className="px-4 py-2.5 rounded-2xl bg-surface-100/80 border border-brand-500/20 text-xs text-brand-300 flex items-center gap-2 shadow-lg glass-panel">
+            <div className="px-4 py-2.5 rounded-2xl bg-surface-100/80 border border-brand-500/20 text-xs text-brand-300 flex items-center gap-2 shadow-lg glass-elevated">
               <span className="w-2 h-2 rounded-full bg-brand-400 animate-ping" />
               <span>Ronin is reflecting upon the cinematic archives...</span>
             </div>
@@ -386,7 +386,7 @@ export const DecisionHelper: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Tell Ronin what kind of story you seek tonight..."
           disabled={isThinking || isTypingStream}
-          className="w-full pl-5 pr-14 py-3.5 rounded-2xl bg-surface-100/90 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 shadow-xl transition-all disabled:opacity-50 glass-panel"
+          className="w-full pl-5 pr-14 py-3.5 rounded-2xl bg-surface-100/90 border border-white/10 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 shadow-xl transition-all disabled:opacity-50 glass-elevated"
         />
         <button
           type="submit"

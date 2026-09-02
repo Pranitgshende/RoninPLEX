@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={openModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-100 hover:bg-surface-50 border border-white/10 text-slate-300 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-100 hover:glass-subtle text-slate-300 transition-colors"
             >
               <Key className="w-3.5 h-3.5 text-brand-400" />
               <span>TMDB API Settings</span>

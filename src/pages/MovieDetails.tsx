@@ -143,7 +143,7 @@ export const MovieDetails: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 -mt-36 sm:-mt-48 relative z-30 space-y-10">
         <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
-          <div className="w-44 sm:w-60 md:w-72 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-surface-200 aspect-[2/3] mx-auto md:mx-0">
+          <div className="w-44 sm:w-60 md:w-72 flex-shrink-0 rounded-2xl overflow-hidden glass-standard aspect-[2/3] mx-auto md:mx-0">
             <img
               src={getPosterUrl(movie.poster_path, 'large')}
               alt={movie.title}
@@ -155,13 +155,13 @@ export const MovieDetails: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2.5">
               <RatingBadge rating={movie.vote_average} size="lg" />
               {movie.release_date && (
-                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md bg-surface-100 border border-white/5 flex items-center gap-1">
+                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md glass-subtle flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   {formatDate(movie.release_date)}
                 </span>
               )}
               {movie.runtime && (
-                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md bg-surface-100 border border-white/5 flex items-center gap-1">
+                <span className="text-xs text-slate-300 font-semibold px-2.5 py-1 rounded-md glass-subtle flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   {formatRuntime(movie.runtime)}
                 </span>
@@ -323,7 +323,7 @@ export const MovieDetails: React.FC = () => {
               {cast.map(person => (
                 <div
                   key={person.id}
-                  className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-100/60 border border-white/5"
+                  className="flex items-center gap-3 p-2.5 rounded-xl glass-subtle"
                 >
                   <img
                     src={getProfileUrl(person.profile_path, 'medium')}

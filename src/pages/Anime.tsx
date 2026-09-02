@@ -284,7 +284,7 @@ export const Anime: React.FC = () => {
       {/* Spotlight Hero Banner for Anime */}
       {!isSearching && selectedGenre === 'All' && heroAnime && (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 mb-12 animate-fade-in">
-          <div className="relative rounded-3xl overflow-hidden border border-white/10 glass-panel shadow-2xl">
+          <div className="relative rounded-3xl overflow-hidden border border-white/10 glass-elevated shadow-2xl">
             {/* Banner Backdrop */}
             <div className="relative h-80 sm:h-96 w-full overflow-hidden">
               <img
@@ -382,7 +382,7 @@ export const Anime: React.FC = () => {
                         onClick={() => navigate(`/anime/${ep.animeId}`)}
                         className="group relative flex-shrink-0 w-44 sm:w-52 cursor-pointer select-none transition-all duration-300 hover:-translate-y-2"
                       >
-                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden glass-card border border-white/10 group-hover:border-amber-500/50 shadow-lg">
+                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden glass-standard border border-white/10 group-hover:border-amber-500/50 shadow-lg">
                           <img
                             src={ep.banner || ep.poster}
                             alt={ep.animeTitle}
@@ -441,7 +441,7 @@ export const Anime: React.FC = () => {
                         onClick={() => navigate(`/watch/anime/${ep.animeId}/${ep.episodeNumber}`)}
                         className="group relative flex-shrink-0 w-44 sm:w-52 cursor-pointer select-none transition-all duration-300 hover:-translate-y-2"
                       >
-                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden glass-card border border-white/10 group-hover:border-rose-500/50 shadow-lg">
+                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden glass-standard border border-white/10 group-hover:border-rose-500/50 shadow-lg">
                           <img
                             src={ep.banner || ep.poster}
                             alt={ep.animeTitle}
