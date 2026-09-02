@@ -233,7 +233,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       }
       disposeCurrentSession(sessionId);
     };
-  }, [stream, anime.id, episodeNumber, disposeCurrentSession, getActiveSessionId]);
+  }, [stream, anime.id, episodeNumber, disposeCurrentSession, getActiveSessionId, isLoading]);
 
   const flushProgress = useCallback((silent = true) => {
     const current = videoRef.current?.currentTime || 0;
