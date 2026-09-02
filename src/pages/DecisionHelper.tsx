@@ -8,6 +8,7 @@ import { useUser } from '../context/UserContext';
 import { getPosterUrl } from '../utils/helpers';
 import { RoninAvatar, RoninState } from '../components/ronin/RoninAvatar';
 import { AdultBadge } from '../components/common/AdultBadge';
+import { ScrambleText } from '../animation/components/ScrambleText';
 
 const QUICK_PROMPTS = [
   'I want a Marvel movie',
@@ -186,7 +187,9 @@ export const DecisionHelper: React.FC = () => {
         <div className="flex items-center gap-3.5">
           <RoninAvatar size="md" state={avatarState} interactive={true} />
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white font-display">Ronin AI</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white font-display">
+              <ScrambleText text="Ronin AI" />
+            </h1>
             <p className="text-xs text-slate-400">Conversational cinema guide with bespoke samurai intelligence</p>
           </div>
         </div>

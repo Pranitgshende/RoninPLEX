@@ -26,6 +26,7 @@ import {
 } from '../services/anime/AnimeService';
 import { useUser } from '../context/UserContext';
 import { AdultBadge } from '../components/common/AdultBadge';
+import { ScrambleText } from '../animation/components/ScrambleText';
 import { MovieCard } from '../components/common/MovieCard';
 
 export const Anime: React.FC = () => {
@@ -200,7 +201,7 @@ export const Anime: React.FC = () => {
               <span>Dojo of Legends • 浪人の道</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-display mt-1">
-              Anime Realm
+              <ScrambleText text="Anime Realm" />
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
               Immerse yourself in Japanese animation masterpieces, seasonal simulcasts, and legendary shonen epics.

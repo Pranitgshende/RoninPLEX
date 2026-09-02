@@ -1,8 +1,10 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, RefreshCw, PlayCircle, X, Layers, Terminal } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
+import { pipService } from '../services/pip';
 import { animeService, ContentLanguage } from '../services/anime/AnimeService';
 import { Movie, TVShow, Season, Episode } from '../types/tmdb';
 import { streamingManager } from '../services/streaming/StreamingManager';
@@ -46,6 +48,8 @@ interface PlaybackContextType {
   
   presentationMode: PresentationMode;
   setPresentationMode: (mode: PresentationMode) => void;
+  restoreSnapshot?: { currentTime: number; isPlaying: boolean } | null;
+  clearRestoreSnapshot: () => void;
   
   // Actions
   play: (id: number, type: PlaybackType, season?: number, episode?: number) => void;
@@ -62,7 +66,7 @@ interface PlaybackContextType {
   triggerRetry: () => void;
 }
 
-const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
+export const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
 
 export const usePlayback = () => {
   const context = useContext(PlaybackContext);
@@ -81,6 +85,8 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
   const [episodeNumber, setEpisodeNumber] = useState<number>(1);
   
   const [presentationMode, setPresentationMode] = useState<PresentationMode>('CLOSED');
+  const [restoreSnapshot, setRestoreSnapshot] = useState<{ currentTime: number; isPlaying: boolean } | null>(null);
+  const clearRestoreSnapshot = useCallback(() => setRestoreSnapshot(null), []);
   
   const isAnime = mediaType === 'anime';
   const isTV = mediaType === 'tv';
@@ -274,6 +280,40 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
   }, [mediaId, isTV, isAnime, seasonNumber, episodeNumber, retryCount, animeLanguage]);
 
 
+  useEffect(() => {
+    const unsubscribe = pipService.subscribe((msg) => {
+      if (msg.type === 'PIP_READY') {
+        pipService.provideSnapshot();
+      } else if (msg.type === 'PIP_DESTROYED') {
+        if (msg.payload) {
+          setRestoreSnapshot({ currentTime: msg.payload.currentTime, isPlaying: msg.payload.isPlaying });
+        }
+        setPresentationMode('FULL');
+        // Unhide main window if it was hidden
+        getCurrentWindow().show();
+      } else if (msg.type === 'COMMAND_STOP') {
+        closePlayer();
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    
+    win.onCloseRequested(async (event) => {
+      if (presentationMode === 'PIP') {
+        event.preventDefault();
+        await win.hide();
+      }
+    }).then(u => { unlisten = u; });
+    
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [presentationMode]);
+
   const play = useCallback((id: number, type: PlaybackType, season?: number, episode?: number) => {
     setMediaId(id);
     setMediaType(type);
@@ -289,6 +329,7 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setStreamResult(null);
     setAnimeStreamSource(null);
     setAnimeItem(null);
+    getCurrentWindow().show(); // Ensure window is visible
   }, []);
 
   const onSelectEpisode = (epNum: number) => {
@@ -401,6 +442,7 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
       streamResult, animeStreamSource, movie, tvShow, currentSeason, currentEpisode, animeItem, animeEpisodes,
       animeLanguage, setAnimeLanguage, retryCount, isLoading,
       presentationMode, setPresentationMode,
+      restoreSnapshot, clearRestoreSnapshot,
       play, closePlayer,
       handlePrevEpisode, hasPrevEpisode, handleNextEpisode, hasNextEpisode, handleTryNextProvider,
       onSelectEpisode, onSelectRelated, triggerRetry

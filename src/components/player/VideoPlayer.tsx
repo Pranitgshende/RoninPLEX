@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Hls from 'hls.js';
 import { usePlaybackSession } from './usePlaybackSession';
+import { pipService } from '../../services/pip';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Play,
@@ -25,10 +26,12 @@ import {
 } from 'lucide-react';
 import { StreamingResult, SubtitleTrack } from '../../services/streaming/types';
 import { useUser } from '../../context/UserContext';
+import { usePlayback } from '../../context/PlaybackContext';
 import { storage } from '../../services/storage';
 import { streamingManager, FallbackAttempt } from '../../services/streaming/StreamingManager';
 import { getStillUrl } from '../../utils/helpers';
 import { logPlayback } from '../../utils/logger';
+
 
 export interface NextEpisodeInfo {
   seasonNumber: number;
@@ -40,7 +43,7 @@ export interface NextEpisodeInfo {
 export interface VideoPlayerProps {
   stream: StreamingResult;
   title: string;
-  mediaType: 'movie' | 'tv';
+  mediaType: 'movie' | 'tv' | 'anime';
   mediaId: number;
   seasonNumber?: number;
   episodeNumber?: number;
@@ -48,6 +51,9 @@ export interface VideoPlayerProps {
   posterPath?: string | null;
   backdropPath?: string | null;
   onBack?: () => void;
+  initialTime?: number;
+  initialIsPlaying?: boolean;
+  isPipHost?: boolean;
   onPrevEpisode?: () => void;
   hasPrevEpisode?: boolean;
   onNextEpisode?: () => void;
@@ -69,6 +75,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   posterPath,
   backdropPath,
   onBack,
+  initialTime,
+  initialIsPlaying,
+  isPipHost,
   onPrevEpisode,
   hasPrevEpisode = false,
   onNextEpisode,
@@ -79,6 +88,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onPlaybackError,
 }) => {
   const { preferences, savePlaybackProgress } = useUser();
+  const playbackContext = usePlayback();
+  const { setPresentationMode } = playbackContext;
 
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,6 +148,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [watchdogPhase, setWatchdogPhase] = useState<'source_resolved' | 'player_initialized' | 'media_loaded' | 'playback_started' | 'currentTime_advances'>('source_resolved');
 
   const [diagnosticStream, setDiagnosticStream] = useState<StreamingResult | null>(null);
+
+  useEffect(() => {
+    if (isPipHost) {
+      return pipService.registerSnapshotProvider(() => ({
+        sessionId: getActiveSessionId(),
+        sourceGeneration: 1,
+        mediaId,
+        mediaType,
+        seasonNumber,
+        episodeNumber,
+        currentTime: videoRef.current?.currentTime || 0,
+        duration: videoRef.current?.duration || 0,
+        isPlaying: !videoRef.current?.paused,
+        volume: videoRef.current?.volume || 1,
+        muted: videoRef.current?.muted || false,
+        language: 'default',
+        streamResult: stream
+      }));
+    }
+  }, [mediaId, mediaType, seasonNumber, episodeNumber, stream, isPipHost]);
+
+  // Initializing state
   const effectiveStream = diagnosticStream || stream;
 
   const {
@@ -273,17 +306,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (!hasAppliedResumeRef.current) {
             hasAppliedResumeRef.current = true;
-            try {
-              const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
-              if (match && match.currentTime > 15 && match.progressPercent < 92) {
-                video.currentTime = match.currentTime;
-                const mins = Math.floor(match.currentTime / 60);
-                const secs = Math.floor(match.currentTime % 60);
-                setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-                setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
+            if (initialTime !== undefined) {
+              video.currentTime = initialTime;
+              if (initialIsPlaying) video.play().catch(() => {});
+            } else {
+              try {
+                const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
+                if (match && match.currentTime > 15 && match.progressPercent < 92) {
+                  video.currentTime = match.currentTime;
+                  const mins = Math.floor(match.currentTime / 60);
+                  const secs = Math.floor(match.currentTime % 60);
+                  setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+                  setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
+                }
+              } catch (e) {
+                console.warn('Could not read resume position:', e);
               }
-            } catch (e) {
-              console.warn('Could not read resume position:', e);
             }
           }
         });
@@ -576,31 +614,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Picture-in-Picture toggle (supports Document PiP & standard HTML5 video PiP)
   const togglePictureInPicture = async () => {
+    if (isPipHost) return;
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-        setIsPip(false);
-        return;
+      if (videoRef.current) {
+        videoRef.current.muted = true;
       }
-
-      // 1. Standard HTML5 Video PiP
-      if (videoRef.current && document.pictureInPictureEnabled) {
-        await videoRef.current.requestPictureInPicture();
-        setIsPip(true);
-        return;
-      }
-
-      // 2. Document Picture-in-Picture (Chromium / WebView2)
-      if ('documentPictureInPicture' in window) {
-        const pipWin = await (window as any).documentPictureInPicture.requestWindow({
-          width: 640,
-          height: 360,
-        });
-        setIsPip(true);
-        pipWin.addEventListener('pagehide', () => setIsPip(false));
-      }
+      pipService.storeSnapshot({
+        sessionId: getActiveSessionId(),
+        sourceGeneration: 1,
+        mediaId,
+        mediaType,
+        seasonNumber,
+        episodeNumber,
+        currentTime: videoRef.current?.currentTime || 0,
+        duration: videoRef.current?.duration || 0,
+        isPlaying,
+        volume: videoRef.current?.volume || 1,
+        muted: videoRef.current?.muted || false,
+        language: 'default',
+        streamResult: stream
+      });
+      setPresentationMode('PIP');
+      await pipService.openPiPWindow();
     } catch (err) {
-      console.warn('Could not toggle Picture-in-Picture:', err);
+      console.error('Failed to enter system PiP', err);
     }
   };
 
@@ -1088,17 +1125,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             // Safely apply resume position after metadata is loaded
             if (!hasAppliedResumeRef.current) {
               hasAppliedResumeRef.current = true;
-              try {
-                const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
-                if (match && match.currentTime > 15 && match.progressPercent < 92) {
-                  videoRef.current.currentTime = match.currentTime;
-                  const mins = Math.floor(match.currentTime / 60);
-                  const secs = Math.floor(match.currentTime % 60);
-                  setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
-                  setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
+              if (initialTime !== undefined) {
+                videoRef.current.currentTime = initialTime;
+                if (initialIsPlaying) videoRef.current.play().catch(() => {});
+              } else {
+                try {
+                  const match = storage.getPlaybackProgress(mediaId, mediaType, seasonNumber, episodeNumber);
+                  if (match && match.currentTime > 15 && match.progressPercent < 92) {
+                    videoRef.current.currentTime = match.currentTime;
+                    const mins = Math.floor(match.currentTime / 60);
+                    const secs = Math.floor(match.currentTime % 60);
+                    setResumeNotification(`Resumed from ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+                    setSessionTimeout(getActiveSessionId(), () => setResumeNotification(null), 5000);
+                  }
+                } catch (e) {
+                  console.warn('Could not read resume position:', e);
                 }
-              } catch (e) {
-                console.warn('Could not read resume position:', e);
               }
             }
           }

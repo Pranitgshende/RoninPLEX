@@ -115,7 +115,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             {/* Title */}
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white font-display tracking-tight leading-tight drop-shadow-2xl">
-              <ScrambleText text={normalized.displayTitle} duration={1.2} />
+              <ScrambleText text={normalized.displayTitle} />
             </h1>
 
             {/* Metadata Bar */}

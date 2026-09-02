@@ -5,9 +5,7 @@ import { useGoBack } from '../../hooks/useGoBack';
 import { VideoPlayer } from './VideoPlayer';
 import { AnimeVideoPlayer } from './anime/AnimeVideoPlayer';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary';
-import { X, Maximize2, Minus, Play } from 'lucide-react';
-import gsap from 'gsap';
-import { useReducedMotion } from '../../animation/hooks/useReducedMotion';
+import { X, Maximize2, Minus, Play, PictureInPicture } from 'lucide-react';
 
 export const PersistentPlayerHost: React.FC = () => {
   const playback = usePlayback();
@@ -15,15 +13,11 @@ export const PersistentPlayerHost: React.FC = () => {
   const goBackFallback = playback.mediaType === 'anime' ? '/anime' : '/';
   const handlePlayerBack = useGoBack(goBackFallback);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ isDragging: boolean; startX: number; startY: number; currentX: number; currentY: number }>({
-    isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0
-  });
-  const reducedMotion = useReducedMotion();
-
   const {
     presentationMode, mediaId, mediaType, streamResult, animeStreamSource,
     isLoading, movie, tvShow, currentEpisode, seasonNumber, episodeNumber,
-    animeItem, animeEpisodes, animeLanguage, retryCount
+    animeItem, animeEpisodes, retryCount,
+    restoreSnapshot, clearRestoreSnapshot
   } = playback;
 
   const isAnime = mediaType === 'anime';
@@ -31,74 +25,10 @@ export const PersistentPlayerHost: React.FC = () => {
   const isMovie = mediaType === 'movie';
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const el = containerRef.current;
-    
-    if (presentationMode === 'FULL') {
-      gsap.to(el, {
-        x: 0, y: 0, 
-        width: '100%', height: '100%', 
-        bottom: 0, right: 0,
-        borderRadius: 0,
-        duration: reducedMotion ? 0 : 0.4,
-        ease: 'power3.out'
-      });
-    } else if (presentationMode === 'PIP') {
-      gsap.to(el, {
-        width: '400px', height: '225px',
-        bottom: '24px', right: '24px',
-        borderRadius: '12px',
-        duration: reducedMotion ? 0 : 0.4,
-        ease: 'power3.out'
-      });
-    }
-  }, [presentationMode, reducedMotion]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || presentationMode !== 'PIP') return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.pip-drag-handle')) return;
-
-      dragRef.current.isDragging = true;
-      dragRef.current.startX = e.clientX - dragRef.current.currentX;
-      dragRef.current.startY = e.clientY - dragRef.current.currentY;
-      el.setPointerCapture(e.pointerId);
-    };
-
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!dragRef.current.isDragging) return;
-      
-      let newX = e.clientX - dragRef.current.startX;
-      let newY = e.clientY - dragRef.current.startY;
-      
-      dragRef.current.currentX = newX;
-      dragRef.current.currentY = newY;
-      gsap.set(el, { x: newX, y: newY });
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (dragRef.current.isDragging) {
-        dragRef.current.isDragging = false;
-        el.releasePointerCapture(e.pointerId);
-      }
-    };
-
-    el.addEventListener('pointerdown', handlePointerDown);
-    el.addEventListener('pointermove', handlePointerMove);
-    el.addEventListener('pointerup', handlePointerUp);
-    el.addEventListener('pointercancel', handlePointerUp);
-
     return () => {
-      el.removeEventListener('pointerdown', handlePointerDown);
-      el.removeEventListener('pointermove', handlePointerMove);
-      el.removeEventListener('pointerup', handlePointerUp);
-      el.removeEventListener('pointercancel', handlePointerUp);
+      clearRestoreSnapshot();
     };
-  }, [presentationMode]);
+  }, [clearRestoreSnapshot]);
 
   if (presentationMode === 'CLOSED') return null;
 
@@ -131,6 +61,8 @@ export const PersistentPlayerHost: React.FC = () => {
             episodeNumber={episodeNumber!}
             episodes={animeEpisodes}
             stream={animeStreamSource}
+            initialTime={restoreSnapshot?.currentTime}
+            initialIsPlaying={restoreSnapshot?.isPlaying}
             isLoading={isLoading}
             onSelectEpisode={playback.onSelectEpisode}
             onSelectRelated={playback.onSelectRelated}
@@ -156,6 +88,8 @@ export const PersistentPlayerHost: React.FC = () => {
             episodeTitle={currentEpisode?.name}
             posterPath={isTV ? tvShow?.poster_path : movie?.poster_path}
             backdropPath={isTV ? tvShow?.backdrop_path : movie?.backdrop_path}
+            initialTime={restoreSnapshot?.currentTime}
+            initialIsPlaying={restoreSnapshot?.isPlaying}
             onBack={handlePlayerBack}
             onPrevEpisode={playback.handlePrevEpisode}
             hasPrevEpisode={playback.hasPrevEpisode}
@@ -175,38 +109,40 @@ export const PersistentPlayerHost: React.FC = () => {
 
   const isPip = presentationMode === 'PIP';
 
+  if (isPip) {
+    return (
+      <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+        <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-6 border border-white/20">
+          <PictureInPicture className="w-8 h-8 text-rose-400" />
+        </div>
+        <h2 className="text-xl font-bold font-display mb-2">Playing in Picture-in-Picture</h2>
+        <p className="text-sm text-white/50 max-w-md text-center mb-8">
+          The video is currently playing in a separate window.
+        </p>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => playback.setPresentationMode('FULL')}
+            className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold shadow-lg transition-colors"
+          >
+            Return to Main Window
+          </button>
+          <button 
+            onClick={() => playback.closePlayer()}
+            className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 font-bold transition-colors"
+          >
+            Stop Playback
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={containerRef}
-      className={`fixed z-60 bg-black overflow-hidden shadow-2xl ${
-        isPip ? 'bottom-6 right-6 w-400px h-225px rounded-xl ring-1 ring-white/10' : 'inset-0 w-full h-full'
-      }`}
+      className="fixed z-60 bg-black overflow-hidden shadow-2xl inset-0 w-full h-full"
     >
-      {isPip && (
-        <div className="absolute inset-0 z-70 opacity-0 hover:opacity-100 transition-opacity bg-black/40 pip-drag-handle flex flex-col cursor-move">
-          <div className="flex justify-between p-2 pip-controls">
-            <button 
-              onClick={handleRestore}
-              className="p-1.5 bg-black/60 rounded hover:bg-black/80 text-white cursor-pointer"
-              title="Back to full screen"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); playback.closePlayer(); }}
-              className="p-1.5 bg-black/60 rounded hover:bg-red-500/80 text-white cursor-pointer"
-              title="Close player"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex-grow" />
-        </div>
-      )}
-
-      <div className="w-full h-full pointer-events-auto">
-        {renderPlayer()}
-      </div>
+      {renderPlayer()}
     </div>
   );
 };

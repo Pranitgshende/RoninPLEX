@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Hls from 'hls.js';
+import { pipService } from '../../../services/pip';
 import {
   Play,
   Pause,
@@ -19,9 +20,11 @@ import {
   RefreshCw,
   X,
   Search,
+  PictureInPicture,
 } from 'lucide-react';
 import { AnimeItem, AnimeEpisode, AnimeStreamSource, ContentLanguage } from '../../../services/anime/AnimeTypes';
 import { usePlaybackSession } from '../usePlaybackSession';
+import { usePlayback } from '../../../context/PlaybackContext';
 import { AnimeSubtitleManager } from './AnimeSubtitleManager';
 import { AnimeEpisodeController } from './AnimeEpisodeController';
 import { useUser } from '../../../context/UserContext';
@@ -38,6 +41,9 @@ interface AnimeVideoPlayerProps {
   onLanguageChange?: (lang: ContentLanguage) => void;
   onBack: () => void;
   onRetry: () => void;
+  initialTime?: number;
+  initialIsPlaying?: boolean;
+  isPipHost?: boolean;
 }
 
 export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
@@ -48,10 +54,16 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   isLoading,
   onSelectEpisode,
   onSelectRelated,
-  onLanguageChange,
+  onLanguageChange = () => {},
   onBack,
   onRetry,
+  initialTime,
+  initialIsPlaying,
+  isPipHost,
 }) => {
+  const playbackContext = usePlayback();
+  const { setPresentationMode } = playbackContext;
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -66,10 +78,30 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     setSessionState,
     setSessionInterval,
     setSessionTimeout,
-    clearSessionInterval,
     clearSessionTimeout,
+    clearSessionInterval,
     disposeCurrentSession
   } = usePlaybackSession(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber, null, stream?.isHLS ? 'hls' : 'mp4', stream?.sourceUrl || '');
+
+  useEffect(() => {
+    if (isPipHost) {
+      return pipService.registerSnapshotProvider(() => ({
+        sessionId: getActiveSessionId(),
+        sourceGeneration: 1,
+        mediaId: Number(anime.id),
+        mediaType: 'anime',
+        seasonNumber: 1,
+        episodeNumber,
+        currentTime: videoRef.current?.currentTime || 0,
+        duration: videoRef.current?.duration || 0,
+        isPlaying: !videoRef.current?.paused,
+        volume: videoRef.current?.volume || 1,
+        muted: videoRef.current?.muted || false,
+        language: 'default',
+        animeStreamSource: stream
+      }));
+    }
+  }, [anime.id, episodeNumber, stream, isPipHost]);
 
   const { savePlaybackProgress, preferences } = useUser();
   const [isMuted, setIsMuted] = useState(false);
@@ -169,56 +201,40 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
     const progress = storage.getPlaybackProgress(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber);
     let resumeTime = progress?.currentTime || 0;
-    if (resumeTime > 15 && progress && progress.duration - resumeTime > 60) {
+    if (initialTime !== undefined) {
+      resumeTime = initialTime;
+    } else if (resumeTime > 15 && progress && progress.duration - resumeTime > 60) {
       // Valid resume
     } else {
       resumeTime = 0;
     }
 
     if (stream.isHLS && Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-      });
-
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsRef.current = hls;
       hls.loadSource(stream.sourceUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (resumeTime > 0) video.currentTime = resumeTime;
-        video.play().catch(() => setIsPlaying(false));
+        if (initialIsPlaying !== false) video.play().catch(() => setIsPlaying(false));
       });
 
       const retryCountRef = { current: 0 };
-
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              if (retryCountRef.current < 2) {
-                retryCountRef.current += 1;
-                hls.startLoad();
-              } else {
-                setHasError(true);
-                hls.destroy();
-              }
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              setHasError(true);
-              hls.destroy();
-              break;
+          if (retryCountRef.current < 3) {
+            retryCountRef.current += 1;
+            hls.recoverMediaError();
+          } else {
+            setHasError(true);
           }
         }
       });
     } else if (stream.sourceUrl) {
       video.src = stream.sourceUrl;
       if (resumeTime > 0) video.currentTime = resumeTime;
-      video.play().catch(() => setIsPlaying(false));
+      if (initialIsPlaying !== false) video.play().catch(() => setIsPlaying(false));
     }
 
     return () => {
@@ -387,6 +403,34 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
         setIsFullscreen(!isFs);
       }).catch(err => console.warn('Could not toggle fullscreen:', err));
     }).catch(() => {});
+  };
+
+  const togglePiP = async () => {
+    if (isPipHost) return;
+    try {
+      if (videoRef.current) {
+        videoRef.current.muted = true;
+      }
+      pipService.storeSnapshot({
+        sessionId: getActiveSessionId(),
+        sourceGeneration: 1,
+        mediaId: Number(anime.id),
+        mediaType: 'anime',
+        seasonNumber: 1,
+        episodeNumber,
+        currentTime: videoRef.current?.currentTime || 0,
+        duration: videoRef.current?.duration || 0,
+        isPlaying,
+        volume: videoRef.current?.volume || 1,
+        muted: videoRef.current?.muted || false,
+        language: 'default',
+        animeStreamSource: stream
+      });
+      setPresentationMode('PIP');
+      await pipService.openPiPWindow();
+    } catch (err) {
+      console.error('Failed to enter system PiP', err);
+    }
   };
 
   // Subtitles selection effect
@@ -815,6 +859,12 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                 <Layers className="w-4 h-4 text-rose-400" />
                 <span>Episodes</span>
               </button>
+
+              {!isPipHost && (
+                <button onClick={togglePiP} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white" title="Picture-in-Picture">
+                  <PictureInPicture className="w-5 h-5" />
+                </button>
+              )}
 
               <button onClick={toggleFullscreen} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}

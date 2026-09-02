@@ -26,11 +26,17 @@ import { Settings } from './pages/Settings';
 import { NotFound } from './pages/NotFound';
 
 import { useAppLifecycle } from './context/AppLifecycleContext';
+import { PiPWindowApp } from './components/player/PiPWindowApp';
 
 export const App: React.FC = () => {
   const location = useLocation();
   const isWatchPage = location.pathname.startsWith('/watch');
+  const isPipWindow = location.pathname === '/pip';
   const { isIntroComplete, completeIntro, appState } = useAppLifecycle();
+
+  if (isPipWindow) {
+    return <PiPWindowApp />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-slate-100 font-sans selection:bg-brand-600 selection:text-white">

@@ -17,6 +17,7 @@ import { animeService, AnimeItem } from '../services/anime/AnimeService';
 import { recommendation } from '../services/recommendation';
 import { Movie, TVShow, Genre, FilterOptions } from '../types/tmdb';
 import { MovieCard } from '../components/common/MovieCard';
+import { ScrambleText } from '../animation/components/ScrambleText';
 import { SkeletonCard } from '../components/common/SkeletonCard';
 import { MOCK_GENRES } from '../services/mockData';
 import { useUser } from '../context/UserContext';
@@ -538,7 +539,7 @@ export const Discover: React.FC = () => {
     <div className="min-h-screen w-full bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl sm:text-4xl font-black font-display tracking-tight text-white">
-          Explore & Discover
+          <ScrambleText text="Explore & Discover" />
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
           Unified discovery across Movies, TV Shows, and Anime. Filter by your favorite genres,
