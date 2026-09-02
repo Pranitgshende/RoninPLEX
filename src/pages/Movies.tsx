@@ -56,7 +56,7 @@ export const Movies: React.FC = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('Error loading movies:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Error loading movies', { error: err }));
         if (isMounted) setIsLoading(false);
       });
 
@@ -73,7 +73,7 @@ export const Movies: React.FC = () => {
     }
     tmdb.discoverMovies({ mediaType: 'movie', genreId: selectedGenreId, sortBy: 'popularity.desc' })
       .then((res) => setGenreMovies(res.results))
-      .catch((err) => console.error('Genre discover error:', err));
+      .catch((err) => import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Genre discover error', { error: err })));
   }, [selectedGenreId]);
 
   // Quick search
@@ -89,7 +89,7 @@ export const Movies: React.FC = () => {
       const res = await tmdb.searchMovies(searchQuery.trim(), 1);
       setSearchResults(res.results);
     } catch (err) {
-      console.error('Movie search error:', err);
+      import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Movie search error', { error: err }));
     }
   };
 

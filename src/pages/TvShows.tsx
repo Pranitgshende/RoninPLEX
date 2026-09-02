@@ -53,7 +53,7 @@ export const TvShows: React.FC = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('Error loading TV shows:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Error loading TV shows', { error: err }));
         if (isMounted) setIsLoading(false);
       });
 
@@ -70,7 +70,7 @@ export const TvShows: React.FC = () => {
     }
     tmdb.discoverTV({ mediaType: 'tv', genreId: selectedGenreId, sortBy: 'popularity.desc' })
       .then((res) => setGenreTV(res.results))
-      .catch((err) => console.error('TV genre discover error:', err));
+      .catch((err) => import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'TV genre discover error', { error: err })));
   }, [selectedGenreId]);
 
   // Quick search
@@ -86,7 +86,7 @@ export const TvShows: React.FC = () => {
       const res = await tmdb.searchTV(searchQuery.trim(), 1);
       setSearchResults(res.results);
     } catch (err) {
-      console.error('TV search error:', err);
+      import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'TV search error', { error: err }));
     }
   };
 

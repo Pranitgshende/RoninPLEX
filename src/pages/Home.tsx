@@ -195,7 +195,7 @@ export const Home: React.FC = () => {
           setHeroItem(trending[0]);
         }
       } catch (err) {
-        console.error('Failed to load home page media:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Failed to load home page media', { error: err }));
       } finally {
         if (isMounted) {
           setIsLoading(false);

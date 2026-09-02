@@ -67,30 +67,30 @@ class TMDBService {
       return this.inFlightRequests.get(url) as Promise<T | null>;
     }
 
-    const fetchPromise = (async (): Promise<T | null> => {
+    const request = (async () => {
       try {
         const response = await fetch(url);
         if (!response.ok) {
-          if (response.status === 401) {
-            console.warn('TMDB API Key is invalid or unauthorized.');
-          } else {
-            console.warn(`TMDB request failed with status: ${response.status}`);
-          }
+          import('./diagnostics').then(({ diagnostics }) => {
+            diagnostics.warn('network', `TMDB request failed`, { status: response.status, endpoint });
+          });
           return null;
         }
         const data = (await response.json()) as T;
         this.cache.set(url, { data, timestamp: Date.now() });
         return data;
       } catch (error) {
-        console.warn(`Network error fetching from TMDB (${endpoint}):`, error);
+        import('./diagnostics').then(({ diagnostics }) => {
+          diagnostics.warn('network', `Network error fetching from TMDB`, { endpoint, error });
+        });
         return null;
       } finally {
         this.inFlightRequests.delete(url);
       }
     })();
 
-    this.inFlightRequests.set(url, fetchPromise);
-    return fetchPromise;
+    this.inFlightRequests.set(url, request);
+    return request as Promise<T | null>;
   }
 
   private filterAnimeFromTVShows<T extends { original_language?: string; genre_ids?: number[] }>(results: T[]): T[] {

@@ -107,7 +107,7 @@ export const Anime: React.FC = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('Error loading anime realm:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Error loading anime realm', { error: err }));
         if (isMounted) setIsLoading(false);
       });
 
@@ -129,7 +129,7 @@ export const Anime: React.FC = () => {
       const results = await animeService.search(searchQuery.trim(), showAdult);
       setSearchResults(results);
     } catch (err) {
-      console.error('Anime search error:', err);
+      import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Anime search error', { error: err }));
     }
   };
 

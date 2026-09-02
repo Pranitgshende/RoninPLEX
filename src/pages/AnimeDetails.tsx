@@ -55,7 +55,7 @@ export const AnimeDetails: React.FC = () => {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to load anime details:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Failed to load anime details', { error: err }));
         if (isMounted) setIsLoading(false);
       });
 

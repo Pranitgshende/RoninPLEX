@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import { useUser } from '../context/UserContext';
 import { ConfirmationModal } from '../components/modals/ConfirmationModal';
+import { DiagnosticsViewer } from '../components/modals/DiagnosticsViewer';
 import { HomeSectionItem, DEFAULT_HOME_SECTIONS } from '../types/user';
 import {
   PlaySquare,

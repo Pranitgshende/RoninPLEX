@@ -66,7 +66,9 @@ export function useTrailer(
         }
       } catch (err) {
         if (isMounted) {
-          console.warn(`Failed to fetch trailer for ${mediaType} ${id}:`, err);
+          import('../services/diagnostics').then(({ diagnostics }) => {
+            diagnostics.warn('trailer', `Failed to fetch trailer`, { id, mediaType, error: err });
+          });
           setHasError(true);
         }
       } finally {

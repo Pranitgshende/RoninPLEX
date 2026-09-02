@@ -1,3 +1,4 @@
+import { diagnostics } from './diagnostics';
 import { MediaType } from '../types/tmdb';
 import {
   WatchlistItem,
@@ -61,23 +62,25 @@ class StorageService {
   }
 
   private get<T>(key: string, defaultValue: T): T {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return defaultValue;
     try {
       const item = localStorage.getItem(key);
-      if (!item) return defaultValue;
-      return JSON.parse(item) as T;
-    } catch (e) {
-      console.warn(`Failed to read ${key} from localStorage:`, e);
+      if (item === null || item === 'cleared') return defaultValue;
+      return JSON.parse(item);
+    } catch (error) {
+      diagnostics.error('persistence', 'Failed to read from localStorage', { key, error });
       return defaultValue;
     }
   }
 
   private set<T>(key: string, value: T): boolean {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return false;
     try {
       localStorage.setItem(key, JSON.stringify(value));
       window.dispatchEvent(new Event('roninplex_storage_change'));
       return true;
-    } catch (e) {
-      console.error(`Failed to save ${key} to localStorage:`, e);
+    } catch (error) {
+      diagnostics.error('persistence', 'Failed to write to localStorage', { key, error });
       return false;
     }
   }
@@ -324,7 +327,7 @@ class StorageService {
       }
       window.dispatchEvent(new Event('roninplex_api_key_change'));
     } catch (e) {
-      console.error('Failed to save TMDB API key to localStorage:', e);
+      diagnostics.error('persistence', 'Failed to save TMDB API key to localStorage', { error: e });
     }
   }
 
@@ -350,7 +353,7 @@ class StorageService {
       window.dispatchEvent(new Event('roninplex_storage_change'));
       window.dispatchEvent(new Event('roninplex_api_key_change'));
     } catch (e) {
-      console.error('Failed to clear all data:', e);
+      diagnostics.error('persistence', 'Failed to clear all data', { error: e });
     }
   }
 }

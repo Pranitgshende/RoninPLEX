@@ -112,7 +112,7 @@ export const Search: React.FC = () => {
           setResults(deduped);
         }
       } catch (err) {
-        console.error('Search failed:', err);
+        import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Search failed', { error: err }));
         if (isMounted) setResults([]);
       } finally {
         if (isMounted) setIsLoading(false);

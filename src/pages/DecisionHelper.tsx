@@ -128,7 +128,7 @@ export const DecisionHelper: React.FC = () => {
         setAvatarState('idle');
       }
     } catch (err) {
-      console.error('Error fetching Ronin recommendation:', err);
+      import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Error fetching Ronin recommendation', { error: err }));
       setIsThinking(false);
       setIsTypingStream(false);
       setAvatarState('idle');

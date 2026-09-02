@@ -6,12 +6,14 @@ import { UserProvider } from './context/UserContext';
 import { ApiKeyProvider } from './context/ApiKeyContext';
 import { AppLifecycleProvider } from './context/AppLifecycleContext';
 import { PlaybackProvider } from './context/PlaybackContext';
+import { GlobalErrorBoundary } from './components/common/GlobalErrorBoundary';
 import App from './App';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HashRouter>
+    <GlobalErrorBoundary>
+      <HashRouter>
       <ApiKeyProvider>
         <UserProvider>
           <AppLifecycleProvider>
@@ -22,5 +24,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </UserProvider>
       </ApiKeyProvider>
     </HashRouter>
+    </GlobalErrorBoundary>
   </React.StrictMode>,
 );

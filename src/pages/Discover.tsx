@@ -496,7 +496,7 @@ export const Discover: React.FC = () => {
         setItems(deduplicated);
       }
     } catch (err) {
-      console.error('Failed to discover media:', err);
+      import('../services/diagnostics').then(({ diagnostics }) => diagnostics.error('network', 'Failed to discover media', { error: err }));
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setIsLoading(false);

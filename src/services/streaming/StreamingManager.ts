@@ -1,6 +1,7 @@
 import { StreamingProvider } from './StreamingProvider';
 import { StreamingMovie, StreamingTVShow, StreamingEpisode, StreamingResult } from './types';
 import { providerConfigService } from './providerConfig';
+import { diagnostics } from '../diagnostics';
 import { vidSrcToProvider } from './providers/VidSrcToProvider';
 import { vidSrcMeProvider } from './providers/VidSrcMeProvider';
 import { vidSrcDevProvider } from './providers/VidSrcDevProvider';
@@ -371,6 +372,7 @@ export class StreamingManager {
       } catch (err: any) {
         // Isolated provider error (timeout, network, 404, 401, 429)
         const reason = err?.message || 'Network or parse error';
+        diagnostics.warn('provider', 'Provider stream resolution failed', { providerId: pId, reason });
         this.recordProviderFailure(pId, reason);
         this.lastFallbackAttempts.push({
           providerId: pId,
@@ -465,6 +467,7 @@ export class StreamingManager {
         });
       } catch (err: any) {
         const reason = err?.message || 'Network or parse error';
+        diagnostics.warn('provider', 'Provider stream resolution failed', { providerId: pId, reason });
         this.recordProviderFailure(pId, reason);
         this.lastFallbackAttempts.push({
           providerId: pId,
@@ -486,6 +489,7 @@ export class StreamingManager {
    * Penalizes provider and clears stream cache for this provider.
    */
   public reportPlaybackFailure(providerId: string, reason: string = 'Playback stalled or failed'): void {
+    diagnostics.warn('playback', 'Playback failure reported', { providerId, reason });
     this.recordProviderFailure(providerId, `Playback Failure: ${reason}`);
     this.streamCache.clear();
   }
