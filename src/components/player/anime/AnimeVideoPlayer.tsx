@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Hls from 'hls.js';
 import {
   Play,
@@ -222,45 +222,49 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     }
 
     return () => {
-    const sessionId = getActiveSessionId();
+      const sessionId = getActiveSessionId();
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
+      }
+      if (video) {
+        video.removeAttribute('src');
+        video.load();
       }
       disposeCurrentSession(sessionId);
     };
   }, [stream, anime.id, episodeNumber, disposeCurrentSession, getActiveSessionId]);
 
+  const flushProgress = useCallback((silent = true) => {
+    const current = videoRef.current?.currentTime || 0;
+    const dur = videoRef.current?.duration || 0;
+    if (dur > 0 && current > 15) {
+      savePlaybackProgress({
+        id: parseInt(anime.id as string, 10) || 0,
+        mediaType: 'anime',
+        title: anime.title,
+        posterPath: anime.poster,
+        backdropPath: anime.banner || anime.poster,
+        seasonNumber: 1,
+        episodeNumber: episodeNumber,
+        episodeTitle: `Episode ${episodeNumber}`,
+        currentTime: current,
+        duration: dur,
+        progressPercent: (current / dur) * 100,
+        lastWatchedAt: new Date().toISOString()
+      }, silent);
+    }
+  }, [anime.id, anime.title, anime.poster, anime.banner, episodeNumber, savePlaybackProgress]);
+
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
-    const flushProgress = (silent = true) => {
-      const current = videoRef.current?.currentTime || 0;
-      const dur = videoRef.current?.duration || 0;
-      if (dur > 0 && current > 15) {
-        savePlaybackProgress({
-          id: parseInt(anime.id as string, 10) || 0,
-          mediaType: 'anime',
-          title: anime.title,
-          posterPath: anime.poster,
-          backdropPath: anime.banner || anime.poster,
-          seasonNumber: 1,
-          episodeNumber: episodeNumber,
-          episodeTitle: `Episode ${episodeNumber}`,
-          currentTime: current,
-          duration: dur,
-          progressPercent: (current / dur) * 100,
-          lastWatchedAt: new Date().toISOString()
-          }, silent);
-      }
-    };
-
     const interval = setSessionInterval(getActiveSessionId(), () => flushProgress(true), 5000);
 
     return () => {
       if (interval !== null) clearSessionInterval(interval);
       flushProgress(false);
     };
-  }, [anime.id, anime.title, anime.poster, anime.banner, episodeNumber, savePlaybackProgress]);
+  }, [flushProgress, getActiveSessionId, setSessionInterval, clearSessionInterval]);
 
   // Video event handlers
   const handleTimeUpdate = () => {
@@ -726,6 +730,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                         <div className="absolute bottom-full right-0 mb-2 w-32 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1">
                           <button
                             onClick={() => {
+                              flushProgress(true);
                               setActiveLanguage(ContentLanguage.SUB);
                               onLanguageChange(ContentLanguage.SUB);
                               setActiveMenu('none');
@@ -737,6 +742,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                           {supportsDub !== false && (
                             <button
                               onClick={() => {
+                                flushProgress(true);
                                 setActiveLanguage(ContentLanguage.DUB);
                                 onLanguageChange(ContentLanguage.DUB);
                                 setActiveMenu('none');

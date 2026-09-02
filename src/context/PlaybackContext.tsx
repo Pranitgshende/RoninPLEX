@@ -288,6 +288,7 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setMediaType(null);
     setStreamResult(null);
     setAnimeStreamSource(null);
+    setAnimeItem(null);
   }, []);
 
   const onSelectEpisode = (epNum: number) => {

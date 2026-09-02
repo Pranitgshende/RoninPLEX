@@ -114,7 +114,7 @@ export const PersistentPlayerHost: React.FC = () => {
   };
 
   const renderPlayer = () => {
-    if (isLoading) {
+    if (isLoading && !isAnime && !streamResult) {
       return (
         <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-4 text-white">
           <div className="w-8 h-8 border-4 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
