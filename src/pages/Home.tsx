@@ -1,7 +1,7 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Compass, Play, X, Clock } from 'lucide-react';
+import { Sparkles, Compass, Play, X, Clock, Bookmark } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
 import { recommendation } from '../services/recommendation';
 import { Movie, TVShow } from '../types/tmdb';
@@ -213,6 +213,8 @@ export const Home: React.FC = () => {
   const handleResume = (item: any) => {
     if (item.mediaType === 'movie') {
       navigate(`/watch/movie/${item.id}`);
+    } else if (item.mediaType === 'anime') {
+      navigate(`/watch/anime/${item.id}/${item.episodeNumber || 1}`);
     } else {
       navigate(`/watch/tv/${item.id}/${item.seasonNumber || 1}/${item.episodeNumber || 1}`);
     }
@@ -279,9 +281,9 @@ export const Home: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
                         <p className="text-[11px] text-slate-400">
-                          {item.mediaType === 'tv'
+                          {item.mediaType === 'tv' || item.mediaType === 'anime'
                             ? `S${item.seasonNumber} E${item.episodeNumber}${
-                                remainingFormatted ? ` · ${remainingFormatted}` : ` · ${item.progressPercent}%`
+                                remainingFormatted ? ` • ${remainingFormatted}` : ` • ${item.progressPercent}%`
                               }`
                             : remainingFormatted
                               ? `${remainingFormatted} (${item.progressPercent}%)`
@@ -300,6 +302,47 @@ export const Home: React.FC = () => {
                       >
                         <X className="w-4 h-4" />
                       </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case 'watchlist':
+        if (watchlist.length === 0) return null;
+        return (
+          <div key="watchlist" className="px-4 sm:px-8 md:px-12 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white font-display flex items-center gap-2">
+                  <Bookmark className="w-5 h-5 text-brand-400" />
+                  <span>My Watchlist</span>
+                </h2>
+                <p className="text-xs text-slate-400">Titles you've saved for later</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {watchlist.slice(0, 4).map((item) => {
+                const detailsUrl = item.mediaType === 'movie' ? `/movie/${item.id}` : item.mediaType === 'anime' ? `/anime/${item.id}` : `/tv/${item.id}`;
+                return (
+                  <div
+                    key={`${item.mediaType}-${item.id}`}
+                    onClick={() => navigate(detailsUrl)}
+                    className="group relative rounded-xl overflow-hidden glass-subtle hover:border-brand-500/40 transition-all hover:shadow-xl hover:shadow-indigo-500/10 cursor-pointer flex gap-3 p-3"
+                  >
+                    <div className="w-20 aspect-[2/3] rounded-lg overflow-hidden bg-surface-300 flex-shrink-0">
+                      <img
+                        src={getPosterUrl(item.posterPath, 'small')}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <span className="text-[10px] uppercase font-bold text-brand-400 mb-1">{item.mediaType}</span>
+                      <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
                     </div>
                   </div>
                 );

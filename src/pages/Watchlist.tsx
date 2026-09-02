@@ -57,6 +57,8 @@ export const Watchlist: React.FC = () => {
   const handleResume = (item: PlaybackProgress) => {
     if (item.mediaType === 'movie') {
       navigate(`/watch/movie/${item.id}`);
+    } else if (item.mediaType === 'anime') {
+      navigate(`/watch/anime/${item.id}/${item.episodeNumber || 1}`);
     } else {
       navigate(`/watch/tv/${item.id}/${item.seasonNumber || 1}/${item.episodeNumber || 1}`);
     }
@@ -182,8 +184,8 @@ export const Watchlist: React.FC = () => {
           {filteredWatchlist.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredWatchlist.map((item: WatchlistItem) => {
-                const detailsUrl = item.mediaType === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`;
-                const watchUrl = item.mediaType === 'movie' ? `/watch/movie/${item.id}` : `/watch/tv/${item.id}/1/1`;
+                const detailsUrl = item.mediaType === 'movie' ? `/movie/${item.id}` : item.mediaType === 'anime' ? `/anime/${item.id}` : `/tv/${item.id}`;
+                const watchUrl = item.mediaType === 'movie' ? `/watch/movie/${item.id}` : item.mediaType === 'anime' ? `/watch/anime/${item.id}/1` : `/watch/tv/${item.id}/1/1`;
                 return (
                   <div
                     key={`${item.id}-${item.mediaType}`}
@@ -317,7 +319,7 @@ export const Watchlist: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {item.mediaType === 'tv'
+                        {item.mediaType === 'tv' || item.mediaType === 'anime'
                           ? `Season ${item.seasonNumber} · Episode ${item.episodeNumber} (${item.progressPercent}% finished)`
                           : `${item.progressPercent}% finished`}
                       </p>
@@ -353,7 +355,7 @@ export const Watchlist: React.FC = () => {
           {filteredWatched.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredWatched.map((item: WatchedItem) => {
-                const detailsUrl = item.mediaType === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`;
+                const detailsUrl = item.mediaType === 'movie' ? `/movie/${item.id}` : item.mediaType === 'anime' ? `/anime/${item.id}` : `/tv/${item.id}`;
                 return (
                   <div
                     key={`${item.id}-${item.mediaType}`}

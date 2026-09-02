@@ -72,6 +72,7 @@ export interface HomeSectionItem {
 export const DEFAULT_HOME_SECTIONS: HomeSectionItem[] = [
   { id: 'hero', label: 'Hero / Featured Title', enabled: true },
   { id: 'continue_watching', label: 'Continue Watching', enabled: true },
+  { id: 'watchlist', label: 'My Watchlist', enabled: true },
   { id: 'trending', label: 'Trending Today', enabled: true },
   { id: 'popular_movies', label: 'Popular Movies', enabled: true },
   { id: 'popular_tv', label: 'Binge-Worthy TV Shows', enabled: true },
