@@ -93,6 +93,7 @@ export interface UserPreferences {
   autoplayTrailer: boolean;
   enableHoverTrailers: boolean;
   reduceMotion: boolean;
+  skipIntro: boolean;
   adultContent: boolean;
   showAdultRecommendations: boolean;
   // Playback & Built-in Player Engine
@@ -113,6 +114,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   autoplayTrailer: true,
   enableHoverTrailers: true,
   reduceMotion: false,
+  skipIntro: false,
   adultContent: false,
   showAdultRecommendations: false,
   seekAmount: 10,

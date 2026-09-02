@@ -71,7 +71,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     disposeCurrentSession
   } = usePlaybackSession(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber, null, stream?.isHLS ? 'hls' : 'mp4', stream?.sourceUrl || '');
 
-  const { savePlaybackProgress } = useUser();
+  const { savePlaybackProgress, preferences } = useUser();
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -271,7 +271,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     setDuration(dur);
 
     // Auto next countdown in last 10 seconds
-    if (dur > 60 && dur - cur <= 10 && navState.hasNext && !hasStartedAutoNextRef.current) {
+    if (dur > 60 && dur - cur <= 10 && navState.hasNext && !hasStartedAutoNextRef.current && preferences.autoNextEpisode !== false) {
       hasStartedAutoNextRef.current = true;
       startAutoNextCountdown();
     }
@@ -415,11 +415,11 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           break;
         case 'arrowright':
           e.preventDefault();
-          handleSeek(currentTime + 10);
+          handleSeek(currentTime + (preferences.seekAmount || 10));
           break;
         case 'arrowleft':
           e.preventDefault();
-          handleSeek(currentTime - 10);
+          handleSeek(currentTime - (preferences.seekAmount || 10));
           break;
         case 'f':
           e.preventDefault();
@@ -629,11 +629,11 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                 {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
               </button>
 
-              <button onClick={() => handleSeek(currentTime - 10)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white" title="-10s">
+              <button onClick={() => handleSeek(currentTime - (preferences.seekAmount || 10))} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white" title={`-${preferences.seekAmount || 10}s`}>
                 <RotateCcw className="w-5 h-5" />
               </button>
 
-              <button onClick={() => handleSeek(currentTime + 10)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white mr-2" title="+10s">
+              <button onClick={() => handleSeek(currentTime + (preferences.seekAmount || 10))} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white mr-2" title={`+${preferences.seekAmount || 10}s`}>
                 <RotateCw className="w-5 h-5" />
               </button>
 

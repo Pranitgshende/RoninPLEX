@@ -261,11 +261,17 @@ class StorageService {
       ...prefs,
     };
     this.set(STORAGE_KEYS.PREFERENCES, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_preferences_change'));
+    }
     return updated;
   }
 
   resetPreferences(): UserPreferences {
     this.set(STORAGE_KEYS.PREFERENCES, DEFAULT_USER_PREFERENCES);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('roninplex_preferences_change'));
+    }
     return DEFAULT_USER_PREFERENCES;
   }
 
