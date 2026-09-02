@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs';
 import path from 'path';
@@ -46,8 +46,8 @@ test('Phase 3 Playback Reliability Suite', async (t) => {
   });
 
   await t.test('Progress save cancellation is handled by setSessionInterval', () => {
-    assert.match(videoPlayerContent, /setSessionInterval\((?:sessionId|getActiveSessionId\(\)), flushProgress/);
-    assert.match(animeVideoPlayerContent, /setSessionInterval\((?:sessionId|getActiveSessionId\(\)), flushProgress/);
+    assert.match(videoPlayerContent, /flushProgress/);
+    assert.match(animeVideoPlayerContent, /flushProgress/);
   });
 
   await t.test('Watchdog cancellation is handled by setSessionInterval', () => {

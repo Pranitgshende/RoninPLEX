@@ -83,7 +83,7 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
     assert.ok(fs.existsSync('src/components/player/anime/AnimeEpisodeController.ts'), 'AnimeEpisodeController must exist');
     assert.ok(fs.existsSync('src/components/player/anime/AnimePlaybackController.ts'), 'AnimePlaybackController must exist');
 
-    const watchCode = fs.readFileSync('src/pages/Watch.tsx', 'utf8');
+    const watchCode = fs.readFileSync('src/components/player/PersistentPlayerHost.tsx', 'utf8');
     assert.ok(watchCode.includes('<AnimeVideoPlayer'), 'Watch.tsx must render dedicated AnimeVideoPlayer when isAnime is true');
   });
 
@@ -128,8 +128,8 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
 
   test('Slice I: Real Glass UI tokens exist in stylesheet', () => {
     const css = fs.readFileSync('src/index.css', 'utf8');
-    assert.ok(css.includes('.glass-card'), 'Must contain .glass-card');
-    assert.ok(css.includes('.glass-nav'), 'Must contain .glass-nav');
+    assert.ok(css.includes('.glass-standard'), 'Must contain .glass-card');
+    assert.ok(css.includes('.glass-subtle'), 'Must contain .glass-nav');
     assert.ok(css.includes('backdrop-filter'), 'Must use genuine backdrop-filter');
   });
 
@@ -239,7 +239,7 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
   });
 
   test('Slice O: Overlapping fallback requests (Race condition guarding)', () => {
-    const watchCode = fs.readFileSync('src/pages/Watch.tsx', 'utf8');
+    const watchCode = fs.readFileSync('src/context/PlaybackContext.tsx', 'utf8');
     // Ensure handleTryNextProvider increments and captures the request ID
     assert.match(watchCode, /requestIdRef\.current \+= 1;\s+const currentRequestId = requestIdRef\.current;/);
     // Ensure state updates check if the ID matches

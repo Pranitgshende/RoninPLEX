@@ -8,14 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function verifyPhase4AnimeArchitecture() {
   const watchPath = path.join(__dirname, '../src/pages/Watch.tsx');
-  const watchSrc = fs.readFileSync(watchPath, 'utf8');
+  const watchSrc = fs.readFileSync(path.join(__dirname, '../src/components/player/PersistentPlayerHost.tsx'), 'utf8'); const ctxSrc = fs.readFileSync(path.join(__dirname, '../src/context/PlaybackContext.tsx'), 'utf8');
 
   test('AnimeVideoPlayer Key is deterministic and not sourceUrl bound', () => {
     assert.ok(watchSrc.includes('key={`anime-${mediaId}-${episodeNumber}-${retryCount}`}'), 'AnimeVideoPlayer key must be session and retry aware');
   });
 
   test('retryCount is passed down to AnimeStreamService', () => {
-    assert.match(watchSrc, /AnimeStreamService\.resolveEpisodeStream.*retryCount\)/, 'Must pass retryCount to resolveEpisodeStream');
+    assert.match(ctxSrc, /AnimeStreamService\.resolveEpisodeStream.*retryCount\)/, 'Must pass retryCount to resolveEpisodeStream');
   });
 
   const playerPath = path.join(__dirname, '../src/components/player/anime/AnimeVideoPlayer.tsx');
