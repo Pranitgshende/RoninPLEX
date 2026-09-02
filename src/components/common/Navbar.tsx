@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Film, Search, Sliders, Key, Menu, X, Settings as SettingsIcon, Bookmark } from 'lucide-react';
+import { Film, Search, Sliders, Menu, X, Settings as SettingsIcon, Bookmark } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
-import { useApiKey } from '../../context/ApiKeyContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { tmdb } from '../../services/tmdb';
 import { animeService } from '../../services/anime/AnimeService';
@@ -13,7 +12,6 @@ import { RatingBadge } from './RatingBadge';
 
 export const Navbar: React.FC = () => {
   const { watchlist, openPreferences } = useUser();
-  const { openModal: openApiKeyModal, hasKey, isValid } = useApiKey();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -261,25 +259,6 @@ export const Navbar: React.FC = () => {
 
           <button
             type="button"
-            onClick={openApiKeyModal}
-            className={`p-2 rounded-full border transition-colors relative ${
-              hasKey
-                ? isValid === false
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : 'bg-surface-100/70 text-slate-300 border-white/5 hover:bg-surface-50'
-            }`}
-            title={hasKey ? (isValid === false ? 'API Key Error' : 'TMDB Connected') : 'Configure TMDB API Key'}
-            aria-label="Configure TMDB API Key"
-          >
-            <Key className="w-4 h-4" />
-            {hasKey && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
-            )}
-          </button>
-
-          <button
-            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-xl bg-surface-100 lg:hidden text-slate-300 hover:text-white border border-white/10 transition-colors"
             aria-label="Toggle mobile menu"
@@ -344,17 +323,6 @@ export const Navbar: React.FC = () => {
               <SettingsIcon className="w-4 h-4" />
               <span>Settings</span>
             </Link>
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                openApiKeyModal();
-              }}
-              className="flex items-center gap-1.5 text-slate-300"
-            >
-              <Key className="w-4 h-4" />
-              <span>{hasKey ? 'TMDB Connected' : 'Set TMDB Key'}</span>
-            </button>
           </div>
         </div>
       )}

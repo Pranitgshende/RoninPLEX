@@ -42,13 +42,20 @@ class DiagnosticsStore {
         if (Array.isArray(value)) {
            sanitized[key] = value.map(v => typeof v === 'object' ? this.sanitizeContext(v) : v);
         } else if (value instanceof Error) {
-           sanitized[key] = { message: value.message, name: value.name };
+           sanitized[key] = { 
+             message: value.message.replace(/([?&])api_key=[^&]+/gi, '$1api_key=[REDACTED]'), 
+             name: value.name 
+           };
         } else {
            // Shallow sanitize for nested objects to prevent deep recursion
            sanitized[key] = this.sanitizeContext(value);
         }
       } else {
-        sanitized[key] = value;
+        if (typeof value === 'string') {
+          sanitized[key] = value.replace(/([?&])api_key=[^&]+/gi, '$1api_key=[REDACTED]');
+        } else {
+          sanitized[key] = value;
+        }
       }
     }
     return sanitized;
@@ -60,7 +67,7 @@ class DiagnosticsStore {
       timestamp: Date.now(),
       category,
       severity,
-      message,
+      message: message.replace(/([?&])api_key=[^&]+/gi, '$1api_key=[REDACTED]'),
       context: this.sanitizeContext(context)
     };
 

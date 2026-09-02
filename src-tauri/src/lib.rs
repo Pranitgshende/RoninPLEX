@@ -15,6 +15,39 @@ fn log_runtime_event(tag: String, message: String) {
     }
 }
 
+use keyring::Entry;
+
+const SERVICE_NAME: &str = "RoninPLEX_TMDB";
+const USER_NAME: &str = "api_key";
+
+#[tauri::command]
+fn store_tmdb_credential(key: String) -> Result<(), String> {
+    let entry = Entry::new(SERVICE_NAME, USER_NAME).map_err(|e| e.to_string())?;
+    entry.set_password(&key).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn is_tmdb_credential_configured() -> bool {
+    if let Ok(entry) = Entry::new(SERVICE_NAME, USER_NAME) {
+        return entry.get_password().is_ok();
+    }
+    false
+}
+
+#[tauri::command]
+fn remove_tmdb_credential() -> Result<(), String> {
+    let entry = Entry::new(SERVICE_NAME, USER_NAME).map_err(|e| e.to_string())?;
+    let _ = entry.delete_credential(); // ignore error if not exists
+    Ok(())
+}
+
+#[tauri::command]
+fn get_tmdb_credential() -> Result<String, String> {
+    let entry = Entry::new(SERVICE_NAME, USER_NAME).map_err(|e| e.to_string())?;
+    entry.get_password().map_err(|e| e.to_string())
+}
+
 // Tauri 2 Application Logic
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -62,7 +95,13 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log_runtime_event])
+        .invoke_handler(tauri::generate_handler![
+            log_runtime_event,
+            store_tmdb_credential,
+            is_tmdb_credential_configured,
+            remove_tmdb_credential,
+            get_tmdb_credential
+        ])
         .run(tauri::generate_context!())
         .expect("error while running RoninPLEX application");
 }

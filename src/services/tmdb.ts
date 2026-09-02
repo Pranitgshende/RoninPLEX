@@ -10,6 +10,8 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
+import { resolveTMDBCredential } from './credentials';
+
 class TMDBService {
   private cache = new Map<string, CacheEntry<unknown>>();
   private inFlightRequests = new Map<string, Promise<unknown>>();
@@ -27,22 +29,12 @@ class TMDBService {
     this.inFlightRequests.clear();
   }
 
-  public getApiKey(): string {
-    const customKey = storage.getCustomApiKey();
-    if (customKey) return customKey;
-    return (import.meta.env.VITE_TMDB_API_KEY as string) || '';
-  }
-
-  public hasApiKey(): boolean {
-    const key = this.getApiKey();
-    return Boolean(key && key !== 'your_tmdb_api_key_here' && key.trim().length > 0);
-  }
-
   private async fetchFromTMDB<T>(endpoint: string, params: Record<string, string | number | boolean | undefined> = {}): Promise<T | null> {
-    const apiKey = this.getApiKey();
-    if (!this.hasApiKey()) {
+    const cred = await resolveTMDBCredential();
+    if (!cred) {
       return null;
     }
+    const apiKey = cred.key;
 
     const queryParams = new URLSearchParams({
       api_key: apiKey,

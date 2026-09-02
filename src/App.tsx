@@ -5,7 +5,7 @@ import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/Toast';
 import { OnboardingModal } from './components/modals/OnboardingModal';
 import { PreferencesModal } from './components/modals/PreferencesModal';
-import { ApiKeyModal } from './components/modals/ApiKeyModal';
+import { TMDBOnboardingModal } from './components/modals/TMDBOnboardingModal';
 import { RoninIntro } from './components/startup/RoninIntro';
 import { PersistentPlayerHost } from './components/player/PersistentPlayerHost';
 
@@ -66,7 +66,7 @@ export const App: React.FC = () => {
       {/* Global Modals & Notifications */}
       <OnboardingModal />
       <PreferencesModal />
-      <ApiKeyModal />
+      <TMDBOnboardingModal />
       <PersistentPlayerHost />
       <ToastContainer />
     </div>

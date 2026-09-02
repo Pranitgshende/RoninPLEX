@@ -4,6 +4,7 @@ import { useUser } from '../context/UserContext';
 import { ConfirmationModal } from '../components/modals/ConfirmationModal';
 import { DiagnosticsViewer } from '../components/modals/DiagnosticsViewer';
 import { HomeSectionItem, DEFAULT_HOME_SECTIONS } from '../types/user';
+import { useApiKey } from '../context/ApiKeyContext';
 import {
   PlaySquare,
   Sparkles,
@@ -15,12 +16,13 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
-  Monitor
+  Monitor,
+  Cloud
 } from 'lucide-react';
 import { storage } from '../services/storage';
 import { version } from '../../package.json';
 
-type SettingsTab = 'playback' | 'appearance' | 'home' | 'data' | 'about';
+type SettingsTab = 'playback' | 'appearance' | 'home' | 'data' | 'services' | 'about';
 
 export const Settings: React.FC = () => {
   useAppReadyWhen(true);
@@ -34,6 +36,9 @@ export const Settings: React.FC = () => {
     clearWatched,
     clearWatchlist
   } = useUser();
+
+  const { hasUserKey, isFallbackActive, isConnectionValid, updateApiKey, removeApiKey, checkConnectionState, isValidating } = useApiKey();
+  const [tmdbInput, setTmdbInput] = useState('');
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('playback');
   
@@ -100,6 +105,18 @@ export const Settings: React.FC = () => {
     updatePreferences({ [key]: value });
   };
 
+  const handleTmdbSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tmdbInput.trim()) return;
+    const success = await updateApiKey(tmdbInput);
+    if (success) {
+      await checkConnectionState();
+      setTmdbInput('');
+    } else {
+      alert('Invalid TMDB API Key.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header */}
@@ -149,6 +166,16 @@ export const Settings: React.FC = () => {
           >
             <Database className="w-4 h-4" />
             Data
+          </button>
+
+          <button
+            onClick={() => setActiveTab('services')}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              activeTab === 'services' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Cloud className="w-4 h-4" />
+            Services
           </button>
 
           <button
@@ -399,6 +426,68 @@ export const Settings: React.FC = () => {
                     >
                       Reset Preferences
                     </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* SERVICES */}
+          {activeTab === 'services' && (
+            <div className="space-y-6 animate-slide-up">
+              <section className="bg-surface-200/40 border border-white/5 rounded-2xl p-5 sm:p-6 space-y-5 glass-subtle">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Cloud className="w-5 h-5 text-brand-400" />
+                  Connected Services
+                </h2>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm font-semibold text-white">The Movie Database (TMDB)</h3>
+                    <p className="text-xs text-slate-400">
+                      RoninPLEX uses TMDB for comprehensive metadata and discovery.
+                    </p>
+                  </div>
+
+                  <div className="bg-surface-100/50 border border-white/5 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isConnectionValid ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <span className="text-sm font-medium text-slate-300">
+                          {hasUserKey ? 'Connected with your personal API key' : 'Using RoninPLEX fallback connection'}
+                        </span>
+                      </div>
+                      {hasUserKey && (
+                        <button
+                          onClick={async () => {
+                            await removeApiKey();
+                            await checkConnectionState();
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-colors border border-rose-500/20"
+                        >
+                          Remove Key
+                        </button>
+                      )}
+                    </div>
+
+                    {!hasUserKey && (
+                      <form onSubmit={handleTmdbSubmit} className="flex gap-2 mt-2">
+                        <input
+                          type="password"
+                          value={tmdbInput}
+                          onChange={(e) => setTmdbInput(e.target.value)}
+                          placeholder="Enter your TMDB API Key (v3)"
+                          className="flex-grow px-3 py-2 rounded-lg glass-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isValidating || !tmdbInput.trim()}
+                          className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+                        >
+                          {isValidating ? 'Checking...' : 'Connect Key'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </div>
               </section>
