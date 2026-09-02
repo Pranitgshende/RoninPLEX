@@ -35,7 +35,7 @@ interface UserContextType {
   toggleDislike: (id: number, mediaType: MediaType, itemFallback?: Partial<WatchedItem>) => void;
   clearWatched: () => void;
   // Continue Watching Actions
-  savePlaybackProgress: (progress: PlaybackProgress) => void;
+  savePlaybackProgress: (progress: PlaybackProgress, silent?: boolean) => void;
   removePlaybackProgress: (id: number, mediaType: MediaType, season?: number, episode?: number) => void;
   clearContinueWatching: () => void;
   // Preferences Actions
@@ -228,9 +228,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Continue Watching methods
-  const savePlaybackProgress = useCallback((progress: PlaybackProgress) => {
+  const savePlaybackProgress = useCallback((progress: PlaybackProgress, silent: boolean = false) => {
     storage.savePlaybackProgress(progress);
-    setContinueWatching(storage.getContinueWatchingList());
+    if (!silent) {
+      setContinueWatching(storage.getContinueWatchingList());
+    }
   }, []);
 
   const removePlaybackProgress = useCallback((id: number, mediaType: MediaType, season?: number, episode?: number) => {

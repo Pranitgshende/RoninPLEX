@@ -77,7 +77,6 @@ class StorageService {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return false;
     try {
       localStorage.setItem(key, JSON.stringify(value));
-      window.dispatchEvent(new Event('roninplex_storage_change'));
       return true;
     } catch (error) {
       diagnostics.error('persistence', 'Failed to write to localStorage', { key, error });

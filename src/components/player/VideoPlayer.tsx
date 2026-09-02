@@ -355,7 +355,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         posterPath: posterPath || null,
         backdropPath: backdropPath || null,
         lastWatchedAt: new Date().toISOString(),
-      });
+      }, true);
     }, 5000);
 
     return () => {
@@ -367,7 +367,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (stream.type === 'embed') return;
 
-    const flushProgress = () => {
+    const flushProgress = (silent: boolean = true) => {
       const current = videoRef.current?.currentTime || 0;
       const dur = videoRef.current?.duration || 0;
 
@@ -386,16 +386,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           posterPath: posterPath || null,
           backdropPath: backdropPath || null,
           lastWatchedAt: new Date().toISOString(),
-        });
+        }, silent);
       }
     };
 
     const sessionId = getActiveSessionId();
-    const interval = setSessionInterval(sessionId, flushProgress, 5000);
-
+    const interval = setSessionInterval(sessionId, () => flushProgress(true), 5000);
+  
     return () => {
       if (interval) clearSessionInterval(interval );
-      flushProgress();
+      flushProgress(false);
     };
   }, [mediaId, mediaType, title, seasonNumber, episodeNumber, episodeTitle, posterPath, backdropPath, savePlaybackProgress, stream.type, getActiveSessionId, setSessionInterval]);
 

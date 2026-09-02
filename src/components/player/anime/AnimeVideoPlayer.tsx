@@ -233,7 +233,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
   // Periodic progress saving (every 5 seconds)
   useEffect(() => {
-    const flushProgress = () => {
+    const flushProgress = (silent = true) => {
       const current = videoRef.current?.currentTime || 0;
       const dur = videoRef.current?.duration || 0;
       if (dur > 0 && current > 15) {
@@ -250,15 +250,15 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           duration: dur,
           progressPercent: (current / dur) * 100,
           lastWatchedAt: new Date().toISOString()
-        });
+          }, silent);
       }
     };
 
-    const interval = setSessionInterval(getActiveSessionId(), flushProgress, 5000);
+    const interval = setSessionInterval(getActiveSessionId(), () => flushProgress(true), 5000);
 
     return () => {
       if (interval !== null) clearSessionInterval(interval);
-      flushProgress();
+      flushProgress(false);
     };
   }, [anime.id, anime.title, anime.poster, anime.banner, episodeNumber, savePlaybackProgress]);
 
@@ -920,3 +920,4 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
     </div>
   );
 };
+

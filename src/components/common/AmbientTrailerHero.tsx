@@ -99,6 +99,7 @@ export const AmbientTrailerHero: React.FC<AmbientTrailerHeroProps> = ({
 
     playerRef.current = new window.YT.Player(playerElementId, {
       videoId: trailerKey,
+      host: 'https://www.youtube-nocookie.com',
       playerVars: {
         autoplay: 1,
         mute: 1,

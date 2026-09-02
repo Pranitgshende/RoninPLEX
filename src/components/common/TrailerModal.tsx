@@ -73,7 +73,7 @@ export const TrailerModal: React.FC<TrailerModalProps> = ({
               src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1`}
               title={`${title} Trailer`}
               className="absolute inset-0 w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
             />
           ) : (
