@@ -3,6 +3,7 @@ import { useGSAP } from '@gsap/react';
 import { useReducedMotion } from '../../animation/hooks/useReducedMotion';
 import { createRoninIntroTimeline } from '../../animation/timelines/roninIntroTimeline';
 import { RoninIntroScene } from '../../graphics/three/scenes/RoninIntroScene';
+import { ScrambleText, ScrambleTextRef } from '../../animation/components/ScrambleText';
 
 interface RoninIntroProps {
   onComplete: () => void;
@@ -15,6 +16,7 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
+  const scrambleRef = useRef<ScrambleTextRef>(null);
   
   const sceneRef = useRef<RoninIntroScene | null>(null);
   const reducedMotion = useReducedMotion();
@@ -65,6 +67,7 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
       createRoninIntroTimeline(
         containerRef.current,
         logoRef.current,
+        scrambleRef,
         onComplete,
         () => isAppReadyRef.current, // Use a getter so the timeline checks current state
         reducedMotion,
@@ -95,6 +98,9 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
           alt="RoninPLEX Logo" 
           className="w-48 sm:w-64 md:w-80 h-auto drop-shadow-2xl opacity-90"
         />
+        <div className="mt-6 text-2xl sm:text-3xl md:text-4xl font-display font-black tracking-[0.25em] text-white/95 uppercase drop-shadow-lg">
+          <ScrambleText text="RONINPLEX" duration={2} autoStart={false} ref={scrambleRef} />
+        </div>
       </div>
     </div>
   );

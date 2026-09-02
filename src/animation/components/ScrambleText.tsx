@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+﻿import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import gsap from 'gsap';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -17,7 +17,7 @@ export interface ScrambleTextRef {
   reset: () => void;
 }
 
-const DEFAULT_CHARS = '!<>-_\\/[]{}�=+*^?#________';
+const DEFAULT_CHARS = '!<>-_\\/[]{}—=+*^?#________';
 
 export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   text,
@@ -93,10 +93,9 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   // Initial render: if autoStart and motion is allowed, render empty so it scrambles in.
   // Otherwise render the full text.
   return (
-    <span ref={elRef} className={className}>
-      {reducedMotion || !autoStart ? text : ''}
-    </span>
+    <span aria-label={text} className={className}><span ref={elRef} aria-hidden="true">{reducedMotion || !autoStart ? text : ''}</span></span>
   );
 });
 
 ScrambleText.displayName = 'ScrambleText';
+

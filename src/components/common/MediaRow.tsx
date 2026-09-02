@@ -5,6 +5,8 @@ import { Movie, TVShow, MediaItem } from '../../types/tmdb';
 import { ScoredMediaItem } from '../../types/recommendation';
 import { MovieCard } from './MovieCard';
 import { SkeletonCard } from './SkeletonCard';
+import { ScrambleText } from '../../animation/components/ScrambleText';
+import { useAppLifecycle } from '../../context/AppLifecycleContext';
 
 interface MediaRowProps {
   title: string;
@@ -14,6 +16,7 @@ interface MediaRowProps {
   viewAllLink?: string;
   mediaType?: 'movie' | 'tv';
   badge?: string;
+  index?: number;
 }
 
 export const MediaRow: React.FC<MediaRowProps> = ({
@@ -24,8 +27,10 @@ export const MediaRow: React.FC<MediaRowProps> = ({
   viewAllLink,
   mediaType,
   badge,
+  index = 0,
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
+  const { isIntroComplete } = useAppLifecycle();
 
   const scroll = (direction: 'left' | 'right') => {
     if (rowRef.current) {
@@ -44,7 +49,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-display">
-              {title}
+              <ScrambleText text={title} autoStart={isIntroComplete} duration={0.8} />
             </h2>
             {badge && (
               <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-md bg-brand-500/20 text-brand-300 border border-brand-500/30">

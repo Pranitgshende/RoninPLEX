@@ -473,6 +473,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       {/* Video Element or Embed Fallback */}
       {stream?.isHLS || stream?.sourceUrl.endsWith('.mp4') ? (
         <video
+          key={stream.sourceUrl}
           ref={videoRef}
           className="w-full h-full object-contain cursor-pointer"
           onClick={togglePlay}
@@ -506,9 +507,20 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-4 z-40">
-          <div className="w-12 h-12 border-3 border-rose-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-rose-300">Resolving Anime Stream via Anime SDK...</p>
+        <div 
+          className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-6 z-40"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="relative flex items-center justify-center" aria-hidden="true">
+            {/* Outer ring */}
+            <div className="absolute w-16 h-16 border-2 border-brand-500/20 rounded-full" />
+            {/* Spinning ring */}
+            <div className="w-16 h-16 border-2 border-brand-500 border-t-transparent rounded-full motion-safe:animate-spin" />
+          </div>
+          <p className="text-sm font-semibold text-brand-300 tracking-wider motion-safe:animate-pulse-subtle">
+            Wait while we load your stream...
+          </p>
         </div>
       )}
 

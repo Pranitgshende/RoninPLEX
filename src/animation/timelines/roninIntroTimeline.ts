@@ -7,6 +7,7 @@ import { motionTokens } from '../../design/tokens/motion';
 export const createRoninIntroTimeline = (
   container: HTMLElement,
   logoRef: HTMLElement,
+  scrambleRef: React.RefObject<{ start: () => void } | null>,
   onComplete: () => void,
   isReady: () => boolean,
   reducedMotion: boolean,
@@ -34,6 +35,7 @@ export const createRoninIntroTimeline = (
   if (reducedMotion) {
     // Instant completion for reduced motion
     tl.to(container, { opacity: 0, duration: 0, onComplete });
+    if (scrambleRef.current) scrambleRef.current.start();
     return tl;
   }
 
@@ -58,6 +60,9 @@ export const createRoninIntroTimeline = (
       filter: 'blur(0px)',
       duration: motionTokens.duration.long,
       ease: motionTokens.ease.cinematic,
+      onStart: () => {
+        if (scrambleRef.current) scrambleRef.current.start();
+      }
     },
     '-=0.5'
   );
