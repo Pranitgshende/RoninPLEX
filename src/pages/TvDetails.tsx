@@ -13,6 +13,7 @@ import { getBackdropUrl, getPosterUrl, getProfileUrl, getStillUrl, extractBestTr
 import { formatDate, formatYear, formatRuntime } from '../utils/formatting';
 import { useUser } from '../context/UserContext';
 import { streamingManager } from '../services/streaming/StreamingManager';
+import { ScrambleText } from '../animation/components/ScrambleText';
 
 export const TvDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -204,7 +205,7 @@ export const TvDetails: React.FC = () => {
 
             <div>
               <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white font-display tracking-tight leading-tight">
-                {tvShow.name}
+                <ScrambleText text={tvShow.name} />
               </h1>
               {tvShow.tagline && (
                 <p className="text-sm sm:text-base font-semibold text-brand-300 italic mt-1">

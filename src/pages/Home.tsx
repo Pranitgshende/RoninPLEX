@@ -14,9 +14,14 @@ import { getPosterUrl, getBackdropUrl } from '../utils/helpers';
 import { DEFAULT_HOME_SECTIONS } from '../types/user';
 import { AdultBadge } from '../components/common/AdultBadge';
 import { animeService } from '../services/anime/AnimeService';
+import { useAppLifecycle } from '../context/AppLifecycleContext';
+import { ScrambleText } from '../animation/components/ScrambleText';
+import { PremiumGlowBorder } from '../components/common/PremiumGlowBorder';
+import { SkeletonHero } from '../components/common/skeleton/SkeletonHero';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
+  const { isIntroComplete } = useAppLifecycle();
   const { preferences, watchlist, watched, continueWatching, removePlaybackProgress, homeLayout } = useUser();
 
   const [heroItem, setHeroItem] = useState<Movie | TVShow | null>(null);
@@ -103,68 +108,42 @@ export const Home: React.FC = () => {
         setAnimeItems(animeList as any);
 
         if (preferences.showAdultRecommendations) {
-          setAdultItems([
-            {
-              id: 550,
-              title: 'Fight Club',
-              overview: 'A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy.',
-              poster_path: '/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
-              backdrop_path: '/hZkgoQYus5vegHoetLkCJzb17zJ.jpg',
-              vote_average: 8.4,
-              vote_count: 27000,
-              release_date: '1999-10-15',
-              genre_ids: [18, 53],
-              adult: true,
-              popularity: 88.5,
-              original_language: 'en',
-              original_title: 'Fight Club',
-            },
-            {
-              id: 293660,
-              title: 'Deadpool',
-              overview: 'Wade Wilson is a former Special Forces operative who now works as a mercenary. His world comes crashing down when an evil scientist tortures and disfigures him.',
-              poster_path: '/fSRb7vyIP8rQpL0I47P3qUsRIXq.jpg',
-              backdrop_path: '/en971MEXui9vgYrL00uq0eZWz2L.jpg',
-              vote_average: 7.6,
-              vote_count: 29000,
-              release_date: '2016-02-09',
-              genre_ids: [28, 12, 35],
-              adult: true,
-              popularity: 75.2,
-              original_language: 'en',
-              original_title: 'Deadpool',
-            },
-            {
-              id: 680,
-              title: 'Pulp Fiction',
-              overview: 'A burger-loving hit man, his philosophical partner, a drug-addled gangster\'s moll and a washed-up boxer converge in this sprawling comedic crime caper.',
-              poster_path: '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
-              backdrop_path: '/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg',
-              vote_average: 8.5,
-              vote_count: 26000,
-              release_date: '1994-09-10',
-              genre_ids: [53, 80],
-              adult: true,
-              popularity: 92.4,
-              original_language: 'en',
-              original_title: 'Pulp Fiction',
-            },
-            {
-              id: 105248,
-              name: 'Cyberpunk: Edgerunners',
-              overview: 'A street kid trying to survive in a technology and body modification-obsessed city of the future.',
-              poster_path: '/7jSWLnsZqzftgL7qZ5T1lZc4Vb4.jpg',
-              backdrop_path: '/s1x6vt2EuqC4u5G4hWnJ8K5u7a5.jpg',
-              vote_average: 8.6,
-              vote_count: 1400,
-              first_air_date: '2022-09-13',
-              genre_ids: [16, 28, 878],
-              adult: true,
-              popularity: 65.0,
-              original_language: 'ja',
-              original_name: 'Cyberpunk: Edgerunners',
-            } as any,
-          ]);
+          try {
+            const [matureMedia, matureAnime] = await Promise.allSettled([
+              tmdb.getAdultRecommendations(),
+              animeService.getAdultAnime(),
+            ]);
+
+            const combinedAdult: (Movie | TVShow)[] = [];
+            if (matureMedia.status === 'fulfilled' && matureMedia.value) {
+              combinedAdult.push(...matureMedia.value);
+            }
+            if (matureAnime.status === 'fulfilled' && matureAnime.value) {
+              const mappedAnime = matureAnime.value.map(a => ({
+                id: a.id as any,
+                title: a.title,
+                name: a.title,
+                overview: a.synopsis,
+                poster_path: a.poster,
+                backdrop_path: a.banner || a.poster,
+                vote_average: a.score || 0,
+                vote_count: 300,
+                popularity: a.popularity || 0,
+                adult: true,
+                media_type: 'anime' as const,
+                first_air_date: a.year ? `${a.year}-01-01` : '',
+                release_date: a.year ? `${a.year}-01-01` : '',
+                genre_ids: [],
+              } as unknown as Movie));
+              combinedAdult.push(...mappedAnime);
+            }
+
+            // Remove any items without valid poster or title
+            const validAdult = combinedAdult.filter(item => item && (Boolean((item as any).poster_path || (item as any).poster)) && Boolean((item as any).title || (item as any).name));
+            setAdultItems(validAdult.length > 0 ? validAdult : await tmdb.getAdultRecommendations());
+          } catch {
+            setAdultItems(await tmdb.getAdultRecommendations());
+          }
         } else {
           setAdultItems([]);
         }
@@ -239,7 +218,7 @@ export const Home: React.FC = () => {
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-white font-display flex items-center gap-2">
                   <Clock className="w-5 h-5 text-brand-400" />
-                  <span>Continue Watching</span>
+                  <ScrambleText text="Continue Watching" autoStart={false} />
                 </h2>
                 <p className="text-xs text-slate-400">Pick up right where you left off</p>
               </div>
@@ -251,7 +230,7 @@ export const Home: React.FC = () => {
                 return (
                   <div
                     key={`${item.mediaType}-${item.id}-${item.seasonNumber || 0}-${item.episodeNumber || 0}`}
-                    className="group relative rounded-xl overflow-hidden glass-subtle hover:border-brand-500/40 transition-all hover:shadow-xl hover:shadow-indigo-500/10"
+                    className="group relative rounded-2xl overflow-hidden glass-standard hover:border-brand-400/50 transition-all hover:shadow-2xl hover:shadow-brand-500/20 backdrop-blur-xl border border-white/10"
                   >
                     <div
                       onClick={() => handleResume(item)}
@@ -318,7 +297,7 @@ export const Home: React.FC = () => {
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-white font-display flex items-center gap-2">
                   <Bookmark className="w-5 h-5 text-brand-400" />
-                  <span>My Watchlist</span>
+                  <ScrambleText text="My Watchlist" autoStart={false} />
                 </h2>
                 <p className="text-xs text-slate-400">Titles you've saved for later</p>
               </div>
@@ -354,28 +333,30 @@ export const Home: React.FC = () => {
       case 'decision_helper':
         return (
           <div key="decision_helper" className="px-4 sm:px-8 md:px-12 py-2">
-            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-brand-900/60 via-surface-200 to-indigo-950/60 border border-brand-500/20 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl">
-              <div className="space-y-2 max-w-xl">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Ronin AI</span>
+            <PremiumGlowBorder borderRadius="rounded-2xl" intensity="subtle">
+              <div className="relative rounded-2xl overflow-hidden bg-surface-200/50 backdrop-blur-xl border border-white/10 hover:border-white/20 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl transition-all">
+                <div className="space-y-2.5 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-brand-500/15 text-brand-300 border border-brand-500/30 shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+                    <span>Ronin AI</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white font-display tracking-tight">
+                    Can't decide what to watch tonight?
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed">
+                    Answer 3 quick questions about your mood, available time, and format. Ronin AI will curate the ideal match and queue up the trailer instantly.
+                  </p>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white font-display">
-                  Can't decide what to watch tonight?
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-300">
-                  Answer 3 quick questions about your mood, available time, and format, and let our smart algorithm pick the perfect match with its trailer ready to roll.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsTonightPickerOpen(true)}
+                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-brand-600/25 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 flex-shrink-0 border border-white/10"
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Decide For Me</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsTonightPickerOpen(true)}
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-brand-600 hover:from-amber-400 hover:to-brand-500 text-white font-bold text-sm shadow-xl shadow-brand-600/30 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 flex-shrink-0"
-              >
-                <Compass className="w-4 h-4" />
-                <span>Decide For Me</span>
-              </button>
-            </div>
+            </PremiumGlowBorder>
           </div>
         );
 
@@ -535,15 +516,20 @@ export const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-slate-100 pb-20">
-      {isHeroEnabled && heroItem && (
-        <HeroBanner
-          item={heroItem}
-          recommendationReason={heroReason}
-          poolItems={trendingItems.length > 0 ? trendingItems : [heroItem]}
-        />
+      {isHeroEnabled && (
+        isLoading ? (
+          <SkeletonHero />
+        ) : heroItem ? (
+          <HeroBanner
+            item={heroItem}
+            recommendationReason={heroReason}
+            poolItems={trendingItems.length > 0 ? trendingItems : [heroItem]}
+            isIntroComplete={isIntroComplete}
+          />
+        ) : null
       )}
 
-      <div className={`space-y-8 sm:space-y-10 relative z-30 ${isHeroEnabled && heroItem ? '-mt-8 sm:-mt-12' : 'pt-8'}`}>
+      <div className={`space-y-8 sm:space-y-10 relative z-30 ${isHeroEnabled && (isLoading || heroItem) ? '-mt-8 sm:-mt-12' : 'pt-8'}`}>
         {activeLayout
           .filter((s) => s.id !== 'hero' && s.enabled)
           .map((s) => renderSection(s.id))}

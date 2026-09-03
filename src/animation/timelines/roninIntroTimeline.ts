@@ -50,34 +50,27 @@ export const createRoninIntroTimeline = (
     }, 0);
   }
 
-  // STATE 3 & 4: Logo begins to form and gains depth
+  // STATE 3 & 4: Logo begins to form and gains depth; scale locked at exactly 2.0s
   tl.fromTo(
     logoRef,
-    { opacity: 0, scale: 0.8, filter: 'blur(10px)' },
+    { opacity: 0, scale: 0.85, filter: 'blur(10px)' },
     {
       opacity: 1,
-      scale: 1,
+      scale: 1.0,
       filter: 'blur(0px)',
-      duration: motionTokens.duration.long,
+      duration: 2.0,
       ease: motionTokens.ease.cinematic,
       onStart: () => {
         if (scrambleRef.current) scrambleRef.current.start();
       }
     },
-    '-=0.5'
+    0.0
   );
 
-  // STATE 5 & 6: Controlled visual reveal & Logo resolves cleanly
-  // A subtle glow or spatial shift can happen here
-  tl.to(
-    logoRef,
-    {
-      scale: 1.02,
-      duration: motionTokens.duration.long,
-      ease: motionTokens.ease.standard,
-    },
-    '+=0.2'
-  );
+  // Logo scale is LOCKED after 2.0s (no further scale tweens).
+  // Scramble runs for 4.5s (0.0s to 4.5s).
+  // Hold final readable "RONINPLEX" state for 0.5s before transitioning out (total 5.0s).
+  tl.to({}, { duration: 5.0 }, 0);
 
   // Timeline ends, onComplete handles STATE 7 & 8 (transition out)
   return tl;

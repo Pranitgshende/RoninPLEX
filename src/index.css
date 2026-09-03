@@ -150,6 +150,37 @@
     50% { transform: translateY(-2px) scale(1.02); }
   }
 
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .animate-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.04) 20%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.04) 80%,
+      transparent 100%
+    );
+    animation: shimmer 2s infinite linear;
+    pointer-events: none;
+  }
+
   @keyframes roninSlash {
     0% { transform: translate(0, 0) rotate(0deg); }
     30% { transform: translate(8px, -8px) rotate(-15deg); }
@@ -180,6 +211,19 @@
 
   .animate-slash-arc {
     animation: slashArc 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes rotateGlow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-rotate-glow {
+    animation: rotateGlow 18s linear infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {

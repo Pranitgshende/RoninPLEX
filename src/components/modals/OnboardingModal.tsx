@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Sparkles, Check, Film, Sliders, Globe, User } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { MOCK_GENRES } from '../../services/mockData';
+import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
 
 export const OnboardingModal: React.FC = () => {
   const { isOnboardingOpen, closeOnboarding, preferences, updatePreferences } = useUser();
@@ -71,8 +72,9 @@ export const OnboardingModal: React.FC = () => {
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="relative w-full max-w-2xl max-h-[90vh] glass-elevated rounded-2xl overflow-hidden flex flex-col animate-scale-in">
-        {/* Header */}
+      <PremiumGlowBorder borderRadius="rounded-2xl" intensity="medium" className="w-full max-w-2xl max-h-[90vh] animate-scale-in shadow-2xl">
+        <div className="relative w-full h-full max-h-[90vh] bg-surface-200/95 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col">
+          {/* Header */}
         <div className="px-6 py-6 bg-gradient-to-r from-brand-900/40 via-surface-300/40 to-surface-300/40 border-b border-white/5">
           <div className="flex items-center space-x-3 mb-2">
             <div className="p-2.5 rounded-xl bg-brand-500/20 text-brand-300 border border-brand-500/30 shadow-lg shadow-brand-500/20">
@@ -276,6 +278,7 @@ export const OnboardingModal: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </PremiumGlowBorder>
+  </div>
   );
 };

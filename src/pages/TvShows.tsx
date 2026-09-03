@@ -7,11 +7,14 @@ import { TVShow, Genre } from '../types/tmdb';
 import { MovieCard } from '../components/common/MovieCard';
 import { MediaRow } from '../components/common/MediaRow';
 import { useUser } from '../context/UserContext';
+import { useAppLifecycle } from '../context/AppLifecycleContext';
+import { ScrambleText } from '../animation/components/ScrambleText';
 import { getBackdropUrl } from '../utils/helpers';
 
 export const TvShows: React.FC = () => {
   const navigate = useNavigate();
   const { continueWatching, removePlaybackProgress } = useUser();
+  const { isIntroComplete } = useAppLifecycle();
 
   const [trendingTV, setTrendingTV] = useState<TVShow[]>([]);
   const [popularTV, setPopularTV] = useState<TVShow[]>([]);
@@ -101,7 +104,7 @@ export const TvShows: React.FC = () => {
               <span>Series Studio</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-display mt-1">
-              TV Shows & Series
+              <ScrambleText text="TV Shows & Series" autoStart={isIntroComplete} />
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
               Binge critically acclaimed television dramas, addictive docuseries, and seasonal serialized sagas.
@@ -221,7 +224,7 @@ export const TvShows: React.FC = () => {
                 </span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black text-white font-display leading-tight">
-                {heroShow.name}
+                <ScrambleText text={heroShow.name} autoStart={isIntroComplete} />
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 leading-relaxed">
                 {heroShow.overview}
@@ -252,14 +255,14 @@ export const TvShows: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 mb-10">
           <h2 className="text-lg font-bold text-white mb-3.5 flex items-center gap-2">
             <Clock className="w-4 h-4 text-cyan-400" />
-            <span>Continue Watching Series</span>
+            <ScrambleText text="Continue Watching Series" autoStart={false} />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {tvContinueWatching.map((item) => (
               <div
                 key={`${item.id}-${item.seasonNumber}-${item.episodeNumber}`}
                 onClick={() => navigate(`/watch/tv/${item.id}/${item.seasonNumber || 1}/${item.episodeNumber || 1}`)}
-                className="group relative rounded-2xl overflow-hidden glass-subtle hover:border-cyan-500/40 transition-all cursor-pointer shadow-lg"
+                className="group relative rounded-2xl overflow-hidden glass-standard hover:border-cyan-400/50 transition-all cursor-pointer shadow-2xl backdrop-blur-xl border border-white/10 hover:shadow-cyan-500/20"
               >
                 <div className="aspect-video relative overflow-hidden bg-surface-200">
                   <img

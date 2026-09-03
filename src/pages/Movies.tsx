@@ -7,11 +7,14 @@ import { Movie, Genre } from '../types/tmdb';
 import { MovieCard } from '../components/common/MovieCard';
 import { MediaRow } from '../components/common/MediaRow';
 import { useUser } from '../context/UserContext';
+import { useAppLifecycle } from '../context/AppLifecycleContext';
+import { ScrambleText } from '../animation/components/ScrambleText';
 import { getBackdropUrl } from '../utils/helpers';
 
 export const Movies: React.FC = () => {
   const navigate = useNavigate();
   const { continueWatching, removePlaybackProgress } = useUser();
+  const { isIntroComplete } = useAppLifecycle();
 
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
@@ -104,7 +107,7 @@ export const Movies: React.FC = () => {
               <span>Cinema Lounge</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-display mt-1">
-              Feature Movies
+              <ScrambleText text="Feature Movies" autoStart={isIntroComplete} />
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
               Explore box office blockbusters, timeless cinematic classics, and newly released indie features.
@@ -224,7 +227,7 @@ export const Movies: React.FC = () => {
                 </span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black text-white font-display leading-tight">
-                {heroMovie.title}
+                <ScrambleText text={heroMovie.title} autoStart={isIntroComplete} />
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 leading-relaxed">
                 {heroMovie.overview}
@@ -254,14 +257,14 @@ export const Movies: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 mb-10">
           <h2 className="text-lg font-bold text-white mb-3.5 flex items-center gap-2">
             <Clock className="w-4 h-4 text-brand-400" />
-            <span>Continue Watching Movies</span>
+            <ScrambleText text="Continue Watching Movies" autoStart={false} />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {movieContinueWatching.map((item) => (
               <div
                 key={item.id}
                 onClick={() => navigate(`/watch/movie/${item.id}`)}
-                className="group relative rounded-2xl overflow-hidden glass-subtle hover:border-brand-500/40 transition-all cursor-pointer shadow-lg"
+                className="group relative rounded-2xl overflow-hidden glass-standard hover:border-brand-400/50 transition-all cursor-pointer shadow-2xl backdrop-blur-xl border border-white/10 hover:shadow-brand-500/20"
               >
                 <div className="aspect-video relative overflow-hidden bg-surface-200">
                   <img

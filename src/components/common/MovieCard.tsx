@@ -7,6 +7,7 @@ import { RatingBadge } from './RatingBadge';
 import { AdultBadge } from './AdultBadge';
 import { TrailerModal } from './TrailerModal';
 import { TrailerPlayer } from '../player/TrailerPlayer';
+import { GlassSkeleton } from './skeleton/GlassSkeleton';
 import { getPosterUrl, getBackdropUrl, normalizeMedia } from '../../utils/helpers';
 import { useUser } from '../../context/UserContext';
 import { useTrailer } from '../../hooks/useTrailer';
@@ -32,6 +33,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [isStreamAvailable, setIsStreamAvailable] = useState<boolean | null>(null);
 
   const hoverTimeoutRef = useRef<number | null>(null);
@@ -67,7 +69,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   // Handle 400ms debounce hover
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (preferences.enableHoverTrailers !== false && trailerKey) {
+    if (preferences.enableHoverTrailers && trailerKey) {
       hoverTimeoutRef.current = window.setTimeout(() => {
         setIsPlayingTrailer(true);
       }, 400);
@@ -167,21 +169,45 @@ export const MovieCard: React.FC<MovieCardProps> = ({
       ? `/movie/${normalized.id}`
       : `/tv/${normalized.id}`;
 
+  const hasValidPoster = Boolean(normalized.poster_path && !normalized.poster_path.startsWith('data:image/svg+xml'));
+  const isVisualReady = hasValidPoster ? (imageLoaded && !imageError) : true;
+  const isShowingFallback = imageError || !hasValidPoster;
+
   return (
     <>
       <div
         ref={cardRef as any}
+        className="group relative flex flex-col h-full rounded-xl overflow-hidden glass-card hover:border-brand-500/50 transition-all duration-300 transform hover:-translate-y-1 p-2"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="group relative rounded-xl glass-standard glass-interactive p-2 flex flex-col h-full"
       >
         <Link to={detailsUrl} className="block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0">
-          {!imageLoaded && (
-            <div className="absolute inset-0 bg-surface-200/50 animate-pulse" />
+          {!isVisualReady && !isShowingFallback && (
+            <GlassSkeleton className="absolute inset-0 w-full h-full rounded-lg z-10" />
+          )}
+
+          {isShowingFallback && (
+            <div className="absolute inset-0 bg-gradient-to-br from-surface-200 via-surface-300 to-surface-100 flex flex-col items-center justify-center p-3 text-center z-10 border border-white/5 select-none">
+              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 text-slate-400 shadow-inner">
+                {(normalized.media_type as string) === 'anime' ? (
+                  <Sparkles className="w-5 h-5 text-rose-400/80" />
+                ) : normalized.media_type === 'tv' ? (
+                  <Tv className="w-5 h-5 text-cyan-400/80" />
+                ) : (
+                  <Film className="w-5 h-5 text-brand-400/80" />
+                )}
+              </div>
+              <span className="text-[11px] font-semibold text-slate-200 line-clamp-2 leading-snug px-1">
+                {normalized.displayTitle}
+              </span>
+              {normalized.displayYear && (
+                <span className="text-[10px] text-slate-400 mt-1 font-mono">{normalized.displayYear}</span>
+              )}
+            </div>
           )}
 
           {/* If playing hover trailer, show trailer player */}
-          {isPlayingTrailer && trailerKey ? (
+          {preferences.enableHoverTrailers && isPlayingTrailer && trailerKey ? (
             <div className="absolute inset-0 z-10">
               <TrailerPlayer
                 trailerKey={trailerKey}
@@ -190,21 +216,24 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 className="w-full h-full"
               />
             </div>
-          ) : (
+          ) : hasValidPoster && !imageError ? (
             <img
               src={getPosterUrl(normalized.poster_path, 'large')}
               alt={normalized.displayTitle}
               loading={hasIntersected ? 'eager' : 'lazy'}
               decoding="async"
               onLoad={() => setImageLoaded(true)}
-              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+              onError={() => setImageError(true)}
+              className={`w-full h-full object-cover transition-opacity duration-300 group-hover:scale-105 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
             />
-          )}
+          ) : null}
 
           {/* Type Badge (Top Left) */}
-          <div className="absolute top-2 left-2 flex items-center justify-between z-20 pointer-events-none">
+          <div className={`absolute top-2 left-2 flex items-center justify-between z-20 pointer-events-none transition-opacity duration-300 ${
+            isVisualReady ? 'opacity-100' : 'opacity-0'
+          }`}>
             {showTypeBadge && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-md text-slate-200 border border-white/10 shadow-md">
                 {(normalized.media_type as string) === 'anime' ? (
@@ -228,7 +257,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
           </div>
           
           {/* Rating/Adult Badges (Top Right) */}
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none z-20">
+          <div className={`absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none z-20 transition-opacity duration-300 ${
+            isVisualReady ? 'opacity-100' : 'opacity-0'
+          }`}>
             {(('adult' in item && Boolean((item as any).adult)) || ('adult' in normalized && Boolean((normalized as any).adult))) && (
               <AdultBadge size="sm" />
             )}
@@ -319,7 +350,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
         </Link>
 
         {/* Info Section (outside poster, inside glass card) */}
-        <div className="pt-2 px-1 flex-1 flex flex-col justify-between">
+        <div className={`pt-2 px-1 flex-1 flex flex-col justify-between transition-opacity duration-300 ${isVisualReady ? 'opacity-100' : 'opacity-0'}`}>
           <h3 className="text-sm font-semibold text-slate-100 line-clamp-1 group-hover:text-brand-300 transition-colors drop-shadow-md">
             {normalized.displayTitle}
           </h3>

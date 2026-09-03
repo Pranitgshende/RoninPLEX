@@ -28,6 +28,7 @@ import { StreamingResult, SubtitleTrack } from '../../services/streaming/types';
 import { useUser } from '../../context/UserContext';
 import { usePlayback } from '../../context/PlaybackContext';
 import { storage } from '../../services/storage';
+import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
 import { streamingManager, FallbackAttempt } from '../../services/streaming/StreamingManager';
 import { getStillUrl } from '../../utils/helpers';
 import { logPlayback } from '../../utils/logger';
@@ -149,28 +150,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const [diagnosticStream, setDiagnosticStream] = useState<StreamingResult | null>(null);
 
-  useEffect(() => {
-    if (isPipHost) {
-      return pipService.registerSnapshotProvider(() => ({
-        sessionId: getActiveSessionId(),
-        sourceGeneration: 1,
-        mediaId,
-        mediaType,
-        seasonNumber,
-        episodeNumber,
-        currentTime: videoRef.current?.currentTime || 0,
-        duration: videoRef.current?.duration || 0,
-        isPlaying: !videoRef.current?.paused,
-        volume: videoRef.current?.volume || 1,
-        muted: videoRef.current?.muted || false,
-        language: 'default',
-        streamResult: stream
-      }));
-    }
-  }, [mediaId, mediaType, seasonNumber, episodeNumber, stream, isPipHost]);
-
   // Initializing state
   const effectiveStream = diagnosticStream || stream;
+
+  useEffect(() => {
+    return pipService.registerSnapshotProvider(() => ({
+      sessionId: getActiveSessionId(),
+      sourceGeneration: 1,
+      mediaId,
+      mediaType,
+      seasonNumber,
+      episodeNumber,
+      currentTime: videoRef.current?.currentTime || 0,
+      duration: videoRef.current?.duration || 0,
+      isPlaying: !videoRef.current?.paused,
+      volume: videoRef.current?.volume || 1,
+      muted: videoRef.current?.muted || false,
+      language: 'default',
+      streamResult: effectiveStream
+    }));
+  }, [mediaId, mediaType, seasonNumber, episodeNumber, effectiveStream]);
 
   const {
     getActiveSessionId,
@@ -207,20 +206,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-  // Auto-hide controls timer
+  // Auto-hide controls timer: exactly 3.0 seconds
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeoutRef.current) {
       clearSessionTimeout(hideControlsTimeoutRef.current);
     }
-    if (isPlaying) {
+    // Pause auto-hide if a menu or modal is open
+    if (!isSpeedMenuOpen && !isSubtitleMenuOpen && !showDiagnostics) {
       hideControlsTimeoutRef.current = setSessionTimeout(getActiveSessionId(), () => {
         setShowControls(false);
         setIsSpeedMenuOpen(false);
         setIsSubtitleMenuOpen(false);
-      }, 3500);
+      }, 3000);
     }
-  }, [isPlaying]);
+  }, [isSpeedMenuOpen, isSubtitleMenuOpen, showDiagnostics]);
 
   // Load fallback history for diagnostics
   useEffect(() => {
@@ -617,6 +617,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isPipHost) return;
     try {
       if (videoRef.current) {
+        videoRef.current.pause();
         videoRef.current.muted = true;
       }
       pipService.storeSnapshot({
@@ -634,8 +635,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         language: 'default',
         streamResult: stream
       });
-      setPresentationMode('PIP');
-      await pipService.openPiPWindow();
+      await playbackContext.enterPiP();
     } catch (err) {
       console.error('Failed to enter system PiP', err);
     }
@@ -736,180 +736,150 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  const handleOpenExternal = useCallback(async (url?: string) => {
+    if (!url) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_in_browser', { url });
+    } catch {
+      window.open(url, '_blank');
+    }
+  }, []);
+
   // Diagnostics Modal Component
   const renderDiagnostics = () => {
     if (!showDiagnostics) return null;
 
     return (
       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in player-control-surface">
-        <div className="w-full max-w-lg bg-surface-200 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-xs">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-brand-400" />
-              <h3 className="font-bold text-white text-sm">Streaming Diagnostics (GSD)</h3>
-            </div>
-            <button
-              onClick={() => setShowDiagnostics(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="space-y-2 font-mono text-[11px]">
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">Active Provider:</span>
-              <span className="text-white font-semibold">{stream.providerName || streamingManager.getActiveProviderName()}</span>
-            </div>
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">Stream Type:</span>
-              <span className="text-brand-400 uppercase font-semibold">{effectiveStream.type || 'embed'}</span>
-            </div>
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">Quality:</span>
-              <span className="text-white">{effectiveStream.quality || 'Auto HD'}</span>
-            </div>
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">Player State:</span>
-              <span className={isIframeLoading && effectiveStream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
-                {effectiveStream.type === 'embed'
-                  ? (isIframeLoading ? 'Connecting / Loading IFrame...' : 'IFrame Loaded & Active')
-                  : (isPlaying ? 'Playing' : 'Paused / Ready')}
-              </span>
+        <PremiumGlowBorder borderRadius="rounded-2xl" intensity="medium" className="w-full max-w-lg shadow-2xl">
+          <div className="w-full bg-surface-200 border border-white/10 rounded-2xl p-6 space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-brand-400" />
+                <h3 className="font-bold text-white text-sm">Streaming Diagnostics (GSD)</h3>
+              </div>
+              <button
+                onClick={() => setShowDiagnostics(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* v2.0.0 Watchdog State Machine Visual Status */}
-            <div className="p-2.5 rounded-xl bg-surface-100 border border-brand-500/20 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-white">Watchdog State Machine:</span>
-                <span className="text-[10px] font-mono font-bold text-brand-400 uppercase">
-                  {watchdogPhase.replace(/_/g, ' ')}
+            <div className="space-y-2 font-mono text-[11px]">
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">Active Provider:</span>
+                <span className="text-white font-semibold">{stream.providerName || streamingManager.getActiveProviderName()}</span>
+              </div>
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">Stream Type:</span>
+                <span className="text-brand-400 uppercase font-semibold">{effectiveStream.type || 'embed'}</span>
+              </div>
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">Quality:</span>
+                <span className="text-white">{effectiveStream.quality || 'Auto HD'}</span>
+              </div>
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">Player State:</span>
+                <span className={isIframeLoading && effectiveStream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
+                  {effectiveStream.type === 'embed'
+                    ? (isIframeLoading ? 'Connecting / Loading IFrame...' : 'IFrame Loaded & Active')
+                    : (isPlaying ? 'Playing' : 'Paused / Ready')}
                 </span>
               </div>
-              <div className="grid grid-cols-5 gap-1 pt-1 text-[9px] text-center font-mono">
-                <div className={`p-1 rounded ${watchdogPhase ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                  1. Resolved
+
+              {/* v2.0.0 Watchdog State Machine Visual Status */}
+              <div className="p-2.5 rounded-xl bg-surface-100 border border-brand-500/20 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-white">Watchdog State Machine:</span>
+                  <span className="text-[10px] font-mono font-bold text-brand-400 uppercase">
+                    {watchdogPhase.replace(/_/g, ' ')}
+                  </span>
                 </div>
-                <div className={`p-1 rounded ${watchdogPhase !== 'source_resolved' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                  2. Init
-                </div>
-                <div className={`p-1 rounded ${['media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                  3. Loaded
-                </div>
-                <div className={`p-1 rounded ${['playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                  4. Started
-                </div>
-                <div className={`p-1 rounded ${watchdogPhase === 'currentTime_advances' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                  5. Advancing
-                </div>
-              </div>
-            </div>
-            {fallbackHistory.length > 0 && (
-              <div className="p-2 rounded glass-subtle space-y-1">
-                <span className="text-slate-400 block">Fallback Attempts:</span>
-                {fallbackHistory.map((att, i) => (
-                  <div key={i} className="flex items-center justify-between text-[10px]">
-                    <span className="text-slate-300">{att.providerName}</span>
-                    <span className={att.status === 'success' ? 'text-emerald-400 font-bold' : 'text-rose-400'}>
-                      {att.status}{att.reason ? ` (${att.reason})` : ''}
-                    </span>
+                <div className="grid grid-cols-5 gap-1 pt-1 text-[9px] text-center font-mono">
+                  <div className={`p-1 rounded ${['source_resolved', 'player_initialized', 'media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
+                    1. Resolved
                   </div>
-                ))}
+                  <div className={`p-1 rounded ${['player_initialized', 'media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
+                    2. Init
+                  </div>
+                  <div className={`p-1 rounded ${['media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
+                    3. Loaded
+                  </div>
+                  <div className={`p-1 rounded ${['playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
+                    4. Started
+                  </div>
+                  <div className={`p-1 rounded ${watchdogPhase === 'currentTime_advances' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
+                    5. Advancing
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">IFrame Sandboxing:</span>
-              <span className={resolvedEmbedPolicy.sandbox ? 'text-emerald-400 font-mono text-[10px]' : 'text-amber-400'}>
-                {resolvedEmbedPolicy.sandbox || 'Standard (Anti-Sandbox Protected)'}
-              </span>
-            </div>
-            <div className="flex justify-between p-2 rounded glass-subtle">
-              <span className="text-slate-400">Top Window Navigation:</span>
-              <span className="text-emerald-400 font-semibold">Blocked (Native OS Guard Active)</span>
-            </div>
-            <div className="p-2 rounded glass-subtle break-all">
-              <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
-              <div className="text-cyan-400 font-semibold">{effectiveStream.url}</div>
+
+              {fallbackHistory.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <span className="text-slate-400">Fallback Attempts:</span>
+                  <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
+                    {fallbackHistory.map((h, i) => (
+                      <div key={i} className="text-[10px] text-slate-300 bg-surface-100 p-1.5 rounded flex justify-between">
+                        <span>{h.providerName}</span>
+                        <span className="text-amber-400">{h.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">IFrame Sandboxing:</span>
+                <span className={resolvedEmbedPolicy.sandbox ? 'text-emerald-400 font-mono text-[10px]' : 'text-amber-400'}>
+                  {resolvedEmbedPolicy.sandbox || 'Standard (Anti-Sandbox Protected)'}
+                </span>
+              </div>
+              <div className="flex justify-between p-2 rounded glass-subtle">
+                <span className="text-slate-400">Top Window Navigation:</span>
+                <span className="text-emerald-400 font-semibold">Blocked (Native OS Guard Active)</span>
+              </div>
+              <div className="p-2 rounded glass-subtle break-all">
+                <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
+                <div className="text-cyan-400 font-semibold">{effectiveStream.url}</div>
+              </div>
             </div>
 
-            {/* Phase 6 Diagnostic Isolation Tests */}
-            <div className="p-3 rounded-xl bg-surface-100 border border-brand-500/20 space-y-2">
-              <div className="text-xs font-bold text-white flex items-center justify-between">
-                <span>Diagnostic Test Media (Phase 6 Isolation)</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300">Verified Test Source</span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Test known legitimate direct streams to verify the internal HTML5 player engine independently of web embed providers.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+              {onTryNextProvider && (
                 <button
-                  type="button"
                   onClick={() => {
-                    logPlayback('Testing diagnostic direct HLS stream (Big Buck Bunny)');
-                    setDiagnosticStream({
-                      available: true,
-                      type: 'hls',
-                      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-                      providerName: 'Mux Big Buck Bunny (Direct HLS)',
-                      providerId: 'diagnostic-hls',
-                      quality: '1080p HLS',
-                    });
                     setShowDiagnostics(false);
+                    onTryNextProvider();
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
                 >
-                  <Play className="w-3 h-3 fill-white" />
-                  <span>Play Direct HLS in App</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Try Next Provider</span>
                 </button>
-                {diagnosticStream && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDiagnosticStream(null);
-                      setShowDiagnostics(false);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-semibold text-xs transition-colors"
-                  >
-                    Reset to Original Stream
-                  </button>
-                )}
-              </div>
+              )}
+              {stream.type === 'embed' && (
+                <button
+                  onClick={handleReloadIframe}
+                  className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reload Stream</span>
+                </button>
+              )}
+              {stream.url && (
+                <button
+                  onClick={() => handleOpenExternal(stream.url)}
+                  className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open in Browser</span>
+                </button>
+              )}
             </div>
           </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-            {onTryNextProvider && (
-              <button
-                onClick={() => {
-                  setShowDiagnostics(false);
-                  onTryNextProvider();
-                }}
-                className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Try Next Provider</span>
-              </button>
-            )}
-            {stream.type === 'embed' && (
-              <button
-                onClick={handleReloadIframe}
-                className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reload Stream</span>
-              </button>
-            )}
-            {stream.url && (
-              <button
-                onClick={() => window.open(stream.url, '_blank')}
-                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open in Browser</span>
-              </button>
-            )}
-          </div>
-        </div>
+        </PremiumGlowBorder>
       </div>
     );
   };
@@ -919,34 +889,64 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // ============================================================================
   if (effectiveStream.type === 'embed' && effectiveStream.url) {
     return (
-      <div className="relative w-full h-screen bg-black flex flex-col overflow-hidden select-none">
+      <div 
+        onMouseMove={resetControlsTimer}
+        onClick={handleContainerClick}
+        className="relative w-full h-screen bg-black flex flex-col overflow-hidden select-none"
+      >
+        {/* Dedicated Top Interaction/Hover Strip for Embed Provider HUD */}
+        <div 
+          onMouseEnter={resetControlsTimer}
+          onMouseMove={resetControlsTimer}
+          className="absolute top-0 left-0 right-0 h-24 z-30 pointer-events-auto bg-transparent"
+        />
+
+        {/* Window-edge hover detection strips */}
+        <div 
+          onMouseEnter={resetControlsTimer}
+          onMouseMove={resetControlsTimer}
+          className="absolute top-24 bottom-0 left-0 w-3 z-30 pointer-events-auto bg-transparent"
+        />
+        <div 
+          onMouseEnter={resetControlsTimer}
+          onMouseMove={resetControlsTimer}
+          className="absolute top-24 bottom-0 right-0 w-3 z-30 pointer-events-auto bg-transparent"
+        />
+
         {/* Top Floating Control Bar */}
-        <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between gap-3 pointer-events-auto player-control-surface">
-          <div className="flex items-center gap-3">
+        <div className={`absolute top-4 left-4 right-4 z-40 flex items-center justify-between gap-3 pointer-events-none transition-opacity duration-300 ${
+          showControls ? 'opacity-100' : 'opacity-0'
+        }`}>
+          {/* Left Title Glass Pill */}
+          <div className="flex items-center gap-3 pointer-events-auto player-control-surface min-w-0 max-w-[55%] sm:max-w-[65%] lg:max-w-[70%] bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 shadow-2xl">
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-white border border-white/10 shadow-lg transition-colors"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
                 title="Return to Details"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <div>
-              <h1 className="text-base font-bold text-white drop-shadow-md">{title}</h1>
+            <div className="min-w-0 flex flex-col justify-center">
+              <h1 className="text-xs sm:text-sm font-bold text-white drop-shadow-md truncate" title={title}>
+                {title}
+              </h1>
               {episodeTitle && (
-                <p className="text-xs text-slate-300">S{seasonNumber} E{episodeNumber}: {episodeTitle}</p>
+                <p className="text-[11px] text-slate-300 truncate" title={`S${seasonNumber} E${episodeNumber}: ${episodeTitle}`}>
+                  S{seasonNumber} E{episodeNumber}: {episodeTitle}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Right Action Icons */}
-          <div className="flex items-center gap-2">
+          {/* Right Action Icons Glass Pill */}
+          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto player-control-surface bg-black/85 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl shrink-0">
             {/* TV Prev Episode */}
             {mediaType === 'tv' && hasPrevEpisode && onPrevEpisode && (
               <button
                 onClick={onPrevEpisode}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
                 title="Play Previous Episode"
               >
                 <SkipBack className="w-4 h-4" />
@@ -957,7 +957,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {mediaType === 'tv' && hasNextEpisode && onNextEpisode && (
               <button
                 onClick={onNextEpisode}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-brand-400 hover:text-brand-300 border border-white/10 shadow-lg transition-colors"
+                className="p-2 rounded-xl bg-brand-500/20 hover:bg-brand-500/30 text-brand-400 hover:text-brand-300 border border-brand-500/30 transition-colors"
                 title="Play Next Episode"
               >
                 <SkipForward className="w-4 h-4" />
@@ -968,7 +968,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {mediaType === 'tv' && onOpenEpisodeDrawer && (
               <button
                 onClick={onOpenEpisodeDrawer}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
                 title="Select Episode"
               >
                 <Layers className="w-4 h-4" />
@@ -979,18 +979,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {onTryNextProvider && (
               <button
                 onClick={onTryNextProvider}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black text-brand-400 hover:text-brand-300 border border-white/10 shadow-lg transition-colors"
+                className="p-2 rounded-xl bg-brand-500/20 hover:bg-brand-500/30 text-brand-400 hover:text-brand-300 border border-brand-500/30 transition-colors"
                 title="Switch to Next Streaming Provider"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
             )}
 
+            {/* Picture-in-Picture */}
+            <button
+              onClick={() => playbackContext.enterPiP()}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
+              title="Picture-in-Picture (P)"
+            >
+              <PictureInPicture className="w-4 h-4" />
+            </button>
 
             {/* Diagnostics HUD */}
             <button
               onClick={() => setShowDiagnostics(true)}
-              className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
               title="Stream Diagnostics (Press D)"
             >
               <Terminal className="w-4 h-4" />
@@ -999,7 +1007,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Reload Stream */}
             <button
               onClick={handleReloadIframe}
-              className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
               title="Reload Stream Player"
             >
               <RefreshCw className="w-4 h-4" />
@@ -1007,8 +1015,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             {/* Open in Window */}
             <button
-              onClick={() => window.open(effectiveStream.url, '_blank')}
-              className="p-2.5 rounded-full bg-black/70 hover:bg-black text-slate-300 hover:text-white border border-white/10 shadow-lg transition-colors"
+              onClick={() => handleOpenExternal(effectiveStream.url)}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
               title="Open stream in external window"
             >
               <ExternalLink className="w-4 h-4" />
@@ -1048,6 +1056,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Reload</span>
+            </button>
+            <button
+              onClick={() => playbackContext.enterPiP()}
+              className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold flex items-center gap-1.5 transition-colors"
+              title="Open Picture-in-Picture"
+            >
+              <PictureInPicture className="w-3.5 h-3.5" />
+              <span>PiP</span>
             </button>
             <button
               onClick={() => {
@@ -1274,30 +1290,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }`}
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 max-w-[65%] lg:max-w-[75%] bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 shadow-2xl">
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-white transition-colors"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
                 title="Back"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <div>
-              <h1 className="text-base font-bold text-white leading-tight">{title}</h1>
+            <div className="min-w-0 flex flex-col justify-center">
+              <h1 className="text-xs sm:text-sm font-bold text-white drop-shadow-md truncate" title={title}>{title}</h1>
               {episodeTitle && (
-                <p className="text-xs text-slate-400">
+                <p className="text-[11px] text-slate-300 truncate" title={`Season ${seasonNumber} · Episode ${episodeNumber} · ${episodeTitle}`}>
                   Season {seasonNumber} · Episode {episodeNumber} · {episodeTitle}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-black/85 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl shrink-0">
             <button
               onClick={() => setShowDiagnostics(true)}
-              className="p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
               title="Stream Diagnostics (Press D)"
             >
               <Terminal className="w-4 h-4" />

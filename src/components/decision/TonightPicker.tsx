@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Film, Tv, Clock, Compass, X, Play, BookmarkCheck, Bookmark, RefreshCw } from 'lucide-react';
 import { MOODS, recommendation } from '../../services/recommendation';
 import { MoodType, ScoredMediaItem } from '../../types/recommendation';
@@ -7,6 +8,7 @@ import { getBackdropUrl } from '../../utils/helpers';
 import { RatingBadge } from '../common/RatingBadge';
 import { TrailerModal } from '../common/TrailerModal';
 import { useUser } from '../../context/UserContext';
+import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
 
 interface TonightPickerProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
   onClose,
   poolItems,
 }) => {
+  const navigate = useNavigate();
   const [selectedMood, setSelectedMood] = useState<MoodType>('mind-bending');
   const [mediaType, setMediaType] = useState<'all' | 'movie' | 'tv'>('all');
   const [maxMinutes, setMaxMinutes] = useState<number | undefined>(undefined);
@@ -29,6 +32,18 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
   const { isInWatchlist, toggleWatchlist } = useUser();
 
   if (!isOpen) return null;
+
+  const getDetailsUrl = (item: ScoredMediaItem) => {
+    if (item.mediaType === 'anime') return `/anime/${item.id}`;
+    if (item.mediaType === 'movie') return `/movie/${item.id}`;
+    return `/tv/${item.id}`;
+  };
+
+  const handleViewDetails = () => {
+    if (!result) return;
+    onClose();
+    navigate(getDetailsUrl(result));
+  };
 
   const handleGenerate = () => {
     setIsSpinning(true);
@@ -57,22 +72,24 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
         onClick={onClose}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tonight-picker-title"
       >
         <div
-          className="relative w-full max-w-2xl glass-elevated rounded-2xl overflow-hidden flex flex-col animate-scale-in"
+          className="w-full max-w-2xl animate-scale-in"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-surface-300/80">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/30 to-brand-500/30 text-amber-300 border border-amber-500/30 shadow-lg">
-                <Compass className="w-5 h-5" />
-              </div>
+          <PremiumGlowBorder borderRadius="rounded-2xl" intensity="subtle" innerClassName="bg-surface-200/95 backdrop-blur-2xl">
+            <div className="relative overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-surface-300/80">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/30 to-brand-500/30 text-amber-300 border border-amber-500/30 shadow-lg">
+                    <Compass className="w-5 h-5" />
+                  </div>
               <div>
                 <h3 id="tonight-picker-title" className="text-lg font-bold text-white font-display">
                   What Should I Watch Tonight?
@@ -224,11 +241,16 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
               </div>
             ) : (
               <div className="space-y-5 animate-scale-in">
-                <div className="relative rounded-2xl overflow-hidden glass-subtle aspect-video group">
+                {/* Clickable Backdrop Card */}
+                <div
+                  onClick={handleViewDetails}
+                  className="relative rounded-2xl overflow-hidden glass-subtle aspect-video group cursor-pointer border border-white/10 hover:border-brand-500/50 transition-all shadow-xl"
+                  title="Click to view details"
+                >
                   <img
                     src={getBackdropUrl(result.backdropPath, 'large')}
                     alt={result.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-surface-300 via-surface-300/60 to-transparent" />
                   
@@ -254,7 +276,7 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                         </>
                       )}
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-white font-display leading-tight">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white font-display leading-tight group-hover:text-brand-300 transition-colors">
                       {result.title}
                     </h3>
                   </div>
@@ -269,13 +291,24 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                   {result.overview}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                {/* Primary CTA: View Details & Play */}
+                <button
+                  type="button"
+                  onClick={handleViewDetails}
+                  className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-500 hover:from-brand-500 hover:to-indigo-500 text-white text-sm font-bold shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2 transform active:scale-[0.99]"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>View Details & Play</span>
+                </button>
+
+                {/* Secondary Actions */}
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button
                     type="button"
                     onClick={() => setIsTrailerModalOpen(true)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/10 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Play className="w-4 h-4 fill-current" />
+                    <Play className="w-4 h-4" />
                     <span>Watch Trailer</span>
                   </button>
 
@@ -314,7 +347,9 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </PremiumGlowBorder>
+    </div>
+  </div>
 
       {result && (
         <TrailerModal

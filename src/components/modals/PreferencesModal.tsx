@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { MOCK_GENRES } from '../../services/mockData';
 import { DEFAULT_USER_PREFERENCES } from '../../types/user';
 import { AdultBadge } from '../common/AdultBadge';
+import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
 
 export const PreferencesModal: React.FC = () => {
   const { isPreferencesOpen, closePreferences, preferences, updatePreferences } = useUser();
@@ -87,10 +88,11 @@ export const PreferencesModal: React.FC = () => {
       aria-modal="true"
       aria-labelledby="preferences-title"
     >
-      <div 
-        className="relative w-full max-w-2xl max-h-[85vh] glass-elevated rounded-2xl overflow-hidden animate-scale-in flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <PremiumGlowBorder borderRadius="rounded-2xl" intensity="medium" className="w-full max-w-2xl max-h-[85vh] animate-scale-in shadow-2xl">
+        <div 
+          className="relative w-full h-full max-h-[85vh] bg-surface-200/95 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-surface-300/40">
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-xl bg-brand-500/20 text-brand-400">
@@ -309,6 +311,7 @@ export const PreferencesModal: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </PremiumGlowBorder>
+  </div>
   );
 };

@@ -27,6 +27,7 @@ import { NotFound } from './pages/NotFound';
 
 import { useAppLifecycle } from './context/AppLifecycleContext';
 import { PiPWindowApp } from './components/player/PiPWindowApp';
+import { ScrollToTop } from './components/common/ScrollToTop';
 
 export const App: React.FC = () => {
   const location = useLocation();
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-slate-100 font-sans selection:bg-brand-600 selection:text-white">
+      <ScrollToTop />
       {!isIntroComplete && (
         <RoninIntro onComplete={completeIntro} isAppReady={appState === 'ready'} />
       )}

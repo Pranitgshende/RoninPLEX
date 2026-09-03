@@ -112,7 +112,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   minRatingThreshold: 6.5,
   onboardingCompleted: false,
   autoplayTrailer: true,
-  enableHoverTrailers: true,
+  enableHoverTrailers: false,
   reduceMotion: false,
   skipIntro: false,
   adultContent: false,

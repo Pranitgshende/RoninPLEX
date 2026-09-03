@@ -10,21 +10,33 @@ import { TonightPicker } from '../decision/TonightPicker';
 import { getBackdropUrl, normalizeMedia } from '../../utils/helpers';
 import { formatRuntime, formatYear } from '../../utils/formatting';
 import { useUser } from '../../context/UserContext';
+import { useAppLifecycle } from '../../context/AppLifecycleContext';
 import { useTrailer } from '../../hooks/useTrailer';
+import { SkeletonHero } from '../common/skeleton/SkeletonHero';
 
 interface HeroBannerProps {
-  item: Movie | TVShow;
+  item?: Movie | TVShow | null;
   recommendationReason?: string;
   poolItems?: (Movie | TVShow)[];
+  isIntroComplete?: boolean;
+  isLoading?: boolean;
 }
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({
   item,
   recommendationReason = 'Top personalized recommendation for tonight',
   poolItems = [],
+  isIntroComplete,
+  isLoading,
 }) => {
   const navigate = useNavigate();
+
+  if (isLoading || !item) {
+    return <SkeletonHero />;
+  }
+
   const normalized = normalizeMedia(item);
+  const { canAnimatePage } = useAppLifecycle();
   const { isInWatchlist, toggleWatchlist, preferences } = useUser();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isTonightPickerOpen, setIsTonightPickerOpen] = useState(false);
@@ -115,7 +127,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             {/* Title */}
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white font-display tracking-tight leading-tight drop-shadow-2xl">
-              <ScrambleText text={normalized.displayTitle} />
+              <ScrambleText text={normalized.displayTitle} autoStart={canAnimatePage} />
             </h1>
 
             {/* Metadata Bar */}

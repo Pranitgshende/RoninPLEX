@@ -19,6 +19,39 @@ const QUICK_PROMPTS = [
   'Feel-good comedy to unwind',
 ];
 
+const DecisionHelperCardPoster: React.FC<{ posterUrl: string; title: string; isAdult?: boolean }> = ({ posterUrl, title, isAdult }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const hasValid = Boolean(posterUrl && !posterUrl.startsWith('data:image/svg+xml'));
+
+  return (
+    <div className="w-20 aspect-[2/3] rounded-xl overflow-hidden bg-surface-300 flex-shrink-0 relative shadow-md">
+      {!loaded && !error && hasValid && (
+        <div className="absolute inset-0 bg-surface-200/80 animate-pulse" />
+      )}
+      {(!hasValid || error) ? (
+        <div className="absolute inset-0 bg-gradient-to-br from-surface-200 to-surface-300 flex items-center justify-center p-2 text-center">
+          <span className="text-[9px] font-semibold text-slate-400 line-clamp-2">{title}</span>
+        </div>
+      ) : (
+        <img
+          src={posterUrl}
+          alt={title}
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      )}
+      {isAdult && (loaded || error || !hasValid) && (
+        <div className="absolute top-1 left-1">
+          <AdultBadge size="sm" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const DecisionHelper: React.FC = () => {
   const navigate = useNavigate();
   const { isInWatchlist, toggleWatchlist } = useUser();
@@ -188,7 +221,7 @@ export const DecisionHelper: React.FC = () => {
           <RoninAvatar size="md" state={avatarState} interactive={true} />
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-white font-display">
-              <ScrambleText text="Ronin AI" />
+              <ScrambleText text="Ronin AI" autoStart={true} />
             </h1>
             <p className="text-xs text-slate-400">Conversational cinema guide with bespoke samurai intelligence</p>
           </div>
@@ -263,19 +296,7 @@ export const DecisionHelper: React.FC = () => {
                         className="min-w-[280px] max-w-[280px] p-3.5 rounded-2xl bg-surface-200/90 border border-white/10 flex flex-col justify-between hover:border-brand-500/40 transition-all shadow-xl glass-standard group snap-start"
                       >
                         <div className="flex gap-3 relative z-10">
-                          <div className="w-20 aspect-[2/3] rounded-xl overflow-hidden bg-surface-300 flex-shrink-0 relative shadow-md">
-                            <img
-                              src={posterUrl}
-                              alt={title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              loading="lazy"
-                            />
-                            {item.adult && (
-                              <div className="absolute top-1 left-1">
-                                <AdultBadge size="sm" />
-                              </div>
-                            )}
-                          </div>
+                          <DecisionHelperCardPoster posterUrl={posterUrl} title={title} isAdult={Boolean(item.adult)} />
 
                           <div className="flex-1 min-w-0 flex flex-col justify-between">
                             <div>

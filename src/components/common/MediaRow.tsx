@@ -49,7 +49,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-display">
-              <ScrambleText text={title} autoStart={isIntroComplete} />
+              <ScrambleText text={title} autoStart={false} />
             </h2>
             {badge && (
               <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-md bg-brand-500/20 text-brand-300 border border-brand-500/30">

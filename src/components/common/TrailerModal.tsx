@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { X, Play, AlertCircle } from 'lucide-react';
+import { PremiumGlowBorder } from './PremiumGlowBorder';
 
 interface TrailerModalProps {
   isOpen: boolean;
@@ -43,20 +44,21 @@ export const TrailerModal: React.FC<TrailerModalProps> = ({
       aria-modal="true"
       aria-labelledby="trailer-modal-title"
     >
-      <div 
-        className="relative w-full max-w-5xl glass-elevated rounded-2xl overflow-hidden animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-surface-300/40">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-1.5 rounded-lg bg-brand-500/20 text-brand-400">
-              <Play className="w-4 h-4 fill-current" />
+      <PremiumGlowBorder borderRadius="rounded-2xl" intensity="medium" className="w-full max-w-5xl animate-scale-in shadow-2xl">
+        <div 
+          className="relative w-full bg-surface-200/95 backdrop-blur-xl rounded-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-surface-300/40">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-1.5 rounded-lg bg-brand-500/20 text-brand-400">
+                <Play className="w-4 h-4 fill-current" />
+              </div>
+              <h3 id="trailer-modal-title" className="text-base sm:text-lg font-semibold text-white line-clamp-1">
+                {title} — Official Trailer
+              </h3>
             </div>
-            <h3 id="trailer-modal-title" className="text-base sm:text-lg font-semibold text-white line-clamp-1">
-              {title} — Official Trailer
-            </h3>
-          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 active:scale-95"
@@ -87,6 +89,7 @@ export const TrailerModal: React.FC<TrailerModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </PremiumGlowBorder>
+  </div>
   );
 };

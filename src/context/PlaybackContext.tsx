@@ -1,6 +1,7 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Settings as SettingsIcon, ChevronLeft, AlertCircle, RefreshCw, PlayCircle, X, Layers, Terminal } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
@@ -48,8 +49,17 @@ interface PlaybackContextType {
   
   presentationMode: PresentationMode;
   setPresentationMode: (mode: PresentationMode) => void;
+  enterPiP: () => Promise<boolean>;
   restoreSnapshot?: { currentTime: number; isPlaying: boolean } | null;
   clearRestoreSnapshot: () => void;
+
+  // TV Drawer specific state
+  isEpisodeDrawerOpen: boolean;
+  setIsEpisodeDrawerOpen: (open: boolean) => void;
+  drawerSeasonNumber: number;
+  setDrawerSeasonNumber: (num: number) => void;
+  drawerSeasonEpisodes: Episode[];
+  isDrawerLoading: boolean;
   
   // Actions
   play: (id: number, type: PlaybackType, season?: number, episode?: number) => void;
@@ -61,7 +71,7 @@ interface PlaybackContextType {
   handleNextEpisode: () => void;
   hasNextEpisode: boolean;
   handleTryNextProvider: () => void;
-  onSelectEpisode: (epNum: number) => void;
+  onSelectEpisode: (epNum: number, seasonNum?: number) => void;
   onSelectRelated: (relatedId: string) => void;
   triggerRetry: () => void;
 }
@@ -280,32 +290,93 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
   }, [mediaId, isTV, isAnime, seasonNumber, episodeNumber, retryCount, animeLanguage]);
 
 
+  const play = useCallback((id: number, type: PlaybackType, season?: number, episode?: number) => {
+    setMediaId(id);
+    setMediaType(type);
+    setStreamResult(null);
+    setAnimeStreamSource(null);
+    setSeasonNumber(season ?? 1);
+    setEpisodeNumber(episode ?? 1);
+    setPresentationMode('FULL');
+  }, []);
+
+  const closePlayer = useCallback(async () => {
+    setPresentationMode('CLOSED');
+    setMediaId(0);
+    setMediaType(null);
+    setStreamResult(null);
+    setAnimeStreamSource(null);
+    setAnimeItem(null);
+    await pipService.closePiPWindow();
+    try {
+      const win = getCurrentWindow();
+      await win.show();
+      await win.setFocus();
+    } catch {}
+  }, []);
+
   useEffect(() => {
-    const unsubscribe = pipService.subscribe((msg) => {
+    const unsubscribe = pipService.subscribe(async (msg) => {
       if (msg.type === 'PIP_READY') {
         pipService.provideSnapshot();
+      } else if (msg.type === 'COMMAND_CLOSE_PIP') {
+        if (msg.payload) {
+          setRestoreSnapshot({ currentTime: msg.payload.currentTime, isPlaying: msg.payload.isPlaying });
+        }
+        setPresentationMode('FULL');
+        await pipService.closePiPWindow();
+        try {
+          const win = getCurrentWindow();
+          await win.show();
+          await win.setFocus();
+        } catch (e) {
+          console.warn('[Playback] Error restoring main window on CLOSE_PIP:', e);
+        }
+      } else if (msg.type === 'COMMAND_STOP') {
+        closePlayer();
+        await pipService.closePiPWindow();
+        try {
+          const win = getCurrentWindow();
+          await win.show();
+          await win.setFocus();
+        } catch (e) {
+          console.warn('[Playback] Error showing main window on STOP:', e);
+        }
+      } else if (msg.type === 'COMMAND_EXIT_APP') {
+        await pipService.exitApplication();
       } else if (msg.type === 'PIP_DESTROYED') {
         if (msg.payload) {
           setRestoreSnapshot({ currentTime: msg.payload.currentTime, isPlaying: msg.payload.isPlaying });
         }
         setPresentationMode('FULL');
-        // Unhide main window if it was hidden
-        getCurrentWindow().show();
-      } else if (msg.type === 'COMMAND_STOP') {
-        closePlayer();
+        try {
+          const win = getCurrentWindow();
+          await win.show();
+          await win.setFocus();
+        } catch (e) {
+          console.warn('[Playback] Error showing main window on PIP_DESTROYED:', e);
+        }
       }
     });
     return () => { unsubscribe(); };
-  }, []);
+  }, [closePlayer]);
 
   useEffect(() => {
     const win = getCurrentWindow();
     let unlisten: (() => void) | undefined;
     
     win.onCloseRequested(async (event) => {
-      if (presentationMode === 'PIP') {
+      let pipWin = null;
+      try {
+        pipWin = await WebviewWindow.getByLabel('pip-window');
+      } catch {}
+
+      if (presentationMode === 'PIP' && pipWin) {
         event.preventDefault();
         await win.hide();
+      } else {
+        event.preventDefault();
+        await pipService.exitApplication();
       }
     }).then(u => { unlisten = u; });
     
@@ -314,27 +385,53 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     };
   }, [presentationMode]);
 
-  const play = useCallback((id: number, type: PlaybackType, season?: number, episode?: number) => {
-    setMediaId(id);
-    setMediaType(type);
-    if (season) setSeasonNumber(season);
-    if (episode) setEpisodeNumber(episode);
-    setPresentationMode('FULL');
-  }, []);
+  const enterPiP = useCallback(async (): Promise<boolean> => {
+    // Invariant: Must have active media and stream
+    if (!mediaId || (!streamResult && !animeStreamSource)) {
+      console.warn('[Playback] Cannot enter PiP: No active media source');
+      return false;
+    }
 
-  const closePlayer = useCallback(() => {
-    setPresentationMode('CLOSED');
-    setMediaId(0);
-    setMediaType(null);
-    setStreamResult(null);
-    setAnimeStreamSource(null);
-    setAnimeItem(null);
-    getCurrentWindow().show(); // Ensure window is visible
-  }, []);
+    let snapshot = pipService.pullSnapshot();
+    if (!snapshot) {
+      console.warn('[Playback] Snapshot provider returned null, constructing from PlaybackContext state');
+      snapshot = {
+        sessionId: `session_${mediaId}_${Date.now()}`,
+        sourceGeneration: 1,
+        mediaId: mediaId!,
+        mediaType: mediaType!,
+        seasonNumber,
+        episodeNumber,
+        currentTime: 0,
+        duration: 0,
+        isPlaying: true,
+        volume: 1,
+        muted: false,
+        language: 'default',
+        streamResult: streamResult || undefined,
+        animeStreamSource: animeStreamSource || undefined,
+      };
+    }
 
-  const onSelectEpisode = (epNum: number) => {
-    navigate(`/watch/anime/${mediaId}/${epNum}`);
-  };
+    const success = await pipService.requestEnterPiP(snapshot);
+    if (success) {
+      setPresentationMode('PIP');
+      return true;
+    } else {
+      console.warn('[Playback] PiP creation failed or timed out, retaining FULL mode');
+      setPresentationMode('FULL');
+      return false;
+    }
+  }, [mediaId, streamResult, animeStreamSource]);
+
+  const onSelectEpisode = useCallback((epNum: number, sNum?: number) => {
+    if (isAnime) {
+      navigate(`/watch/anime/${mediaId}/${epNum}`);
+    } else {
+      const targetSeason = sNum || seasonNumber;
+      navigate(`/watch/tv/${mediaId}/${targetSeason}/${epNum}`);
+    }
+  }, [isAnime, mediaId, seasonNumber, navigate]);
 
   const onSelectRelated = (relatedId: string) => {
     navigate(`/watch/anime/${relatedId}/1`);
@@ -441,8 +538,11 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
       mediaId, mediaType, seasonNumber, episodeNumber,
       streamResult, animeStreamSource, movie, tvShow, currentSeason, currentEpisode, animeItem, animeEpisodes,
       animeLanguage, setAnimeLanguage, retryCount, isLoading,
-      presentationMode, setPresentationMode,
+      presentationMode, setPresentationMode, enterPiP,
       restoreSnapshot, clearRestoreSnapshot,
+      isEpisodeDrawerOpen, setIsEpisodeDrawerOpen,
+      drawerSeasonNumber, setDrawerSeasonNumber,
+      drawerSeasonEpisodes, isDrawerLoading,
       play, closePlayer,
       handlePrevEpisode, hasPrevEpisode, handleNextEpisode, hasNextEpisode, handleTryNextProvider,
       onSelectEpisode, onSelectRelated, triggerRetry

@@ -9,6 +9,7 @@ import { Sparkles } from 'lucide-react';
 import { Movie, TVShow } from '../../types/tmdb';
 import { normalizeMedia, getPosterUrl } from '../../utils/helpers';
 import { RatingBadge } from './RatingBadge';
+import { RoninLogo } from './RoninLogo';
 
 export const Navbar: React.FC = () => {
   const { watchlist, openPreferences } = useUser();
@@ -116,15 +117,13 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2.5 flex-shrink-0">
             {/* Logo Icon -> Home */}
             <Link to="/" className="group" title="Home">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-brand-600/30 group-hover:scale-105 transition-transform">
-                <Film className="w-5 h-5" />
-              </div>
+              <RoninLogo size={36} showText={false} className="group-hover:scale-105 transition-transform" />
             </Link>
             
             {/* Wordmark -> Ronin AI */}
             <Link to="/decision" className="flex flex-col group" title="Ask Ronin AI">
               <span className="text-lg sm:text-xl font-black font-display tracking-tight text-white group-hover:text-brand-400 transition-colors leading-none flex items-center gap-1.5">
-                RONIN<span className="text-brand-500">PLEX</span>
+                Ronin<span className="text-brand-500">PLEX</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse hidden sm:block" />
               </span>
               <span className="text-[9px] uppercase tracking-widest text-slate-400 font-semibold leading-none mt-0.5 group-hover:text-brand-300 transition-colors">

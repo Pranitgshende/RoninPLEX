@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { storage } from '../services/storage';
 import { version } from '../../package.json';
+import { RoninLogo } from '../components/common/RoninLogo';
 
 type SettingsTab = 'playback' | 'appearance' | 'home' | 'data' | 'services' | 'about';
 
@@ -234,6 +235,23 @@ export const Settings: React.FC = () => {
                     <option value={15}>15 Seconds</option>
                     <option value={30}>30 Seconds</option>
                   </select>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-white/5">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Play trailers on card hover</h3>
+                    <p className="text-xs text-slate-400 mt-1">Preview video trailers when hovering over movie and TV cards.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={preferences.enableHoverTrailers === true}
+                      onChange={(e) => handlePreferenceChange('enableHoverTrailers', e.target.checked)}
+                      aria-label="Play trailers on card hover"
+                    />
+                    <div className="w-11 h-6 bg-surface-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-300 peer-checked:after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500 shadow-inner"></div>
+                  </label>
                 </div>
               </section>
             </div>
@@ -498,10 +516,10 @@ export const Settings: React.FC = () => {
           {activeTab === 'about' && (
             <div className="space-y-6 animate-slide-up">
               <section className="bg-surface-200/40 border border-white/5 rounded-2xl p-5 sm:p-6 space-y-5 glass-subtle text-center flex flex-col items-center">
-                <Monitor className="w-12 h-12 text-brand-500 mb-2" />
+                <RoninLogo size={56} showText={false} className="mb-2" />
                 <h2 className="text-xl font-bold text-white font-display">RoninPLEX</h2>
                 <div className="text-sm text-slate-400 max-w-md mx-auto space-y-4">
-                  <p>Version {version} — Phase 13</p>
+                  <p>Version {version}</p>
                   <p>Developed with native DOM APIs and minimal dependencies. Built on the principle of providing a cinematic, accessible, and offline-first streaming experience.</p>
                   <div className="inline-block mt-4 px-3 py-1 bg-brand-500/20 text-brand-400 rounded-full text-xs font-mono">
                     always_on: true

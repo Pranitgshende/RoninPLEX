@@ -84,24 +84,22 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   } = usePlaybackSession(parseInt(anime.id as string, 10) || 0, 'anime', 1, episodeNumber, null, stream?.isHLS ? 'hls' : 'mp4', stream?.sourceUrl || '');
 
   useEffect(() => {
-    if (isPipHost) {
-      return pipService.registerSnapshotProvider(() => ({
-        sessionId: getActiveSessionId(),
-        sourceGeneration: 1,
-        mediaId: Number(anime.id),
-        mediaType: 'anime',
-        seasonNumber: 1,
-        episodeNumber,
-        currentTime: videoRef.current?.currentTime || 0,
-        duration: videoRef.current?.duration || 0,
-        isPlaying: !videoRef.current?.paused,
-        volume: videoRef.current?.volume || 1,
-        muted: videoRef.current?.muted || false,
-        language: 'default',
-        animeStreamSource: stream
-      }));
-    }
-  }, [anime.id, episodeNumber, stream, isPipHost]);
+    return pipService.registerSnapshotProvider(() => ({
+      sessionId: getActiveSessionId(),
+      sourceGeneration: 1,
+      mediaId: Number(anime.id),
+      mediaType: 'anime',
+      seasonNumber: 1,
+      episodeNumber,
+      currentTime: videoRef.current?.currentTime || 0,
+      duration: videoRef.current?.duration || 0,
+      isPlaying: !videoRef.current?.paused,
+      volume: videoRef.current?.volume || 1,
+      muted: videoRef.current?.muted || false,
+      language: 'default',
+      animeStreamSource: stream
+    }));
+  }, [anime.id, episodeNumber, stream]);
 
   const { savePlaybackProgress, preferences } = useUser();
   const [isMuted, setIsMuted] = useState(false);
@@ -426,8 +424,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
         language: 'default',
         animeStreamSource: stream
       });
-      setPresentationMode('PIP');
-      await pipService.openPiPWindow();
+      await playbackContext.enterPiP();
     } catch (err) {
       console.error('Failed to enter system PiP', err);
     }
@@ -628,31 +625,35 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        <button
-          onClick={onBack}
-          className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2 backdrop-blur-md border border-white/10"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span>Exit Player</span>
-        </button>
+        <div className="flex items-center gap-3 min-w-0 max-w-[65%] sm:max-w-[75%] bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 shadow-2xl">
+          <button
+            onClick={onBack}
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+            title="Exit Player"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Exit</span>
+          </button>
 
-        <div className="text-center">
-          <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-md">
-            {anime.title}
-          </h2>
-          <p className="text-xs text-rose-400 font-semibold mt-0.5">
-            Episode {episodeNumber} of {totalEpCount}
-          </p>
+          <div className="min-w-0 flex flex-col justify-center">
+            <h2 className="text-xs sm:text-sm font-bold text-white truncate" title={anime.title}>
+              {anime.title}
+            </h2>
+            <p className="text-[11px] text-rose-400 font-semibold truncate" title={`Episode ${episodeNumber} of ${totalEpCount}`}>
+              Episode {episodeNumber} of {totalEpCount}
+            </p>
+          </div>
         </div>
 
         {/* Action Pills */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-black/85 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl shrink-0">
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md border border-white/10"
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Select Episode"
           >
             <Layers className="w-4 h-4 text-rose-400" />
-            <span>Episodes</span>
+            <span className="hidden sm:inline">Episodes</span>
           </button>
         </div>
       </div>

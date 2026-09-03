@@ -11,6 +11,7 @@ interface RoninIntroProps {
 }
 
 import logoUrl from '../../assets/logo.png';
+import brandMarkUrl from '../../assets/brand-mark.png';
 
 export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,12 +95,12 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
       {/* Logo Mark */}
       <div ref={logoRef} className="relative z-10 flex flex-col items-center">
         <img 
-          src={logoUrl} 
+          src={brandMarkUrl} 
           alt="RoninPLEX Logo" 
-          className="w-48 sm:w-64 md:w-80 h-auto drop-shadow-2xl opacity-90"
+          className="w-32 sm:w-44 md:w-52 h-auto drop-shadow-2xl opacity-90 rounded-full"
         />
-        <div className="mt-6 text-2xl sm:text-3xl md:text-4xl font-display font-black tracking-[0.25em] text-white/95 uppercase drop-shadow-lg">
-          <ScrambleText text="RONINPLEX" autoStart={false} ref={scrambleRef} />
+        <div className="mt-6 text-2xl sm:text-3xl md:text-4xl font-display font-black tracking-[0.15em] text-white/95 drop-shadow-lg">
+          <ScrambleText text="RoninPLEX" duration={4.5} autoStart={false} ref={scrambleRef} />
         </div>
       </div>
     </div>

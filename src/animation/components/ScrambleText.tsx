@@ -25,7 +25,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   chars = DEFAULT_CHARS,
   className = '',
   delay = 0,
-  autoStart = true,
+  autoStart = false,
   onComplete
 }, ref) => {
   const elRef = useRef<HTMLSpanElement>(null);
@@ -42,24 +42,40 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
 
     if (tweenRef.current) {
       tweenRef.current.kill();
+      tweenRef.current = null;
     }
 
     const obj = { p: 0 };
     const originalLength = text.length;
+    let frameCount = 0;
+    const charBuffer: string[] = [];
+    for (let i = 0; i < originalLength; i++) {
+      charBuffer.push(chars[Math.floor(Math.random() * chars.length)]);
+    }
 
     tweenRef.current = gsap.to(obj, {
       p: 1,
       duration,
       delay,
-      ease: "power2.out",
+      ease: "none", // Constant linear resolution across the full duration
       onUpdate: () => {
         if (!elRef.current) return;
+        frameCount++;
+        // Update character buffer every 3 frames (~20fps cadence) for deliberate cinematic motion
+        const shouldMutate = frameCount % 3 === 0;
+        const solvedCount = Math.floor(obj.p * originalLength);
+
         let result = "";
         for (let i = 0; i < originalLength; i++) {
-          if (i < obj.p * originalLength) {
+          if (text[i] === ' ') {
+            result += ' ';
+          } else if (i < solvedCount) {
             result += text[i];
           } else {
-            result += chars[Math.floor(Math.random() * chars.length)];
+            if (shouldMutate) {
+              charBuffer[i] = chars[Math.floor(Math.random() * chars.length)];
+            }
+            result += charBuffer[i];
           }
         }
         elRef.current.innerText = result;
@@ -72,8 +88,11 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   };
 
   const reset = () => {
-    if (tweenRef.current) tweenRef.current.kill();
-    if (elRef.current) elRef.current.innerText = reducedMotion ? text : "";
+    if (tweenRef.current) {
+      tweenRef.current.kill();
+      tweenRef.current = null;
+    }
+    if (elRef.current) elRef.current.innerText = text;
   };
 
   useImperativeHandle(ref, () => ({
@@ -93,13 +112,13 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   return (
     <span 
       aria-label={text} 
-      className={`relative inline-block ${className}`}
+      className={`relative inline-block whitespace-nowrap select-none ${className}`}
       onMouseEnter={start}
     >
-      <span className="invisible pointer-events-none select-none whitespace-pre-wrap" aria-hidden="true">
+      <span className="invisible pointer-events-none select-none whitespace-nowrap" aria-hidden="true">
         {text}
       </span>
-      <span ref={elRef} className="absolute inset-0" aria-hidden="true">
+      <span ref={elRef} className="absolute inset-0 whitespace-nowrap overflow-hidden" aria-hidden="true">
         {reducedMotion || !autoStart ? text : ''}
       </span>
     </span>

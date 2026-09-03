@@ -411,16 +411,22 @@ describe('RoninPLEX v2.0.0 Master Architecture Suite', () => {
     // Start backend server
     const serverProcess = spawn(process.execPath, ['backend/server.js']);
     
-    // Wait for server to start
-    await new Promise(r => setTimeout(r, 2000));
-    
+    const fetch = (await import('node-fetch')).default;
+    const proxyUrl = 'http://127.0.0.1:4173/proxy?url=https%3A%2F%2Fstream.animeparadise.moe%2Fts%3Furl%3D46cXRUVzoevXjsjj_uEYS23ULBOuh1VmO9L6dlr1O561mBhHsw9Kusu4fWwFxKZYIc_Ab1Z422ZAUX7UOjSYCzGNkiecRWt714StzppWiMNr7QfKq-Ho8a5-u2GQ5cJgnUPY9_Qub49DOU66MQT08xv47H99fRLCctag3qAcRi96mZawgO8QPXL6Pq4T0kEccmDRWuU8CDNFpbVVXmAPiYXM';
+
     try {
-      const fetch = (await import('node-fetch')).default;
-      const proxyUrl = 'http://127.0.0.1:4173/proxy?url=https%3A%2F%2Fstream.animeparadise.moe%2Fts%3Furl%3D46cXRUVzoevXjsjj_uEYS23ULBOuh1VmO9L6dlr1O561mBhHsw9Kusu4fWwFxKZYIc_Ab1Z422ZAUX7UOjSYCzGNkiecRWt714StzppWiMNr7QfKq-Ho8a5-u2GQ5cJgnUPY9_Qub49DOU66MQT08xv47H99fRLCctag3qAcRi96mZawgO8QPXL6Pq4T0kEccmDRWuU8CDNFpbVVXmAPiYXM';
+      // Poll until server is ready (up to 8 seconds)
+      let res = null;
+      for (let i = 0; i < 16; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        try {
+          res = await fetch(proxyUrl);
+          if (res) break;
+        } catch {}
+      }
       
-      const res = await fetch(proxyUrl);
+      assert.ok(res, 'Server must respond within polling window');
       const ct = res.headers.get('content-type');
-      
       assert.strictEqual(ct, 'video/MP2T', 'Proxy must rewrite image/jpeg to video/MP2T for Tauri WebView2 compatibility');
     } finally {
       serverProcess.kill();

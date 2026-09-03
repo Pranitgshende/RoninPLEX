@@ -1,6 +1,7 @@
 import React from 'react';
-import { Film, Key } from 'lucide-react';
+import { Key } from 'lucide-react';
 import { useApiKey } from '../../context/ApiKeyContext';
+import { RoninLogo } from './RoninLogo';
 
 export const Footer: React.FC = () => {
   const { openModal } = useApiKey();
@@ -9,14 +10,7 @@ export const Footer: React.FC = () => {
     <footer className="w-full bg-surface-300/80 border-t border-white/5 mt-20 text-slate-400 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center md:items-start gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-white">
-              <Film className="w-4 h-4" />
-            </div>
-            <span className="text-base font-black font-display text-white tracking-tight">
-              RONIN<span className="text-brand-500">PLEX</span>
-            </span>
-          </div>
+          <RoninLogo size={28} showText={true} />
           <p className="text-xs text-slate-500 max-w-sm text-center md:text-left">
             Your personal local cinema guide. Helping you decide what to watch tonight with tailored recommendations.
           </p>

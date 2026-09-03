@@ -21,6 +21,7 @@ import { ScrambleText } from '../animation/components/ScrambleText';
 import { SkeletonCard } from '../components/common/SkeletonCard';
 import { MOCK_GENRES } from '../services/mockData';
 import { useUser } from '../context/UserContext';
+import { useAppLifecycle } from '../context/AppLifecycleContext';
 import { AdultBadge } from '../components/common/AdultBadge';
 import { useSpatialGridNavigation } from '../hooks/useSpatialGridNavigation';
 
@@ -71,6 +72,7 @@ export type DiscoverItem = MovieDiscoverItem | TvDiscoverItem | AnimeDiscoverIte
 export const Discover: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { preferences } = useUser();
+  const { isIntroComplete } = useAppLifecycle();
   const showAdult = preferences.showAdultRecommendations ?? false;
 
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'for-you');
@@ -539,7 +541,7 @@ export const Discover: React.FC = () => {
     <div className="min-h-screen w-full bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl sm:text-4xl font-black font-display tracking-tight text-white">
-          <ScrambleText text="Explore & Discover" />
+          <ScrambleText text="Explore & Discover" autoStart={isIntroComplete} />
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
           Unified discovery across Movies, TV Shows, and Anime. Filter by your favorite genres,

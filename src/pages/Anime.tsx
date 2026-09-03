@@ -17,6 +17,8 @@ import {
   Heart,
   Rocket,
   Wand2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   animeService,
@@ -27,11 +29,15 @@ import {
 import { useUser } from '../context/UserContext';
 import { AdultBadge } from '../components/common/AdultBadge';
 import { ScrambleText } from '../animation/components/ScrambleText';
+import { useAppLifecycle } from '../context/AppLifecycleContext';
 import { MovieCard } from '../components/common/MovieCard';
+import { SkeletonHero } from '../components/common/skeleton/SkeletonHero';
+import { SkeletonShelf } from '../components/common/skeleton/SkeletonShelf';
 
 export const Anime: React.FC = () => {
   const navigate = useNavigate();
   const { preferences, continueWatching } = useUser();
+  const { isIntroComplete } = useAppLifecycle();
   const showAdult = preferences.showAdultRecommendations ?? false;
 
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
@@ -55,9 +61,10 @@ export const Anime: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Spotlight Hero Anime
-  const heroAnime = trendingAnime[0] || null;
+  // Spotlight Hero Anime (fallback to popular or airing if trending is empty)
+  const heroAnime = trendingAnime[0] || popularAnime[0] || airingAnime[0] || null;
 
   // Filter user continue watching for anime
   const animeContinueWatching = useMemo(() => {
@@ -90,21 +97,26 @@ export const Anime: React.FC = () => {
       promises.push(animeService.getAdultAnime());
     }
 
-    Promise.all(promises)
-      .then(([trending, popular, airing, topRated, seasonal, action, romance, fantasy, scifi, latest, upcoming, adult]) => {
+    Promise.allSettled(promises)
+      .then((results) => {
         if (!isMounted) return;
-        setTrendingAnime(trending || []);
-        setPopularAnime(popular || []);
-        setAiringAnime(airing || []);
-        setTopRatedAnime(topRated || []);
-        setSeasonalAnime(seasonal || []);
-        setActionAnime(action || []);
-        setRomanceAnime(romance || []);
-        setFantasyAnime(fantasy || []);
-        setSciFiAnime(scifi || []);
-        setLatestEpisodes(latest || []);
-        setUpcomingEpisodes(upcoming || []);
-        if (adult) setAdultAnime(adult || []);
+        const getValue = <T,>(res: PromiseSettledResult<T> | undefined, fallback: T): T =>
+          res && res.status === 'fulfilled' && res.value ? res.value : fallback;
+
+        setTrendingAnime(getValue(results[0], []));
+        setPopularAnime(getValue(results[1], []));
+        setAiringAnime(getValue(results[2], []));
+        setTopRatedAnime(getValue(results[3], []));
+        setSeasonalAnime(getValue(results[4], []));
+        setActionAnime(getValue(results[5], []));
+        setRomanceAnime(getValue(results[6], []));
+        setFantasyAnime(getValue(results[7], []));
+        setSciFiAnime(getValue(results[8], []));
+        setLatestEpisodes(getValue(results[9], []));
+        setUpcomingEpisodes(getValue(results[10], []));
+        if (showAdult && results[11]) {
+          setAdultAnime(getValue(results[11], []));
+        }
         setIsLoading(false);
       })
       .catch((err) => {
@@ -115,7 +127,7 @@ export const Anime: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [showAdult]);
+  }, [showAdult, reloadKey]);
 
   // Handle Search
   const handleSearch = async (e: React.FormEvent) => {
@@ -175,7 +187,9 @@ export const Anime: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-bold text-white font-display">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-white font-display">
+                  <ScrambleText text={title} autoStart={false} />
+                </h2>
                 {isAdultShelf && <AdultBadge size="sm" />}
               </div>
               {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
@@ -201,7 +215,7 @@ export const Anime: React.FC = () => {
               <span>Dojo of Legends • 浪人の道</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-display mt-1">
-              <ScrambleText text="Anime Realm" />
+              <ScrambleText text="Anime Realm" autoStart={isIntroComplete} />
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
               Immerse yourself in Japanese animation masterpieces, seasonal simulcasts, and legendary shonen epics.
@@ -282,8 +296,36 @@ export const Anime: React.FC = () => {
         </div>
       )}
 
+      {/* Loading Skeleton State */}
+      {isLoading && !isSearching && (
+        <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-8 md:px-12 mb-12">
+          <SkeletonHero />
+          <SkeletonShelf hasHeader={true} count={6} />
+          <SkeletonShelf hasHeader={true} count={6} />
+          <SkeletonShelf hasHeader={true} count={6} />
+        </div>
+      )}
+
+      {/* Empty / Error Recovery State */}
+      {!isLoading && !isSearching && !heroAnime && popularAnime.length === 0 && airingAnime.length === 0 && (
+        <div className="max-w-md mx-auto my-20 p-8 rounded-2xl bg-surface-200/60 border border-white/10 text-center space-y-4">
+          <AlertCircle className="w-12 h-12 text-rose-400 mx-auto" />
+          <h3 className="text-lg font-bold text-white">Anime Realm Temporarily Unavailable</h3>
+          <p className="text-xs text-slate-400">
+            We couldn't reach the anime service. Please check your connection and try again.
+          </p>
+          <button
+            onClick={() => setReloadKey(k => k + 1)}
+            className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-brand-600/30 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      )}
+
       {/* Spotlight Hero Banner for Anime */}
-      {!isSearching && selectedGenre === 'All' && heroAnime && (
+      {!isLoading && !isSearching && selectedGenre === 'All' && heroAnime && (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 mb-12 animate-fade-in">
           <div className="relative rounded-3xl overflow-hidden border border-white/10 glass-elevated shadow-2xl">
             {/* Banner Backdrop */}
@@ -319,7 +361,7 @@ export const Anime: React.FC = () => {
               </div>
 
               <h2 className="text-2xl sm:text-4xl font-extrabold text-white font-display tracking-tight leading-tight">
-                {heroAnime.title}
+                <ScrambleText text={heroAnime.title} autoStart={isIntroComplete} />
               </h2>
 
               {heroAnime.romajiTitle && (
@@ -353,7 +395,7 @@ export const Anime: React.FC = () => {
       )}
 
       {/* Main Content Shelves */}
-      {!isSearching && (
+      {!isLoading && !isSearching && (
         <div className="space-y-4">
           {selectedGenre === 'All' ? (
             <>
@@ -367,7 +409,7 @@ export const Anime: React.FC = () => {
                       </div>
                       <div>
                         <h2 className="text-lg sm:text-xl font-bold text-white font-display">
-                          Upcoming Episodes
+                          <ScrambleText text="Upcoming Episodes" autoStart={false} />
                         </h2>
                         <p className="text-xs text-slate-400">
                           Scheduled releases and countdowns
@@ -426,7 +468,7 @@ export const Anime: React.FC = () => {
                       </div>
                       <div>
                         <h2 className="text-lg sm:text-xl font-bold text-white font-display">
-                          Latest Episodes
+                          <ScrambleText text="Latest Episodes" autoStart={false} />
                         </h2>
                         <p className="text-xs text-slate-400">
                           Freshly aired simulcast episodes updated weekly

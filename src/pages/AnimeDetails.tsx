@@ -19,6 +19,7 @@ import {
 import { animeService, AnimeItem, AnimeEpisode } from '../services/anime/AnimeService';
 import { useUser } from '../context/UserContext';
 import { AdultBadge } from '../components/common/AdultBadge';
+import { ScrambleText } from '../animation/components/ScrambleText';
 
 const CHUNK_SIZE = 100;
 
@@ -202,7 +203,7 @@ export const AnimeDetails: React.FC = () => {
             {/* Title & Japanese / Romaji Names */}
             <div>
               <h1 className="text-2xl sm:text-4xl font-extrabold text-white font-display leading-tight">
-                {anime.title}
+                <ScrambleText text={anime.title} />
               </h1>
               {anime.romajiTitle && (
                 <p className="text-sm text-brand-300 font-medium mt-1">

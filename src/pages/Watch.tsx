@@ -11,7 +11,9 @@ export const Watch: React.FC = () => {
   }>();
   const location = useLocation();
 
-  const { play, setPresentationMode, presentationMode } = usePlayback();
+  const { play, setPresentationMode, presentationMode, closePlayer } = usePlayback();
+  const presentationModeRef = React.useRef(presentationMode);
+  presentationModeRef.current = presentationMode;
 
   const mediaId = id ? parseInt(id, 10) : 0;
   const isAnime = location.pathname.startsWith('/watch/anime');
@@ -33,13 +35,14 @@ export const Watch: React.FC = () => {
     // When this component mounts, we want full screen mode
     setPresentationMode('FULL');
     
-    // When the watch route unmounts (e.g. user goes to Home), switch to PiP
     return () => {
-      // NOTE: React Router reusing the component on param changes doesn't unmount it.
-      // It only unmounts when navigating away from the Watch route completely!
-      setPresentationMode('PIP');
+      // NOTE: Navigating away from the Watch route (e.g. Back button) must NOT enter PiP.
+      // PiP is an explicit user action. If not in PiP, close playback session cleanly.
+      if (presentationModeRef.current !== 'PIP') {
+        closePlayer();
+      }
     };
-  }, [mediaId, mediaType, seasonNumber, episodeNumber, play, setPresentationMode]);
+  }, [mediaId, mediaType, seasonNumber, episodeNumber, play, setPresentationMode, closePlayer]);
 
   // The actual player UI is rendered by PersistentPlayerHost inside App.tsx
   // We just return an empty container that acts as the background for FULL mode.
