@@ -1,7 +1,7 @@
 import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, CheckCircle2, ThumbsUp, ThumbsDown, Trash2, Play, Film, Tv, ArrowUpDown, Clock } from 'lucide-react';
+import { Bookmark, CheckCircle2, ThumbsUp, ThumbsDown, Trash2, Play, Film, Tv, ArrowUpDown, Clock, ChevronLeft } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { RatingBadge } from '../components/common/RatingBadge';
 import { TrailerModal } from '../components/common/TrailerModal';
@@ -67,7 +67,19 @@ export const Watchlist: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background text-slate-100 pt-24 pb-20 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto space-y-6">
+      {/* Back Navigation */}
+      <div>
+        <button
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-200/60 hover:bg-surface-200/90 text-white text-xs font-semibold backdrop-blur-md border border-white/10 glass-interactive transition-colors"
+          title="Go Back"
+        >
+          <ChevronLeft className="w-4 h-4 text-brand-400" />
+          <span>Back</span>
+        </button>
+      </div>
+
       {/* Title & Tabs */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div className="space-y-1">

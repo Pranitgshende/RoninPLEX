@@ -84,14 +84,10 @@ export class AnimeStreamService {
               };
             }
           } catch (vidLinkErr: any) {
-            logPlayback(`[AnimeStreamService] VidLink Anime resolution failed: ${vidLinkErr?.message}`);
+            logPlayback(`[AnimeStreamService] VidLink Anime resolution failed: ${vidLinkErr?.message}. Falling back to sidecar providers.`);
           }
         } else {
-          logPlayback(`[AnimeStreamService] No valid MAL ID available for "${animeTitle}". Cannot resolve via VidLink.`);
-          if (preferredProviderId === 'vidlink') {
-            logPlayback(`[AnimeStreamService] VidLink explicitly requested without MAL ID. Truthful failure.`);
-            return null;
-          }
+          logPlayback(`[AnimeStreamService] No valid MAL ID available for "${animeTitle}". Falling back to sidecar providers.`);
         }
       }
 

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useGoBack } from '../hooks/useGoBack';
 import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Tv, Calendar, Layers, ChevronLeft, PlayCircle, MonitorPlay, Download, ExternalLink } from 'lucide-react';
-import { tmdb } from '../services/tmdb';
+import { tmdb, WatchProvidersData } from '../services/tmdb';
 import { TVShow, Season } from '../types/tmdb';
 import { RatingBadge } from '../components/common/RatingBadge';
 import { TrailerModal } from '../components/common/TrailerModal';
@@ -35,6 +35,16 @@ export const TvDetails: React.FC = () => {
   const [isDownloadCenterOpen, setIsDownloadCenterOpen] = useState<boolean>(false);
   const [resolvingEpisodeId, setResolvingEpisodeId] = useState<number | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<{ message: string; browserUrl?: string } | null>(null);
+  const [watchProviders, setWatchProviders] = useState<WatchProvidersData | null>(null);
+
+  const openSafeUrl = async (url?: string) => {
+    if (!url) return;
+    try {
+      await invoke('open_in_browser', { url });
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const { isInWatchlist, toggleWatchlist, isWatched, toggleWatched, toggleLike, toggleDislike, watched } = useUser();
   useAppReadyWhen(!isLoading);
@@ -50,10 +60,12 @@ export const TvDetails: React.FC = () => {
     Promise.all([
       tmdb.getTVDetails(tvId),
       streamingManager.checkAvailability(tvId, 'tv'),
-    ]).then(([data, avail]) => {
+      tmdb.getWatchProviders('tv', tvId),
+    ]).then(([data, avail, wp]) => {
       if (isMounted) {
         setTvShow(data);
         setIsStreamAvailable(avail);
+        setWatchProviders(wp);
         setIsLoading(false);
         if (data?.seasons && data.seasons.length > 0) {
           const firstValidSeason = data.seasons.find(s => s.season_number > 0) || data.seasons[0];
@@ -383,6 +395,98 @@ export const TvDetails: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Where to Watch / Legal Streaming Options */}
+        {watchProviders && (watchProviders.flatrate?.length || watchProviders.rent?.length || watchProviders.buy?.length) && (
+          <div className="p-4 sm:p-5 rounded-2xl glass-subtle border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ExternalLink className="w-4 h-4 text-brand-400" />
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-300">
+                  Where to Watch • Legal Streaming & Purchase
+                </h3>
+              </div>
+              {watchProviders.link && (
+                <button
+                  type="button"
+                  onClick={() => openSafeUrl(watchProviders.link)}
+                  className="text-[11px] text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors"
+                >
+                  <span>Provided by JustWatch / TMDB</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6 text-xs">
+              {watchProviders.flatrate && watchProviders.flatrate.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Stream</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {watchProviders.flatrate.map((provider) => (
+                      <div
+                        key={provider.provider_id}
+                        onClick={() => openSafeUrl(watchProviders.link)}
+                        className="group relative cursor-pointer"
+                        title={provider.provider_name}
+                      >
+                        <img
+                          src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`}
+                          alt={provider.provider_name}
+                          className="w-8 h-8 rounded-lg shadow-md border border-white/10 group-hover:scale-110 transition-transform"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {watchProviders.rent && watchProviders.rent.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Rent</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {watchProviders.rent.slice(0, 6).map((provider) => (
+                      <div
+                        key={provider.provider_id}
+                        onClick={() => openSafeUrl(watchProviders.link)}
+                        className="group relative cursor-pointer"
+                        title={provider.provider_name}
+                      >
+                        <img
+                          src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`}
+                          alt={provider.provider_name}
+                          className="w-8 h-8 rounded-lg shadow-md border border-white/10 group-hover:scale-110 transition-transform"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {watchProviders.buy && watchProviders.buy.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Buy</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {watchProviders.buy.slice(0, 6).map((provider) => (
+                      <div
+                        key={provider.provider_id}
+                        onClick={() => openSafeUrl(watchProviders.link)}
+                        className="group relative cursor-pointer"
+                        title={provider.provider_name}
+                      >
+                        <img
+                          src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`}
+                          alt={provider.provider_name}
+                          className="w-8 h-8 rounded-lg shadow-md border border-white/10 group-hover:scale-110 transition-transform"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {tvShow.seasons && tvShow.seasons.length > 0 && (
           <div className="space-y-6 pt-6 border-t border-white/5">

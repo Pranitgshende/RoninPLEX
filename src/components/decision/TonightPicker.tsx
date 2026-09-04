@@ -1,6 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Film, Tv, Clock, Compass, X, Play, BookmarkCheck, Bookmark, RefreshCw } from 'lucide-react';
+import {
+  Sparkles,
+  Film,
+  Tv,
+  Clock,
+  Compass,
+  X,
+  Play,
+  BookmarkCheck,
+  Bookmark,
+  RefreshCw,
+  Flame,
+  Smile,
+  ShieldAlert,
+  Ghost,
+  Heart,
+} from 'lucide-react';
 import { MOODS, recommendation } from '../../services/recommendation';
 import { MoodType, ScoredMediaItem } from '../../types/recommendation';
 import { Movie, TVShow } from '../../types/tmdb';
@@ -9,6 +25,16 @@ import { RatingBadge } from '../common/RatingBadge';
 import { TrailerModal } from '../common/TrailerModal';
 import { useUser } from '../../context/UserContext';
 import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
+
+const MOOD_ICONS: Record<string, React.ElementType> = {
+  'mind-bending': Compass,
+  'adrenaline': Flame,
+  'feel-good': Smile,
+  'dark-gritty': ShieldAlert,
+  'binge-worthy': Tv,
+  'edge-of-seat': Ghost,
+  'heartfelt': Heart,
+};
 
 interface TonightPickerProps {
   isOpen: boolean;
@@ -23,7 +49,7 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
 }) => {
   const navigate = useNavigate();
   const [selectedMood, setSelectedMood] = useState<MoodType>('mind-bending');
-  const [mediaType, setMediaType] = useState<'all' | 'movie' | 'tv'>('all');
+  const [mediaType, setMediaType] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
   const [maxMinutes, setMaxMinutes] = useState<number | undefined>(undefined);
   const [result, setResult] = useState<ScoredMediaItem | null>(null);
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
@@ -112,30 +138,38 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
               <div className="space-y-6">
                 {/* 1. Mood selection */}
                 <div className="space-y-3">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    1. What vibe are you feeling?
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <Compass className="w-3.5 h-3.5 text-brand-400" />
+                    <span>1. What vibe are you feeling?</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {MOODS.map((mood) => {
                       const isSelected = selectedMood === mood.id;
+                      const IconComp = MOOD_ICONS[mood.id] || Sparkles;
                       return (
                         <button
                           key={mood.id}
                           type="button"
                           onClick={() => setSelectedMood(mood.id)}
-                          className={`p-3 rounded-xl text-left border transition-all flex flex-col justify-between ${
+                          className={`p-3 rounded-xl text-left border transition-all flex flex-col justify-between group ${
                             isSelected
-                              ? 'bg-brand-600/20 border-brand-500 shadow-md shadow-brand-500/10 scale-[1.02]'
-                              : 'bg-surface-100/70 border-white/5 hover:border-white/15 hover:bg-surface-100'
+                              ? 'bg-brand-600/25 border-brand-500/80 shadow-lg shadow-brand-500/15 scale-[1.02]'
+                              : 'bg-surface-100/60 border-white/5 hover:border-white/15 hover:bg-surface-100/90'
                           }`}
                         >
-                          <span className="text-2xl mb-1">{mood.emoji}</span>
-                          <span className={`text-xs font-bold ${isSelected ? 'text-brand-300' : 'text-slate-200'}`}>
-                            {mood.label}
-                          </span>
-                          <span className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
-                            {mood.description}
-                          </span>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 transition-colors ${
+                            isSelected ? 'bg-brand-500/30 text-brand-300' : 'bg-white/5 text-slate-400 group-hover:text-slate-200'
+                          }`}>
+                            <IconComp className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className={`text-xs font-bold block ${isSelected ? 'text-brand-300' : 'text-slate-200'}`}>
+                              {mood.label}
+                            </span>
+                            <span className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
+                              {mood.description}
+                            </span>
+                          </div>
                         </button>
                       );
                     })}
@@ -145,16 +179,16 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                 {/* 2. Media Type */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    2. Movie or TV Series?
+                    2. Format / Category
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button
                       type="button"
                       onClick={() => setMediaType('all')}
                       className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
                         mediaType === 'all'
-                          ? 'bg-brand-600 text-white border-brand-500'
-                          : 'bg-surface-100 text-slate-300 border-white/5'
+                          ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30'
+                          : 'bg-surface-100/80 text-slate-300 border-white/5 hover:bg-surface-100'
                       }`}
                     >
                       Surprise Me
@@ -164,8 +198,8 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                       onClick={() => setMediaType('movie')}
                       className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 ${
                         mediaType === 'movie'
-                          ? 'bg-brand-600 text-white border-brand-500'
-                          : 'bg-surface-100 text-slate-300 border-white/5'
+                          ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30'
+                          : 'bg-surface-100/80 text-slate-300 border-white/5 hover:bg-surface-100'
                       }`}
                     >
                       <Film className="w-3.5 h-3.5" />
@@ -176,12 +210,24 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                       onClick={() => setMediaType('tv')}
                       className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 ${
                         mediaType === 'tv'
-                          ? 'bg-brand-600 text-white border-brand-500'
-                          : 'bg-surface-100 text-slate-300 border-white/5'
+                          ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30'
+                          : 'bg-surface-100/80 text-slate-300 border-white/5 hover:bg-surface-100'
                       }`}
                     >
                       <Tv className="w-3.5 h-3.5" />
                       <span>TV Show</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaType('anime')}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+                        mediaType === 'anime'
+                          ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30'
+                          : 'bg-surface-100/80 text-slate-300 border-white/5 hover:bg-surface-100'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Anime</span>
                     </button>
                   </div>
                 </div>
@@ -233,10 +279,10 @@ export const TonightPicker: React.FC<TonightPickerProps> = ({
                   type="button"
                   onClick={handleGenerate}
                   disabled={isSpinning}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-brand-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-brand-600/25 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98]"
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-600 via-brand-500 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98] border border-white/10"
                 >
-                  <Sparkles className="w-5 h-5 text-amber-200" />
-                  <span>{isSpinning ? 'Consulting the Oracle...' : 'Decide What to Watch Tonight'}</span>
+                  <Sparkles className="w-4 h-4 text-brand-200" />
+                  <span>{isSpinning ? 'Analyzing your realm...' : 'Decide What to Watch Tonight'}</span>
                 </button>
               </div>
             ) : (

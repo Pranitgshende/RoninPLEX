@@ -34,6 +34,7 @@ import { validateCustomProviderUrl } from '../services/streaming/providers/Custo
 import { updaterService, UpdateCheckResult, UpdateChannel } from '../services/updater';
 import { UpdateModal } from '../components/modals/UpdateModal';
 import { ArchitectureDiagram } from '../components/about/ArchitectureDiagram';
+import { DownloadResolver } from '../services/download/DownloadResolver';
 
 type SettingsTab = 'playback' | 'appearance' | 'home' | 'data' | 'services' | 'about';
 
@@ -193,6 +194,41 @@ export const Settings: React.FC = () => {
   const handleDeleteCustomProvider = (id: string) => {
     const updated = (preferences.customProviders || []).filter(p => p.id !== id);
     updatePreferences({ customProviders: updated });
+  };
+
+  // Custom Download Endpoints State
+  const [downloadMovieInput, setDownloadMovieInput] = useState(preferences.customDownloadMovieUrl || '');
+  const [downloadTvInput, setDownloadTvInput] = useState(preferences.customDownloadTvUrl || '');
+  const [downloadSaveMsg, setDownloadSaveMsg] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDownloadMovieInput(preferences.customDownloadMovieUrl || '');
+    setDownloadTvInput(preferences.customDownloadTvUrl || '');
+  }, [preferences.customDownloadMovieUrl, preferences.customDownloadTvUrl]);
+
+  const handleSaveDownloadEndpoints = () => {
+    setDownloadError(null);
+    if (downloadMovieInput.trim()) {
+      const v = DownloadResolver.validateUrl(downloadMovieInput.replace(/\{tmdbId\}|\{id\}|\{type\}/g, '123'));
+      if (!v.isValid) {
+        setDownloadError(`Movie download URL error: ${v.reason}`);
+        return;
+      }
+    }
+    if (downloadTvInput.trim()) {
+      const v = DownloadResolver.validateUrl(downloadTvInput.replace(/\{tmdbId\}|\{id\}|\{season\}|\{episode\}|\{type\}/g, '123'));
+      if (!v.isValid) {
+        setDownloadError(`TV download URL error: ${v.reason}`);
+        return;
+      }
+    }
+    updatePreferences({
+      customDownloadMovieUrl: downloadMovieInput.trim(),
+      customDownloadTvUrl: downloadTvInput.trim(),
+    });
+    setDownloadSaveMsg('Custom download endpoints saved successfully.');
+    setTimeout(() => setDownloadSaveMsg(null), 3000);
   };
 
   const handleTmdbSubmit = async (e: React.FormEvent) => {
@@ -990,6 +1026,74 @@ export const Settings: React.FC = () => {
                   )}
                 </div>
               </section>
+
+              {/* Custom Download Endpoints */}
+              <section className="bg-surface-200/40 border border-white/5 rounded-2xl p-5 sm:p-6 space-y-5 glass-subtle">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                      <Download className="w-5 h-5 text-brand-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Custom Download Endpoints</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Configure custom download resolver endpoints. Strict HTTPS and SSRF protection enforced.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-400">
+                    Supports placeholders: <code className="text-brand-300">{"{tmdbId}"}</code>, <code className="text-brand-300">{"{season}"}</code>, <code className="text-brand-300">{"{episode}"}</code>. If empty, standard built-in resolver (RiveStream) is utilized.
+                  </p>
+
+                  {downloadError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                      {downloadError}
+                    </div>
+                  )}
+
+                  {downloadSaveMsg && (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+                      <Check className="w-4 h-4" />
+                      <span>{downloadSaveMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Movie Download URL Template</label>
+                      <input
+                        type="text"
+                        value={downloadMovieInput}
+                        onChange={(e) => setDownloadMovieInput(e.target.value)}
+                        placeholder="e.g. https://my-download-service.com/movie/{tmdbId}"
+                        className="w-full px-3 py-2 rounded-lg bg-surface-200 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">TV Show Download URL Template</label>
+                      <input
+                        type="text"
+                        value={downloadTvInput}
+                        onChange={(e) => setDownloadTvInput(e.target.value)}
+                        placeholder="e.g. https://my-download-service.com/tv/{tmdbId}/{season}/{episode}"
+                        className="w-full px-3 py-2 rounded-lg bg-surface-200 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={handleSaveDownloadEndpoints}
+                      className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-colors shadow-lg shadow-brand-600/20"
+                    >
+                      Save Download Endpoints
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
           )}
 
@@ -1005,6 +1109,18 @@ export const Settings: React.FC = () => {
                   <p className="text-xs sm:text-sm leading-relaxed">
                     Developed with native DOM APIs, Webview2, and high-performance Rust Tauri runtime. Built on the principle of providing a cinematic, zero-compromise, offline-ready streaming environment.
                   </p>
+                  <div className="pt-3 border-t border-white/10 flex flex-col items-center gap-1.5 text-xs">
+                    <p className="text-slate-300">Developed by <span className="text-white font-semibold">Ronin Development Team</span></p>
+                    <a
+                      href="https://github.com/Pranitgshende/RoninPLEX"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors underline font-medium"
+                    >
+                      <span>https://github.com/Pranitgshende/RoninPLEX</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
               </section>
 

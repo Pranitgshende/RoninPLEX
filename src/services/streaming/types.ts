@@ -148,6 +148,8 @@ export interface ProviderConfig {
   tvEndpoint: string;
   episodeEndpoint: string;
   searchEndpoint: string;
+  downloadMovieEndpoint?: string;
+  downloadTvEndpoint?: string;
   isEnabled: boolean;
 }
 
@@ -161,5 +163,7 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
   tvEndpoint: '/embed/tv/{tmdbId}',
   episodeEndpoint: '/embed/tv/{tmdbId}/{season}/{episode}',
   searchEndpoint: '/search?q={query}',
+  downloadMovieEndpoint: '',
+  downloadTvEndpoint: '',
   isEnabled: true,
 };

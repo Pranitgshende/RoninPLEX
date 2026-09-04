@@ -10,7 +10,7 @@ export interface PremiumGlowBorderProps {
 }
 
 const BEAM_GRADIENT =
-  'conic-gradient(from 0deg, transparent 0deg, transparent 275deg, rgba(168, 85, 247, 0.12) 295deg, rgba(168, 85, 247, 0.75) 325deg, rgba(99, 102, 241, 1) 345deg, rgba(147, 197, 253, 0.95) 355deg, transparent 360deg)';
+  'conic-gradient(from 0deg, transparent 0deg, transparent 275deg, rgba(168, 85, 247, 0.15) 295deg, rgba(168, 85, 247, 0.85) 325deg, rgba(99, 102, 241, 1) 345deg, rgba(147, 197, 253, 0.95) 355deg, transparent 360deg)';
 
 export const PremiumGlowBorder: React.FC<PremiumGlowBorderProps> = ({
   children,
@@ -22,34 +22,34 @@ export const PremiumGlowBorder: React.FC<PremiumGlowBorderProps> = ({
 }) => {
   // Intensity opacity maps
   const opacityMap = {
-    subtle: 'opacity-50 group-hover:opacity-75',
-    medium: 'opacity-70 group-hover:opacity-95',
-    cinematic: 'opacity-85 group-hover:opacity-100',
+    subtle: 'opacity-60 group-hover:opacity-85',
+    medium: 'opacity-75 group-hover:opacity-95',
+    cinematic: 'opacity-90 group-hover:opacity-100',
   };
 
   return (
     <Component
       className={`relative p-[1.5px] overflow-hidden group border border-white/10 ${borderRadius} ${className}`}
     >
-      {/* Soft Ambient Aura Layer behind the beam */}
+      {/* Masked Border Track: Conic beams restricted strictly to 1.5px border outline */}
       <div
         aria-hidden="true"
-        className={`absolute inset-[-120%] animate-rotate-glow pointer-events-none blur-sm transition-opacity duration-700 ${opacityMap[intensity]} opacity-40`}
+        className={`absolute inset-0 pointer-events-none p-[1.5px] ${borderRadius}`}
         style={{
-          background: BEAM_GRADIENT,
-          willChange: 'transform',
+          mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+          WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+          maskComposite: 'exclude',
+          WebkitMaskComposite: 'xor',
         }}
-      />
-
-      {/* GPU-Composited Rotating Conic Glow Beam */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-[-150%] animate-rotate-glow pointer-events-none transition-opacity duration-700 ${opacityMap[intensity]}`}
-        style={{
-          background: BEAM_GRADIENT,
-          willChange: 'transform',
-        }}
-      />
+      >
+        <div
+          className={`absolute inset-[-150%] animate-rotate-glow motion-reduce:animate-none pointer-events-none transition-opacity duration-700 ${opacityMap[intensity]}`}
+          style={{
+            background: BEAM_GRADIENT,
+            willChange: 'transform',
+          }}
+        />
+      </div>
 
       {/* Surface Content Inner Container */}
       <div

@@ -90,7 +90,10 @@ export const Home: React.FC = () => {
             vote_count: 500,
             popularity: a.popularity || 0,
             adult: a.isAdult,
-            media_type: 'tv' as const,
+            media_type: 'anime' as any,
+            genres: a.genres || [],
+            romajiTitle: a.romajiTitle,
+            isAnime: true,
             first_air_date: a.year ? `${a.year}-01-01` : '',
             genre_ids: [],
           }))).catch(() => []),
@@ -538,7 +541,7 @@ export const Home: React.FC = () => {
       <TonightPicker
         isOpen={isTonightPickerOpen}
         onClose={() => setIsTonightPickerOpen(false)}
-        poolItems={[...trendingItems, ...popularMovies, ...popularTV]}
+        poolItems={[...trendingItems, ...popularMovies, ...popularTV, ...animeItems]}
       />
     </div>
   );

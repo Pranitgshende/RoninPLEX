@@ -173,6 +173,17 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const isVisualReady = hasValidPoster ? (imageLoaded && !imageError) : true;
   const isShowingFallback = imageError || !hasValidPoster;
 
+  // 4.5s image loading watchdog fallback to prevent indefinite skeleton stalls
+  useEffect(() => {
+    if (!hasValidPoster || imageLoaded || imageError) return;
+    const timer = window.setTimeout(() => {
+      if (!imageLoaded && !imageError) {
+        setImageError(true);
+      }
+    }, 4500);
+    return () => window.clearTimeout(timer);
+  }, [hasValidPoster, imageLoaded, imageError]);
+
   const {
     enableGlassCards = true,
     cardGlassOpacity = 35,

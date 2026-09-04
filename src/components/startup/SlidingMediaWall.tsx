@@ -76,7 +76,7 @@ export const SlidingMediaWall: React.FC = () => {
 
   return (
     <div 
-      className="absolute -inset-10 z-0 overflow-hidden pointer-events-none select-none flex flex-col justify-around opacity-45 transform -rotate-1 scale-105"
+      className="absolute -inset-10 z-0 overflow-hidden pointer-events-none select-none flex flex-col justify-around opacity-70 transform -rotate-1 scale-105"
       aria-hidden="true"
     >
       {rowData.map((row, rowIdx) => {
@@ -125,7 +125,7 @@ export const SlidingMediaWall: React.FC = () => {
       <div 
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 65% 65% at 50% 50%, rgba(9, 10, 15, 0.88) 0%, rgba(9, 10, 15, 0.5) 45%, rgba(9, 10, 15, 0.95) 100%)',
+          background: 'radial-gradient(ellipse 65% 65% at 50% 50%, rgba(9, 10, 15, 0.50) 0%, rgba(9, 10, 15, 0.30) 45%, rgba(9, 10, 15, 0.70) 100%)',
         }}
       />
     </div>

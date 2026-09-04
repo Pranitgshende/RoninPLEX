@@ -205,15 +205,22 @@ class RecommendationEngine {
     items: (Movie | TVShow)[],
     mood: MoodType,
     maxMinutes?: number,
-    mediaTypeFilter: 'all' | 'movie' | 'tv' = 'all'
+    mediaTypeFilter: 'all' | 'movie' | 'tv' | 'anime' = 'all'
   ): ScoredMediaItem | null {
     const moodConfig = MOODS.find(m => m.id === mood) || MOODS[0];
     
     // Filter by type
     let candidates = items.filter(item => {
       const normalized = normalizeMedia(item);
-      if (mediaTypeFilter !== 'all' && normalized.media_type !== mediaTypeFilter) {
-        return false;
+      const isAnime = (normalized.media_type as string) === 'anime' || Boolean((item as any).isAnime) || ('romajiTitle' in item);
+      if (mediaTypeFilter === 'anime') {
+        return isAnime;
+      }
+      if (mediaTypeFilter === 'movie') {
+        return normalized.media_type === 'movie' && !isAnime;
+      }
+      if (mediaTypeFilter === 'tv') {
+        return normalized.media_type === 'tv' && !isAnime;
       }
       return true;
     });
@@ -229,9 +236,27 @@ class RecommendationEngine {
 
     // Prioritize mood genres
     const scored = candidates.map(item => {
-      const genreIds = item.genre_ids || item.genres?.map(g => g.id) || [];
+      const genreIds = item.genre_ids || item.genres?.map(g => typeof g === 'number' ? g : (g as any).id) || [];
       const moodMatches = moodConfig.genreIds.filter(gId => genreIds.includes(gId)).length;
-      const score = (moodMatches * 30) + (item.vote_average * 8);
+      
+      // Match string genres for Anime
+      const stringGenres: string[] = Array.isArray((item as any).genres)
+        ? (item as any).genres.filter((g: any) => typeof g === 'string')
+        : [];
+      const stringMoodMatches = stringGenres.filter(gName => {
+        const lower = gName.toLowerCase();
+        if (mood === 'mind-bending') return lower.includes('sci-fi') || lower.includes('mystery') || lower.includes('psychological');
+        if (mood === 'adrenaline') return lower.includes('action') || lower.includes('adventure') || lower.includes('shounen');
+        if (mood === 'feel-good') return lower.includes('comedy') || lower.includes('slice of life') || lower.includes('fantasy');
+        if (mood === 'dark-gritty') return lower.includes('horror') || lower.includes('thriller') || lower.includes('dark');
+        if (mood === 'binge-worthy') return lower.includes('drama') || lower.includes('supernatural');
+        if (mood === 'edge-of-seat') return lower.includes('suspense') || lower.includes('mystery');
+        if (mood === 'heartfelt') return lower.includes('romance') || lower.includes('drama');
+        return false;
+      }).length;
+
+      const totalMatches = moodMatches + stringMoodMatches;
+      const score = (totalMatches * 30) + ((item.vote_average || 0) * 8);
       return { item, score };
     });
 

@@ -587,6 +587,16 @@ class TMDBService {
     return MOCK_GENRES;
   }
 
+  // --- Watch Providers (Legal Streaming Options) ---
+  async getWatchProviders(mediaType: 'movie' | 'tv', id: number): Promise<WatchProvidersData | null> {
+    const data = await this.fetchFromTMDB<{ id: number; results: Record<string, WatchProvidersData> }>(
+      `/${mediaType}/${id}/watch/providers`
+    );
+    if (!data || !data.results) return null;
+    const results = data.results;
+    return results['US'] || results['GB'] || results['CA'] || Object.values(results)[0] || null;
+  }
+
   // --- Validation ---
   async testApiKey(keyToTest: string): Promise<boolean> {
     try {
@@ -597,6 +607,22 @@ class TMDBService {
       return false;
     }
   }
+}
+
+export interface WatchProviderItem {
+  logo_path: string;
+  provider_id: number;
+  provider_name: string;
+  display_priority: number;
+}
+
+export interface WatchProvidersData {
+  link?: string;
+  flatrate?: WatchProviderItem[];
+  rent?: WatchProviderItem[];
+  buy?: WatchProviderItem[];
+  free?: WatchProviderItem[];
+  ads?: WatchProviderItem[];
 }
 
 export const tmdb = new TMDBService();

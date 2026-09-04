@@ -106,6 +106,9 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
         <div className="mt-6 text-2xl sm:text-3xl md:text-4xl font-display font-black tracking-[0.15em] text-white/95 drop-shadow-lg">
           <ScrambleText text="RoninPLEX" duration={4.5} autoStart={false} ref={scrambleRef} />
         </div>
+        <p className="mt-2 text-xs sm:text-sm font-medium tracking-widest text-brand-300/80 uppercase font-sans">
+          Autonomous Cinematic Entertainment
+        </p>
       </div>
     </div>
   );

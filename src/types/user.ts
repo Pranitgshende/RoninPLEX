@@ -165,6 +165,10 @@ export interface UserPreferences {
 
   // Custom User Providers
   customProviders: DeclarativeCustomProvider[];
+
+  // Custom Download Provider Endpoints
+  customDownloadMovieUrl?: string;
+  customDownloadTvUrl?: string;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -237,5 +241,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
 
   // Custom Providers
   customProviders: [],
+  customDownloadMovieUrl: '',
+  customDownloadTvUrl: '',
 };
 

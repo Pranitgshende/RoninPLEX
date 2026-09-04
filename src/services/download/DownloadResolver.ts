@@ -93,6 +93,25 @@ export class DownloadResolver {
   }
 
   /**
+   * Constructs a custom download endpoint URL from template if provided.
+   */
+  public static getCustomDownloadUrl(
+    template: string,
+    mediaType: 'movie' | 'tv' | 'anime',
+    tmdbId: number,
+    season?: number,
+    episode?: number
+  ): string {
+    if (!template) return '';
+    return template
+      .replace(/\{tmdbId\}/g, String(tmdbId))
+      .replace(/\{id\}/g, String(tmdbId))
+      .replace(/\{season\}/g, String(season || 1))
+      .replace(/\{episode\}/g, String(episode || 1))
+      .replace(/\{type\}/g, mediaType);
+  }
+
+  /**
    * Inspects a candidate download URL or Rive download endpoint.
    * Performs pre-flight inspection of redirects, headers, and mime types.
    */

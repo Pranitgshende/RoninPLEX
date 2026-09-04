@@ -61,7 +61,7 @@ export class VidLinkProProvider implements StreamingProvider {
 
   getEmbedPolicy(): EmbedPolicy {
     return {
-      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation',
+      sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock',
       allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
       referrerPolicy: 'origin',
     };

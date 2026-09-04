@@ -204,12 +204,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         referrerPolicy: 'origin' as const,
       };
     }
+    const isVidLink = effectiveStream.providerId === 'vidlink' || url.includes('vidlink.pro');
+    if (isVidLink) {
+      return {
+        sandbox: 'allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock',
+        allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+        referrerPolicy: 'origin' as const,
+      };
+    }
     return {
       sandbox: 'allow-scripts allow-same-origin allow-presentation',
       allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
       referrerPolicy: 'origin' as const,
     };
-  }, [effectiveStream.embedPolicy, effectiveStream.url]);
+  }, [effectiveStream.embedPolicy, effectiveStream.url, effectiveStream.providerId]);
 
 
 
@@ -1489,7 +1497,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </button>
 
                 {isSubtitleMenuOpen && (
-                  <div className="absolute bottom-10 right-0 w-36 py-2 bg-surface-200/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl z-50 text-xs space-y-1">
+                  <div className="absolute bottom-full mb-3 right-0 w-44 py-2 bg-surface-200/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl z-50 text-xs space-y-1">
                     <button
                       onClick={() => handleSubtitleChange('off')}
                       className={`w-full text-left px-3 py-1.5 hover:bg-white/10 transition-colors ${

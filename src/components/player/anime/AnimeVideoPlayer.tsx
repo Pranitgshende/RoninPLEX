@@ -555,7 +555,11 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           className="w-full h-full border-0"
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+          sandbox={
+            (stream.providerId === 'vidlink' || stream.sourceUrl.includes('vidlink.pro'))
+              ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock'
+              : 'allow-scripts allow-same-origin allow-forms allow-presentation'
+          }
         />
       ) : null}
 
@@ -873,7 +877,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
                     <Subtitles className="w-5 h-5" />
                   </button>
                   {activeMenu === 'subtitle' && (
-                    <div className="absolute bottom-full right-0 mb-2 w-48 bg-surface-200 border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1 max-h-64 overflow-y-auto">
+                    <div className="absolute bottom-full right-0 mb-3 w-48 bg-surface-200/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col py-1 max-h-64 overflow-y-auto z-50">
                       <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-white/5">Captions</div>
                       <button
                         onClick={() => {

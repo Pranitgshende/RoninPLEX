@@ -338,6 +338,7 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setStreamResult(null);
     setAnimeStreamSource(null);
     setResolutionError(null);
+    setFailedProviders([]);
     setIsResolvingStream(false);
     setResolvingProviderId(null);
     setSeasonNumber(season ?? 1);
@@ -467,9 +468,10 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
   const switchMode = useCallback(async (modeId: string): Promise<boolean> => {
     if (isAnime || !mediaId) return false;
 
-    logPlayback(`Explicit mode switch requested: ${modeId}`);
+    const targetProviderId = activeProviderIdState || 'rive';
+    logPlayback(`Explicit mode switch requested: ${modeId} for ${targetProviderId}`);
     setIsResolvingStream(true);
-    setResolvingProviderId(activeProviderIdState);
+    setResolvingProviderId(targetProviderId);
     setResolutionError(null);
 
     // CRITICAL: Immediately clear streamResult to instantly unmount iframe and prevent audio leakage!
@@ -478,11 +480,11 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     const currentRequestId = ++requestIdRef.current;
 
     try {
-      streamingManager.setProviderMode(activeProviderIdState, modeId);
+      streamingManager.setProviderMode(targetProviderId, modeId);
       setActiveModeIdState(modeId);
 
       const result = await streamingManager.getStreamFromProvider(
-        activeProviderIdState,
+        targetProviderId,
         mediaId,
         isTV ? 'tv' : 'movie',
         seasonNumber,

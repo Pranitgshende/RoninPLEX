@@ -100,9 +100,9 @@ export const ProviderMenu: React.FC<ProviderMenuProps> = ({
               return (
                 <button
                   key={pId}
-                  disabled={isResolving}
+                  disabled={isResolvingThis}
                   onClick={() => {
-                    if (!isCurrent || isResolving) {
+                    if (!isCurrent || isResolvingThis) {
                       onSelectProvider(pId);
                     }
                   }}
@@ -110,7 +110,7 @@ export const ProviderMenu: React.FC<ProviderMenuProps> = ({
                     isCurrent
                       ? 'bg-brand-500/25 text-brand-300 border border-brand-500/40 font-semibold shadow-sm'
                       : 'hover:bg-white/10 text-slate-300 hover:text-white border border-transparent'
-                  } ${isResolving ? 'cursor-wait opacity-80' : 'cursor-pointer'}`}
+                  } ${isResolvingThis ? 'cursor-wait opacity-80' : 'cursor-pointer'}`}
                 >
                   <div className="flex items-center gap-2 truncate pr-2">
                     {/* Status Dot */}
@@ -146,10 +146,11 @@ export const ProviderMenu: React.FC<ProviderMenuProps> = ({
               <div className="grid grid-cols-1 gap-1">
                 {riveModes.map((mode) => {
                   const isCurrentMode = currentMode === mode.id;
+                  const isResolvingThisMode = isResolving && resolvingProviderId === 'rive' && isCurrentMode;
                   return (
                     <button
                       key={mode.id}
-                      disabled={isResolving}
+                      disabled={isResolvingThisMode}
                       onClick={() => {
                         if (!isCurrentMode && onSelectMode) {
                           onSelectMode(mode.id);
@@ -159,7 +160,7 @@ export const ProviderMenu: React.FC<ProviderMenuProps> = ({
                         isCurrentMode
                           ? 'bg-brand-500/25 text-brand-300 border border-brand-500/40 font-semibold'
                           : 'hover:bg-white/10 text-slate-300 hover:text-white border border-transparent'
-                      } ${isResolving ? 'cursor-wait opacity-80' : 'cursor-pointer'}`}
+                      } ${isResolvingThisMode ? 'cursor-wait opacity-80' : 'cursor-pointer'}`}
                     >
                       <div>
                         <p className="font-medium leading-tight">{mode.name}</p>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Download,
   X,
@@ -110,7 +111,7 @@ export const DownloadCenterModal: React.FC<DownloadCenterModalProps> = ({ isOpen
     setTimeout(() => setSaveSuccess(false), 2000);
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
       onClick={onClose}
@@ -461,6 +462,7 @@ export const DownloadCenterModal: React.FC<DownloadCenterModalProps> = ({ isOpen
           )}
         </PremiumGlowBorder>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
