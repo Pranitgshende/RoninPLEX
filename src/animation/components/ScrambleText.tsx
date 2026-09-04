@@ -5,6 +5,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 export interface ScrambleTextProps {
   text: string;
   duration?: number;
+  hoverDuration?: number;
   chars?: string;
   className?: string;
   delay?: number;
@@ -22,6 +23,7 @@ const DEFAULT_CHARS = '!<>-_\\/[]{}—=+*^?#________';
 export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   text,
   duration = 4.5,
+  hoverDuration,
   chars = DEFAULT_CHARS,
   className = '',
   delay = 0,
@@ -32,7 +34,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
   const tweenRef = useRef<gsap.core.Tween | null>(null);
   const reducedMotion = useReducedMotion();
 
-  const start = () => {
+  const runScramble = (targetDuration: number) => {
     if (!elRef.current) return;
     if (reducedMotion) {
       elRef.current.innerText = text;
@@ -45,6 +47,8 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
       tweenRef.current = null;
     }
 
+    const animDuration = targetDuration;
+
     const obj = { p: 0 };
     const originalLength = text.length;
     let frameCount = 0;
@@ -55,7 +59,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
 
     tweenRef.current = gsap.to(obj, {
       p: 1,
-      duration,
+      duration: animDuration,
       delay,
       ease: "none", // Constant linear resolution across the full duration
       onUpdate: () => {
@@ -88,6 +92,10 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
     });
   };
 
+  const start = () => {
+    runScramble(duration);
+  };
+
   const reset = () => {
     if (tweenRef.current) {
       tweenRef.current.kill();
@@ -114,7 +122,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
     <span 
       aria-label={text} 
       className={`relative inline-block whitespace-nowrap select-none ${className}`}
-      onMouseEnter={start}
+      onMouseEnter={() => runScramble(hoverDuration ?? Math.min(duration, 1.8))}
     >
       <span className="invisible pointer-events-none select-none whitespace-nowrap" aria-hidden="true">
         {text}

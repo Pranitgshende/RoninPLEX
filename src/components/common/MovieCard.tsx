@@ -211,7 +211,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <Link to={detailsUrl} className={`block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0`}>
+        <Link to={detailsUrl} className="block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0 focus-ring">
           {!isVisualReady && !isShowingFallback && (
             <GlassSkeleton className="absolute inset-0 w-full h-full rounded-lg z-10" />
           )}
@@ -310,8 +310,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <div className="flex items-center gap-1.5 mb-2.5">
               {/* Watch Now Button */}
               <button
+                type="button"
                 onClick={handleWatchNow}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-transform active:scale-95"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-transform active:scale-95 focus-ring"
                 title="Watch Now"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
@@ -321,8 +322,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               {/* Watch Trailer Button */}
               {trailerKey && (
                 <button
+                  type="button"
                   onClick={handleTrailerModalClick}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/10 transition-colors"
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/10 transition-colors focus-ring"
                   title="Watch Official Trailer"
                 >
                   <PlayCircle className="w-4 h-4 text-slate-300" />
@@ -331,8 +333,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
               {/* Watchlist Toggle */}
               <button
+                type="button"
                 onClick={handleWatchlistClick}
-                className={`p-2 rounded-lg text-xs font-medium transition-colors border ${
+                className={`p-2 rounded-lg text-xs font-medium transition-colors border focus-ring ${
                   inWatchlist
                     ? 'bg-brand-500/20 text-brand-300 border-brand-500/50'
                     : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
@@ -344,8 +347,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
               {/* Watched Toggle */}
               <button
+                type="button"
                 onClick={handleWatchedClick}
-                className={`p-2 rounded-lg text-xs font-medium transition-colors border ${
+                className={`p-2 rounded-lg text-xs font-medium transition-colors border focus-ring ${
                   watchedStatus
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
                     : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
@@ -357,8 +361,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
               {/* Thumbs Up / Like */}
               <button
+                type="button"
                 onClick={handleLikeClick}
-                className={`p-2 rounded-lg text-xs font-medium transition-colors border ${
+                className={`p-2 rounded-lg text-xs font-medium transition-colors border focus-ring ${
                   isLiked
                     ? 'bg-rose-500/20 text-rose-300 border-rose-500/50'
                     : 'bg-white/10 hover:bg-white/20 text-white border-white/10'

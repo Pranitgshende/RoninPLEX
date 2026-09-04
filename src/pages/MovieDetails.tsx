@@ -275,8 +275,9 @@ export const MovieDetails: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3 pt-4">
               {/* WATCH NOW BUTTON */}
               <button
+                type="button"
                 onClick={() => navigate(`/watch/movie/${movie.id}`)}
-                className="px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.02] active:scale-[0.98]"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.02] active:scale-[0.98] focus-ring"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>WATCH NOW</span>
@@ -284,20 +285,22 @@ export const MovieDetails: React.FC = () => {
 
               {trailerKey && (
                 <button
+                  type="button"
                   onClick={() => setIsTrailerModalOpen(true)}
-                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/10 transition-colors flex items-center gap-2"
+                  className="px-5 py-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white font-semibold text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 active:scale-95 focus-ring"
                 >
-                  <PlayCircle className="w-4 h-4" />
+                  <PlayCircle className="w-4 h-4 text-brand-400" />
                   <span>Watch Trailer</span>
                 </button>
               )}
 
               <button
+                type="button"
                 onClick={handleWatchlistClick}
-                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors border flex items-center gap-2 ${
+                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center gap-2 active:scale-95 focus-ring ${
                   inWatchlist
-                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50 hover:bg-brand-500/30'
+                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20'
                 }`}
               >
                 {inWatchlist ? (
@@ -307,36 +310,39 @@ export const MovieDetails: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Bookmark className="w-4 h-4" />
+                    <Bookmark className="w-4 h-4 text-slate-300" />
                     <span>Add to Watchlist</span>
                   </>
                 )}
               </button>
 
               <button
+                type="button"
                 onClick={handleWatchedClick}
-                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors border flex items-center gap-2 ${
+                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center gap-2 active:scale-95 focus-ring ${
                   isWatchedItem
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20'
                 }`}
               >
-                <Check className={`w-4 h-4 ${isWatchedItem ? 'text-emerald-400 font-bold' : ''}`} />
+                <Check className={`w-4 h-4 ${isWatchedItem ? 'text-emerald-400 font-bold' : 'text-slate-300'}`} />
                 <span>{isWatchedItem ? 'Watched' : 'Mark Watched'}</span>
               </button>
 
               <button
+                type="button"
                 onClick={handleDownload}
                 disabled={isResolvingDownload}
-                className="px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors border bg-white/10 hover:bg-white/20 text-white border-white/10 flex items-center gap-2"
+                className="px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20 flex items-center gap-2 active:scale-95 focus-ring disabled:opacity-50"
                 title="Download Movie"
               >
                 <Download className={`w-4 h-4 text-brand-400 ${isResolvingDownload ? 'animate-bounce' : ''}`} />
                 <span>{isResolvingDownload ? 'Resolving...' : 'Download'}</span>
               </button>
 
-              <div className="flex items-center gap-1 bg-surface-100 p-1.5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-1 bg-surface-100/60 p-1.5 rounded-xl border border-white/10 backdrop-blur-sm">
                 <button
+                  type="button"
                   onClick={() => toggleLike(movie.id, 'movie', {
                     title: movie.title,
                     posterPath: movie.poster_path,
@@ -344,27 +350,26 @@ export const MovieDetails: React.FC = () => {
                     rating: movie.vote_average,
                     releaseYear: formatYear(movie.release_date),
                   })}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isLiked ? 'bg-rose-500/20 text-rose-300' : 'text-slate-400 hover:text-white'
+                  className={`p-2 rounded-lg transition-all active:scale-95 focus-ring ${
+                    isLiked
+                      ? 'bg-rose-500/20 text-rose-300'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
-                  title="Thumbs Up"
+                  title={isLiked ? 'Liked' : 'Like'}
                 >
-                  <ThumbsUp className="w-4 h-4" />
+                  <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-current text-rose-400' : ''}`} />
                 </button>
                 <button
-                  onClick={() => toggleDislike(movie.id, 'movie', {
-                    title: movie.title,
-                    posterPath: movie.poster_path,
-                    backdropPath: movie.backdrop_path,
-                    rating: movie.vote_average,
-                    releaseYear: formatYear(movie.release_date),
-                  })}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDisliked ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-white'
+                  type="button"
+                  onClick={() => toggleDislike(movie.id, 'movie')}
+                  className={`p-2 rounded-lg transition-all active:scale-95 focus-ring ${
+                    isDisliked
+                      ? 'bg-slate-700 text-slate-300'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
-                  title="Thumbs Down"
+                  title={isDisliked ? 'Disliked' : 'Dislike'}
                 >
-                  <ThumbsDown className="w-4 h-4" />
+                  <ThumbsDown className={`w-4 h-4 ${isDisliked ? 'fill-current' : ''}`} />
                 </button>
               </div>
             </div>

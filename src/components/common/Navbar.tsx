@@ -155,17 +155,17 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-1 bg-surface-100/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
+        <nav className="hidden lg:flex items-center gap-1 bg-surface-100/40 backdrop-blur-lg px-3 py-1.5 rounded-full border border-white/[0.08] shadow-sm">
           {navLinks.map((link) => (
             <NavLink
               key={link.path}
               to={link.path}
               end={link.path === '/'}
               className={({ isActive }) =>
-                `relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                `relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 focus-ring ${
                   isActive
-                    ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-brand-600/90 text-white shadow-lg shadow-brand-500/25 border border-brand-400/30'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.08] border border-transparent'
                 }`
               }
             >
@@ -184,13 +184,13 @@ export const Navbar: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
                 placeholder="Search movies & shows..."
-                className="w-44 lg:w-56 pl-8 pr-3 py-1.5 rounded-full bg-surface-100/70 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:w-64 focus:bg-surface-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all duration-300"
+                className="w-44 lg:w-56 pl-8 pr-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-xs text-white placeholder-slate-400 focus:outline-none focus:w-64 focus:bg-surface-200/95 focus:border-brand-500/60 focus:ring-1 focus:ring-brand-500/40 transition-all duration-300"
               />
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             </form>
 
             {isSearchFocused && searchQuery.trim() && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-surface-200 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-scale-in">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-surface-200/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden z-50 animate-scale-in">
                 <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
                   {isSearching ? (
                     <div className="p-4 text-center text-xs text-slate-400">Searching TMDB...</div>
@@ -228,11 +228,11 @@ export const Navbar: React.FC = () => {
                     <div className="p-4 text-center text-xs text-slate-400">No matching titles</div>
                   )}
                 </div>
-                <div className="p-2 bg-surface-300 border-t border-white/5 text-center">
+                <div className="p-2 bg-surface-300/80 border-t border-white/5 text-center">
                   <button
                     type="button"
                     onClick={handleSearchSubmit}
-                    className="text-[11px] font-semibold text-brand-400 hover:text-brand-300 transition-colors"
+                    className="text-[11px] font-semibold text-brand-400 hover:text-brand-300 transition-colors focus-ring rounded"
                   >
                     View all results for "{searchQuery}" &rarr;
                   </button>
@@ -245,7 +245,7 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/watchlist')}
-            className="relative p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            className="relative p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95 focus-ring"
             title="My List / Watchlist"
             aria-label="My List / Watchlist"
           >
@@ -261,7 +261,7 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsDownloadCenterOpen(true)}
-            className="relative p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            className="relative p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95 focus-ring"
             title="Download Center"
             aria-label="Download Center"
           >
@@ -276,7 +276,7 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/settings')}
-            className="p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95 focus-ring"
             title="Application Settings"
             aria-label="Application Settings"
           >
@@ -286,7 +286,7 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={openPreferences}
-            className="p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.09] text-slate-300 hover:text-white border border-white/[0.08] transition-all active:scale-95 focus-ring"
             title="Recommendation Preferences"
             aria-label="Recommendation Preferences"
           >

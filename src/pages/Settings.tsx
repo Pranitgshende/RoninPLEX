@@ -219,8 +219,9 @@ export const Settings: React.FC = () => {
         {/* Navigation Sidebar Tabs */}
         <div className="w-full lg:w-64 flex-shrink-0 bg-surface-200/60 rounded-2xl border border-white/5 p-2 space-y-1">
           <button
+            type="button"
             onClick={() => setActiveTab('playback')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'playback' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -229,8 +230,9 @@ export const Settings: React.FC = () => {
           </button>
           
           <button
+            type="button"
             onClick={() => setActiveTab('appearance')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'appearance' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -239,8 +241,9 @@ export const Settings: React.FC = () => {
           </button>
           
           <button
+            type="button"
             onClick={() => setActiveTab('home')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'home' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -249,8 +252,9 @@ export const Settings: React.FC = () => {
           </button>
           
           <button
+            type="button"
             onClick={() => setActiveTab('data')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'data' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -259,8 +263,9 @@ export const Settings: React.FC = () => {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('services')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'services' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -269,8 +274,9 @@ export const Settings: React.FC = () => {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('about')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all focus-ring ${
               activeTab === 'about' ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >

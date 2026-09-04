@@ -166,7 +166,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               <button
                 type="button"
                 onClick={handleWatchNow}
-                className="px-7 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.03] active:scale-[0.98]"
+                className="px-7 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.03] active:scale-[0.98] focus-ring"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>WATCH NOW</span>
@@ -176,28 +176,28 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsTrailerModalOpen(true)}
-                className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition-all flex items-center gap-2"
+                className="px-5 py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white font-semibold text-sm backdrop-blur-md border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 active:scale-95 focus-ring"
               >
-                <PlayCircle className="w-4 h-4" />
+                <PlayCircle className="w-4 h-4 text-brand-400" />
                 <span>WATCH TRAILER</span>
               </button>
 
               <Link
                 to={detailsUrl}
-                className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition-all flex items-center justify-center"
+                className="p-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white font-semibold text-sm backdrop-blur-md border border-white/10 hover:border-white/20 transition-all flex items-center justify-center active:scale-95 focus-ring"
                 title="More Information"
               >
-                <Info className="w-5 h-5" />
+                <Info className="w-5 h-5 text-slate-200" />
               </Link>
 
               {/* Add to My List */}
               <button
                 type="button"
                 onClick={handleWatchlistToggle}
-                className={`p-3 rounded-xl backdrop-blur-md border transition-all ${
+                className={`p-3 rounded-xl backdrop-blur-md border transition-all active:scale-95 focus-ring ${
                   inWatchlist
-                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50 hover:bg-brand-500/30'
+                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20'
                 }`}
                 title={inWatchlist ? 'Remove from My List' : 'Add to My List'}
                 aria-label={inWatchlist ? 'Remove from My List' : 'Add to My List'}
@@ -205,7 +205,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                 {inWatchlist ? (
                   <BookmarkCheck className="w-5 h-5 text-brand-400 fill-current" />
                 ) : (
-                  <Bookmark className="w-5 h-5" />
+                  <Bookmark className="w-5 h-5 text-slate-200" />
                 )}
               </button>
 
@@ -214,7 +214,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMuted(!isMuted)}
-                  className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10 transition-colors ml-auto sm:ml-0"
+                  className="p-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white backdrop-blur-md border border-white/10 hover:border-white/20 transition-colors ml-auto sm:ml-0 active:scale-95 focus-ring"
                   title={isMuted ? 'Unmute Trailer' : 'Mute Trailer'}
                   aria-label={isMuted ? 'Unmute Trailer' : 'Mute Trailer'}
                 >

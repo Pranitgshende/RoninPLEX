@@ -246,6 +246,44 @@
     animation: rotateGlow 18s linear infinite;
   }
 
+  /* Media Wall Sliding Keyframes */
+  @keyframes mediaWallSlideLeft {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @keyframes mediaWallSlideRight {
+    0% {
+      transform: translate3d(-50%, 0, 0);
+    }
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .animate-media-wall-left {
+    animation: mediaWallSlideLeft var(--media-wall-duration, 50s) linear infinite;
+    will-change: transform;
+  }
+
+  .animate-media-wall-right {
+    animation: mediaWallSlideRight var(--media-wall-duration, 50s) linear infinite;
+    will-change: transform;
+  }
+
+  /* Consistent Accessible Focus Ring */
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #090a0f, 0 0 0 4px #6366f1;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-ronin-breathe,
     .animate-ronin-thinking,
@@ -253,7 +291,9 @@
     .animate-ronin-slash,
     .animate-slash-arc,
     .animate-pulse,
-    .animate-bounce {
+    .animate-bounce,
+    .animate-media-wall-left,
+    .animate-media-wall-right {
       animation: none !important;
       transform: none !important;
     }

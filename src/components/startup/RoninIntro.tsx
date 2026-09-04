@@ -4,6 +4,7 @@ import { useReducedMotion } from '../../animation/hooks/useReducedMotion';
 import { createRoninIntroTimeline } from '../../animation/timelines/roninIntroTimeline';
 import { RoninIntroScene } from '../../graphics/three/scenes/RoninIntroScene';
 import { ScrambleText, ScrambleTextRef } from '../../animation/components/ScrambleText';
+import { SlidingMediaWall } from './SlidingMediaWall';
 
 interface RoninIntroProps {
   onComplete: () => void;
@@ -84,16 +85,19 @@ export const RoninIntro: React.FC<RoninIntroProps> = ({ onComplete, isAppReady }
       className="fixed inset-0 z-[100] flex items-center justify-center bg-background overflow-hidden pointer-events-none"
       aria-hidden="true"
     >
+      {/* Full-Screen Sliding Media-Wall Background */}
+      <SlidingMediaWall />
+
       {/* Three.js Canvas Container */}
       {!reducedMotion && (
-        <div ref={canvasContainerRef} className="absolute inset-0" />
+        <div ref={canvasContainerRef} className="absolute inset-0 z-[1]" />
       )}
 
-      {/* CSS Fallback / Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-80" />
+      {/* CSS Fallback / Vignette Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/80 z-[2] pointer-events-none" />
 
-      {/* Logo Mark */}
-      <div ref={logoRef} className="relative z-10 flex flex-col items-center">
+      {/* Logo Mark - Strictly Fixed at Center */}
+      <div ref={logoRef} className="relative z-10 flex flex-col items-center select-none">
         <img 
           src={brandMarkUrl} 
           alt="RoninPLEX Logo" 

@@ -288,8 +288,9 @@ export const TvDetails: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3 pt-4">
               {/* WATCH NOW BUTTON */}
               <button
+                type="button"
                 onClick={() => navigate(`/watch/tv/${tvShow.id}/${selectedSeasonNumber}/1`)}
-                className="px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.02] active:scale-[0.98]"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-brand-600/30 transition-all flex items-center gap-2 transform hover:scale-[1.02] active:scale-[0.98] focus-ring"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>WATCH EPISODE 1</span>
@@ -297,20 +298,22 @@ export const TvDetails: React.FC = () => {
 
               {trailerKey && (
                 <button
+                  type="button"
                   onClick={() => setIsTrailerModalOpen(true)}
-                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/10 transition-colors flex items-center gap-2"
+                  className="px-5 py-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white font-semibold text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 active:scale-95 focus-ring"
                 >
-                  <PlayCircle className="w-4 h-4" />
+                  <PlayCircle className="w-4 h-4 text-brand-400" />
                   <span>Watch Trailer</span>
                 </button>
               )}
 
               <button
+                type="button"
                 onClick={handleWatchlistClick}
-                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors border flex items-center gap-2 ${
+                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center gap-2 active:scale-95 focus-ring ${
                   inWatchlist
-                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                    ? 'bg-brand-500/20 text-brand-300 border-brand-500/50 hover:bg-brand-500/30'
+                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20'
                 }`}
               >
                 {inWatchlist ? (
@@ -320,26 +323,28 @@ export const TvDetails: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Bookmark className="w-4 h-4" />
+                    <Bookmark className="w-4 h-4 text-slate-300" />
                     <span>Add to Watchlist</span>
                   </>
                 )}
               </button>
 
               <button
+                type="button"
                 onClick={handleWatchedClick}
-                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors border flex items-center gap-2 ${
+                className={`px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border flex items-center gap-2 active:scale-95 focus-ring ${
                   isWatchedItem
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/10 hover:border-white/20'
                 }`}
               >
-                <Check className={`w-4 h-4 ${isWatchedItem ? 'text-emerald-400 font-bold' : ''}`} />
+                <Check className={`w-4 h-4 ${isWatchedItem ? 'text-emerald-400 font-bold' : 'text-slate-300'}`} />
                 <span>{isWatchedItem ? 'Watched' : 'Mark Watched'}</span>
               </button>
 
-              <div className="flex items-center gap-1 bg-surface-100 p-1.5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-1 bg-surface-100/60 p-1.5 rounded-xl border border-white/10 backdrop-blur-sm">
                 <button
+                  type="button"
                   onClick={() => toggleLike(tvShow.id, 'tv', {
                     title: tvShow.name,
                     posterPath: tvShow.poster_path,
@@ -347,14 +352,17 @@ export const TvDetails: React.FC = () => {
                     rating: tvShow.vote_average,
                     releaseYear: formatYear(tvShow.first_air_date),
                   })}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isLiked ? 'bg-rose-500/20 text-rose-300' : 'text-slate-400 hover:text-white'
+                  className={`p-2 rounded-lg transition-all active:scale-95 focus-ring ${
+                    isLiked
+                      ? 'bg-rose-500/20 text-rose-300'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                   title="Thumbs Up"
                 >
-                  <ThumbsUp className="w-4 h-4" />
+                  <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-current text-rose-400' : ''}`} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => toggleDislike(tvShow.id, 'tv', {
                     title: tvShow.name,
                     posterPath: tvShow.poster_path,
@@ -362,12 +370,14 @@ export const TvDetails: React.FC = () => {
                     rating: tvShow.vote_average,
                     releaseYear: formatYear(tvShow.first_air_date),
                   })}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDisliked ? 'bg-slate-700 text-slate-200' : 'text-slate-400 hover:text-white'
+                  className={`p-2 rounded-lg transition-all active:scale-95 focus-ring ${
+                    isDisliked
+                      ? 'bg-slate-700 text-slate-300'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                   title="Thumbs Down"
                 >
-                  <ThumbsDown className="w-4 h-4" />
+                  <ThumbsDown className={`w-4 h-4 ${isDisliked ? 'fill-current' : ''}`} />
                 </button>
               </div>
             </div>
