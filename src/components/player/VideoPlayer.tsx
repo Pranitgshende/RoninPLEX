@@ -23,6 +23,9 @@ import {
   Terminal,
   X,
   PictureInPicture,
+  Server,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { StreamingResult, SubtitleTrack } from '../../services/streaming/types';
 import { useUser } from '../../context/UserContext';
@@ -32,6 +35,8 @@ import { PremiumGlowBorder } from '../common/PremiumGlowBorder';
 import { streamingManager, FallbackAttempt } from '../../services/streaming/StreamingManager';
 import { getStillUrl } from '../../utils/helpers';
 import { logPlayback } from '../../utils/logger';
+import { ProviderMenu } from './ProviderMenu';
+import { DiagnosticsModal } from './DiagnosticsModal';
 
 
 export interface NextEpisodeInfo {
@@ -114,6 +119,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [selectedSubtitle, setSelectedSubtitle] = useState<string>('off');
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
+  const [isProviderMenuOpen, setIsProviderMenuOpen] = useState(false);
+  const [resolutionStatus, setResolutionStatus] = useState<string>('');
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const [resumeNotification, setResumeNotification] = useState<string | null>(null);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
@@ -206,21 +213,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-  // Auto-hide controls timer: exactly 3.0 seconds
+  // Auto-hide controls timer
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeoutRef.current) {
       clearSessionTimeout(hideControlsTimeoutRef.current);
     }
     // Pause auto-hide if a menu or modal is open
-    if (!isSpeedMenuOpen && !isSubtitleMenuOpen && !showDiagnostics) {
+    if (!isSpeedMenuOpen && !isSubtitleMenuOpen && !showDiagnostics && !isProviderMenuOpen) {
+      const hideDelay = (preferences?.playerControlAutoHideTiming || 3.0) * 1000;
       hideControlsTimeoutRef.current = setSessionTimeout(getActiveSessionId(), () => {
         setShowControls(false);
         setIsSpeedMenuOpen(false);
         setIsSubtitleMenuOpen(false);
-      }, 3000);
+        setIsProviderMenuOpen(false);
+      }, preferences?.playerControlAutoHideTiming ? preferences.playerControlAutoHideTiming * 1000 : 3000);
     }
-  }, [isSpeedMenuOpen, isSubtitleMenuOpen, showDiagnostics]);
+  }, [isSpeedMenuOpen, isSubtitleMenuOpen, showDiagnostics, isProviderMenuOpen, preferences?.playerControlAutoHideTiming]);
+
+  // Subscribe to live resolution status
+  useEffect(() => {
+    return streamingManager.subscribeStatus((status) => {
+      setResolutionStatus(status);
+    });
+  }, []);
 
   // Load fallback history for diagnostics
   useEffect(() => {
@@ -641,6 +657,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  // Compatibility references for provider HUD contracts
+  const _registeredProviders = streamingManager.getRegisteredProviders();
+  const _availableServers = streamingManager.getAvailableServers(effectiveStream.providerId);
+
+  const handleSelectProvider = async (providerId: string) => {
+    setIsProviderMenuOpen(false);
+    streamingManager.setActiveProviderId(providerId);
+    await playbackContext.switchProvider(providerId);
+  };
+
+  const handleSelectMode = async (modeId: string) => {
+    setIsProviderMenuOpen(false);
+    await playbackContext.switchMode(modeId);
+  };
+
   const handleRateChange = (rate: number) => {
     if (!videoRef.current) return;
     videoRef.current.playbackRate = rate;
@@ -748,139 +779,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Diagnostics Modal Component
   const renderDiagnostics = () => {
-    if (!showDiagnostics) return null;
-
     return (
-      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in player-control-surface">
-        <PremiumGlowBorder borderRadius="rounded-2xl" intensity="medium" className="w-full max-w-lg shadow-2xl">
-          <div className="w-full bg-surface-200 border border-white/10 rounded-2xl p-6 space-y-4 text-xs">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-brand-400" />
-                <h3 className="font-bold text-white text-sm">Streaming Diagnostics (GSD)</h3>
-              </div>
-              <button
-                onClick={() => setShowDiagnostics(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2 font-mono text-[11px]">
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">Active Provider:</span>
-                <span className="text-white font-semibold">{stream.providerName || streamingManager.getActiveProviderName()}</span>
-              </div>
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">Stream Type:</span>
-                <span className="text-brand-400 uppercase font-semibold">{effectiveStream.type || 'embed'}</span>
-              </div>
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">Quality:</span>
-                <span className="text-white">{effectiveStream.quality || 'Auto HD'}</span>
-              </div>
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">Player State:</span>
-                <span className={isIframeLoading && effectiveStream.type === 'embed' ? 'text-amber-400' : 'text-emerald-400'}>
-                  {effectiveStream.type === 'embed'
-                    ? (isIframeLoading ? 'Connecting / Loading IFrame...' : 'IFrame Loaded & Active')
-                    : (isPlaying ? 'Playing' : 'Paused / Ready')}
-                </span>
-              </div>
-
-              {/* v2.0.0 Watchdog State Machine Visual Status */}
-              <div className="p-2.5 rounded-xl bg-surface-100 border border-brand-500/20 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-white">Watchdog State Machine:</span>
-                  <span className="text-[10px] font-mono font-bold text-brand-400 uppercase">
-                    {watchdogPhase.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 gap-1 pt-1 text-[9px] text-center font-mono">
-                  <div className={`p-1 rounded ${['source_resolved', 'player_initialized', 'media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                    1. Resolved
-                  </div>
-                  <div className={`p-1 rounded ${['player_initialized', 'media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                    2. Init
-                  </div>
-                  <div className={`p-1 rounded ${['media_loaded', 'playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                    3. Loaded
-                  </div>
-                  <div className={`p-1 rounded ${['playback_started', 'currentTime_advances'].includes(watchdogPhase) ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                    4. Started
-                  </div>
-                  <div className={`p-1 rounded ${watchdogPhase === 'currentTime_advances' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-surface-200 text-slate-500'}`}>
-                    5. Advancing
-                  </div>
-                </div>
-              </div>
-
-              {fallbackHistory.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <span className="text-slate-400">Fallback Attempts:</span>
-                  <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
-                    {fallbackHistory.map((h, i) => (
-                      <div key={i} className="text-[10px] text-slate-300 bg-surface-100 p-1.5 rounded flex justify-between">
-                        <span>{h.providerName}</span>
-                        <span className="text-amber-400">{h.reason}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">IFrame Sandboxing:</span>
-                <span className={resolvedEmbedPolicy.sandbox ? 'text-emerald-400 font-mono text-[10px]' : 'text-amber-400'}>
-                  {resolvedEmbedPolicy.sandbox || 'Standard (Anti-Sandbox Protected)'}
-                </span>
-              </div>
-              <div className="flex justify-between p-2 rounded glass-subtle">
-                <span className="text-slate-400">Top Window Navigation:</span>
-                <span className="text-emerald-400 font-semibold">Blocked (Native OS Guard Active)</span>
-              </div>
-              <div className="p-2 rounded glass-subtle break-all">
-                <div className="text-slate-400 mb-1">Stream Endpoint URL:</div>
-                <div className="text-cyan-400 font-semibold">{effectiveStream.url}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-              {onTryNextProvider && (
-                <button
-                  onClick={() => {
-                    setShowDiagnostics(false);
-                    onTryNextProvider();
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Try Next Provider</span>
-                </button>
-              )}
-              {stream.type === 'embed' && (
-                <button
-                  onClick={handleReloadIframe}
-                  className="px-3 py-1.5 rounded-lg bg-surface-100 hover:bg-white/10 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reload Stream</span>
-                </button>
-              )}
-              {stream.url && (
-                <button
-                  onClick={() => handleOpenExternal(stream.url)}
-                  className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1.5 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open in Browser</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </PremiumGlowBorder>
-      </div>
+      <DiagnosticsModal
+        isOpen={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+        streamType={effectiveStream.type || 'embed'}
+        providerName={effectiveStream.providerName || streamingManager.getActiveProviderName()}
+        providerId={effectiveStream.providerId || streamingManager.getActiveProviderId()}
+        providerMode={playbackContext.activeModeId || undefined}
+        streamUrl={effectiveStream.url}
+        videoDimensions={videoRef.current ? { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight } : null}
+        currentTime={videoRef.current?.currentTime}
+        duration={videoRef.current?.duration}
+        bufferedSeconds={videoRef.current && videoRef.current.buffered.length > 0 ? (videoRef.current.buffered.end(videoRef.current.buffered.length - 1) - videoRef.current.currentTime) : null}
+        playbackState={isIframeLoading ? 'buffering' : (isPlaying ? 'playing' : 'paused')}
+        playbackRate={playbackRate}
+        volume={isMuted ? 0 : volume}
+        isMuted={isMuted}
+        droppedFrames={(videoRef.current as any)?.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? null}
+        bandwidthEstimate={(hlsRef.current as any)?.bandwidthEstimate ?? null}
+        subtitlesAvailable={effectiveStream.subtitlesAvailable ?? (selectedSubtitle !== 'off')}
+        activeSubtitleTrack={selectedSubtitle}
+        subtitleCount={effectiveStream.subtitles?.length || 0}
+        subtitleInspectionStatus={effectiveStream.subtitleInspectionStatus}
+        subtitleNote={effectiveStream.subtitleNote}
+        isIframeLoading={isIframeLoading}
+        sandboxPolicy={resolvedEmbedPolicy.sandbox}
+        allowPolicy={resolvedEmbedPolicy.allow}
+        watchdogPhase={watchdogPhase}
+        fallbackHistory={fallbackHistory}
+        onTryNextProvider={onTryNextProvider ? () => { setShowDiagnostics(false); onTryNextProvider(); } : undefined}
+        onReloadStream={handleReloadIframe}
+        onOpenInBrowser={effectiveStream.url ? () => handleOpenExternal(effectiveStream.url) : undefined}
+      />
     );
   };
 
@@ -975,6 +906,38 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
 
+            {/* Provider & Mode Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsProviderMenuOpen(prev => !prev)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-200 hover:text-white text-xs font-medium border border-white/10 transition-colors"
+                title="Select Streaming Provider & Mode"
+              >
+                <Server className="w-3.5 h-3.5 text-brand-400" />
+                <span className="truncate max-w-[85px] hidden md:inline">
+                  {playbackContext.activeProviderName || effectiveStream.providerName || streamingManager.getActiveProviderName()}
+                </span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+
+              {isProviderMenuOpen && (
+                <ProviderMenu
+                  activeProviderId={playbackContext.activeProviderId || effectiveStream.providerId || 'vidsrc-me'}
+                  activeProviderName={playbackContext.activeProviderName || effectiveStream.providerName || 'VidSrc Me'}
+                  mediaType={mediaType}
+                  onSelectProvider={handleSelectProvider}
+                  onSelectMode={handleSelectMode}
+                  currentMode={playbackContext.activeModeId || streamingManager.getProviderMode(effectiveStream.providerId || 'rive')}
+                  isResolving={playbackContext.isResolvingStream}
+                  resolvingProviderId={playbackContext.resolvingProviderId}
+                  resolutionStatus={resolutionStatus}
+                  resolutionError={playbackContext.resolutionError}
+                  onClose={() => setIsProviderMenuOpen(false)}
+                  align="right"
+                />
+              )}
+            </div>
+
             {/* Next Provider Button */}
             {onTryNextProvider && (
               <button
@@ -1025,15 +988,35 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         {/* Loading Overlay */}
-        {isIframeLoading && (
+        {(isIframeLoading || playbackContext.isResolvingStream) && (
           <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-20 pointer-events-none animate-fade-in">
             <div className="w-12 h-12 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin" />
             <div className="text-center space-y-1">
-              <h3 className="text-base font-bold text-white font-display">Connecting to Stream...</h3>
+              <h3 className="text-base font-bold text-white font-display">
+                {playbackContext.isResolvingStream ? 'Switching Provider...' : 'Connecting to Stream...'}
+              </h3>
               <p className="text-xs text-slate-400">
-                Provider: <span className="text-brand-400">{effectiveStream.providerName || streamingManager.getActiveProviderName()}</span>
+                Provider: <span className="text-brand-400">
+                  {playbackContext.isResolvingStream
+                    ? (playbackContext.resolvingProviderId || playbackContext.activeProviderName)
+                    : (effectiveStream.providerName || playbackContext.activeProviderName)}
+                </span>
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Resolution Error Banner */}
+        {playbackContext.resolutionError && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2.5 rounded-xl bg-surface-100/95 backdrop-blur-md border border-rose-500/40 text-xs font-medium text-rose-200 shadow-2xl flex items-center gap-2.5 animate-slide-up player-control-surface">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{playbackContext.resolutionError}</span>
+            <button
+              onClick={() => setIsProviderMenuOpen(true)}
+              className="ml-2 px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-white font-semibold text-[11px] transition-colors"
+            >
+              Choose Provider
+            </button>
           </div>
         )}
 
@@ -1311,6 +1294,38 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="flex items-center gap-2 bg-black/85 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl shrink-0">
+            {/* Provider & Mode Dropdown for Native Video */}
+            <div className="relative">
+              <button
+                onClick={() => setIsProviderMenuOpen(prev => !prev)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-200 hover:text-white text-xs font-medium border border-white/10 transition-colors"
+                title="Select Streaming Provider & Mode"
+              >
+                <Server className="w-3.5 h-3.5 text-brand-400" />
+                <span className="truncate max-w-[85px] hidden md:inline">
+                  {playbackContext.activeProviderName || effectiveStream.providerName || streamingManager.getActiveProviderName()}
+                </span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+
+              {isProviderMenuOpen && (
+                <ProviderMenu
+                  activeProviderId={playbackContext.activeProviderId || effectiveStream.providerId || 'vidsrc-me'}
+                  activeProviderName={playbackContext.activeProviderName || effectiveStream.providerName || 'VidSrc Me'}
+                  mediaType={mediaType}
+                  onSelectProvider={handleSelectProvider}
+                  onSelectMode={handleSelectMode}
+                  currentMode={playbackContext.activeModeId || streamingManager.getProviderMode(effectiveStream.providerId || 'rive')}
+                  isResolving={playbackContext.isResolvingStream}
+                  resolvingProviderId={playbackContext.resolvingProviderId}
+                  resolutionStatus={resolutionStatus}
+                  resolutionError={playbackContext.resolutionError}
+                  onClose={() => setIsProviderMenuOpen(false)}
+                  align="right"
+                />
+              )}
+            </div>
+
             <button
               onClick={() => setShowDiagnostics(true)}
               className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"

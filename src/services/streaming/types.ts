@@ -1,5 +1,46 @@
 export type StreamType = 'hls' | 'mp4' | 'embed';
 
+/**
+ * Explicit 6-state provider lifecycle model.
+ * Strictly separates registration, runtime verification, and transient operational health.
+ */
+export type ProviderState = 
+  | 'candidate'    // Discovered or proposed, not yet registered
+  | 'registered'   // Implemented in code, awaiting runtime verification
+  | 'verified'     // Verified against real endpoints with confirmed media output
+  | 'healthy'      // Verified and passing active online health checks
+  | 'unavailable'  // Temporarily failing (rate limit, timeout, 500) — eligible for retry
+  | 'parked';      // Blocked by Cloudflare, dead domain, or administrative quarantine
+
+/**
+ * Structured, capability-driven provider feature model.
+ */
+export interface ProviderCapabilities {
+  playback: {
+    embed: boolean;
+    directStream: boolean;
+  };
+  content: {
+    movie: boolean;
+    tv: boolean;
+    anime: boolean;
+  };
+  subtitles: {
+    supported: boolean;
+    inManifest?: boolean;
+    externalTracks?: boolean;
+    languages?: string[];
+  };
+  download: {
+    supported: boolean;
+    requiresResolver: boolean;
+    directDownload: boolean;
+    resumable: boolean;
+  };
+  modes?: string[];
+  servers?: Array<{ id: string; name: string; description?: string }>;
+}
+
 export interface SubtitleTrack {
   language: string;
   label: string;
@@ -37,6 +78,13 @@ export interface StreamingResult {
   quality?: string;
   message?: string;
   embedPolicy?: EmbedPolicy;
+  isEmbed?: boolean;
+  videoAvailable?: boolean;
+  audioAvailable?: boolean;
+  subtitlesAvailable?: boolean;
+  hardsubbed?: boolean;
+  subtitleInspectionStatus?: 'introspectable' | 'managed_by_embed' | 'none' | 'unknown';
+  subtitleNote?: string;
 }
 
 export interface StreamingMovie {

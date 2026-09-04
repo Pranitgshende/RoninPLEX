@@ -118,6 +118,13 @@ export interface AnimeStreamSource {
   subtitles?: SubtitleTrack[];
   qualities?: { url: string; quality: string; isHLS: boolean }[];
   audioModes?: { language: ContentLanguage; url: string }[];
+  isEmbed?: boolean;
+  videoAvailable?: boolean;
+  audioAvailable?: boolean;
+  subtitlesAvailable?: boolean;
+  hardsubbed?: boolean;
+  subtitleInspectionStatus?: 'introspectable' | 'managed_by_embed' | 'none' | 'unknown';
+  subtitleNote?: string;
 }
 
 export type AnimeBrowseCategory =

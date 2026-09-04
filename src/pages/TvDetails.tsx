@@ -2,7 +2,7 @@ import { useAppReadyWhen } from '../hooks/useAppReadyWhen';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useGoBack } from '../hooks/useGoBack';
-import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Tv, Calendar, Layers, ChevronLeft, PlayCircle, MonitorPlay } from 'lucide-react';
+import { Play, Bookmark, BookmarkCheck, Check, ThumbsUp, ThumbsDown, Tv, Calendar, Layers, ChevronLeft, PlayCircle, MonitorPlay, Download, ExternalLink } from 'lucide-react';
 import { tmdb } from '../services/tmdb';
 import { TVShow, Season } from '../types/tmdb';
 import { RatingBadge } from '../components/common/RatingBadge';
@@ -14,6 +14,10 @@ import { formatDate, formatYear, formatRuntime } from '../utils/formatting';
 import { useUser } from '../context/UserContext';
 import { streamingManager } from '../services/streaming/StreamingManager';
 import { ScrambleText } from '../animation/components/ScrambleText';
+import { DownloadResolver } from '../services/download/DownloadResolver';
+import { downloadService } from '../services/download/downloadService';
+import { DownloadCenterModal } from '../components/downloads/DownloadCenterModal';
+import { invoke } from '@tauri-apps/api/core';
 
 export const TvDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +32,9 @@ export const TvDetails: React.FC = () => {
   const [isLoadingSeason, setIsLoadingSeason] = useState<boolean>(false);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState<boolean>(false);
   const [isStreamAvailable, setIsStreamAvailable] = useState<boolean>(false);
+  const [isDownloadCenterOpen, setIsDownloadCenterOpen] = useState<boolean>(false);
+  const [resolvingEpisodeId, setResolvingEpisodeId] = useState<number | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<{ message: string; browserUrl?: string } | null>(null);
 
   const { isInWatchlist, toggleWatchlist, isWatched, toggleWatched, toggleLike, toggleDislike, watched } = useUser();
   useAppReadyWhen(!isLoading);
@@ -147,6 +154,42 @@ export const TvDetails: React.FC = () => {
       genres: tvShow.genres?.map(g => g.name) || [],
       watchedAt: new Date().toISOString(),
     });
+  };
+
+  const handleDownloadEpisode = async (episodeNumber: number, episodeTitle: string, episodeId: number) => {
+    if (!tvShow) return;
+    setResolvingEpisodeId(episodeId);
+    setDownloadNotice(null);
+    try {
+      const fullTitle = `${tvShow.name} - S${String(selectedSeasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')} - ${episodeTitle}`;
+      const targetUrl = DownloadResolver.getRiveDownloadUrl('tv', tvShow.id, selectedSeasonNumber, episodeNumber);
+      const res = await DownloadResolver.resolveDownload(targetUrl, fullTitle, 'tv');
+      if (res.status === 'direct_media' && res.directUrl && res.fileName) {
+        await downloadService.startDownload({
+          title: fullTitle,
+          media_type: 'tv',
+          direct_url: res.directUrl,
+          file_name: res.fileName,
+          safe_extension: res.extension,
+        });
+        setIsDownloadCenterOpen(true);
+      } else if (res.status === 'requires_browser') {
+        setDownloadNotice({
+          message: res.message || 'Interactive browser resolution required.',
+          browserUrl: res.redirectUrl || targetUrl,
+        });
+      } else {
+        setDownloadNotice({
+          message: res.message || 'Download resolution failed.',
+        });
+      }
+    } catch (err: any) {
+      setDownloadNotice({
+        message: err?.message || 'Download resolution failed.',
+      });
+    } finally {
+      setResolvingEpisodeId(null);
+    }
   };
 
   return (
@@ -407,13 +450,22 @@ export const TvDetails: React.FC = () => {
                         {ep.overview || 'No episode description available.'}
                       </p>
 
-                      <div className="pt-1">
+                      <div className="pt-1 flex items-center gap-3">
                         <button
                           onClick={() => navigate(`/watch/tv/${tvShow.id}/${selectedSeasonNumber}/${ep.episode_number}`)}
                           className="inline-flex items-center gap-1 text-xs font-bold text-brand-400 hover:text-brand-300"
                         >
                           <Play className="w-3 h-3 fill-current" />
                           <span>Watch Episode</span>
+                        </button>
+                        <button
+                          onClick={() => handleDownloadEpisode(ep.episode_number, ep.name, ep.id)}
+                          disabled={resolvingEpisodeId === ep.id}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                          title="Download Episode"
+                        >
+                          <Download className={`w-3 h-3 text-brand-400 ${resolvingEpisodeId === ep.id ? 'animate-bounce' : ''}`} />
+                          <span>{resolvingEpisodeId === ep.id ? 'Resolving...' : 'Download'}</span>
                         </button>
                       </div>
                     </div>
@@ -467,6 +519,47 @@ export const TvDetails: React.FC = () => {
         onClose={() => setIsTrailerModalOpen(false)}
         trailerKey={trailerKey}
         title={tvShow.name}
+      />
+
+      {/* Download Resolution Notice Modal */}
+      {downloadNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-200 border border-brand-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Download className="w-4 h-4 text-brand-400" />
+              <span>Download Resolution Notice</span>
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">{downloadNotice.message}</p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              {downloadNotice.browserUrl && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await invoke('open_in_browser', { url: downloadNotice.browserUrl });
+                    } catch {}
+                    setDownloadNotice(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <span>Open in Browser</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => setDownloadNotice(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-semibold transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Center Modal */}
+      <DownloadCenterModal
+        isOpen={isDownloadCenterOpen}
+        onClose={() => setIsDownloadCenterOpen(false)}
       />
     </div>
   );

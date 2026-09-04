@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Film, Search, Sliders, Menu, X, Settings as SettingsIcon, Bookmark } from 'lucide-react';
+import { Film, Search, Sliders, Menu, X, Settings as SettingsIcon, Bookmark, Download } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { tmdb } from '../../services/tmdb';
@@ -10,6 +10,8 @@ import { Movie, TVShow } from '../../types/tmdb';
 import { normalizeMedia, getPosterUrl } from '../../utils/helpers';
 import { RatingBadge } from './RatingBadge';
 import { RoninLogo } from './RoninLogo';
+import { DownloadCenterModal } from '../downloads/DownloadCenterModal';
+import { downloadService } from '../../services/download/downloadService';
 
 export const Navbar: React.FC = () => {
   const { watchlist, openPreferences } = useUser();
@@ -22,6 +24,25 @@ export const Navbar: React.FC = () => {
   const [suggestions, setSuggestions] = useState<(Movie | TVShow)[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isDownloadCenterOpen, setIsDownloadCenterOpen] = useState(false);
+  const [activeDownloadCount, setActiveDownloadCount] = useState(0);
+
+  // Monitor active downloads
+  useEffect(() => {
+    const updateActiveCount = async () => {
+      const list = await downloadService.getDownloads();
+      const count = list.filter(d => d.status === 'downloading' || d.status === 'queued').length;
+      setActiveDownloadCount(count);
+    };
+    updateActiveCount();
+
+    const unsubProg = downloadService.onProgress(() => updateActiveCount());
+    const unsubStat = downloadService.onStatusChanged(() => updateActiveCount());
+    return () => {
+      unsubProg();
+      unsubStat();
+    };
+  }, []);
 
   const debouncedQuery = useDebounce(searchQuery, 280);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -236,6 +257,22 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
+          {/* Download Center */}
+          <button
+            type="button"
+            onClick={() => setIsDownloadCenterOpen(true)}
+            className="relative p-2 rounded-full bg-surface-100/70 hover:bg-surface-50 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            title="Download Center"
+            aria-label="Download Center"
+          >
+            <Download className="w-4 h-4" />
+            {activeDownloadCount > 0 && (
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-4 text-[9px] font-bold rounded-full bg-brand-500 text-white flex items-center justify-center animate-pulse">
+                {activeDownloadCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => navigate('/settings')}
@@ -325,6 +362,12 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Download Center Modal */}
+      <DownloadCenterModal
+        isOpen={isDownloadCenterOpen}
+        onClose={() => setIsDownloadCenterOpen(false)}
+      />
     </header>
   );
 };

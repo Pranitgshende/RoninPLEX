@@ -89,6 +89,26 @@
     outline: none;
   }
 
+  /* Glass Card System */
+  .glass-card {
+    background: rgba(18, 16, 32, var(--card-glass-opacity, 0.45));
+    backdrop-filter: blur(var(--card-blur-strength, 16px));
+    -webkit-backdrop-filter: blur(var(--card-blur-strength, 16px));
+    border: 1px solid rgba(255, 255, 255, var(--card-border-opacity, 0.08));
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, var(--card-shadow-opacity, 0.37));
+  }
+  
+  .glass-card-solid {
+    background: #13141f;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-card-glow:hover {
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 12px 40px -8px rgba(147, 51, 234, 0.28), inset 0 0 16px rgba(168, 85, 247, 0.08);
+  }
+
   .glass-interactive:active {
     transform: translateY(-2px);
   }

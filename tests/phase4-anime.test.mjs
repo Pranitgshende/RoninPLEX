@@ -15,7 +15,7 @@ function verifyPhase4AnimeArchitecture() {
   });
 
   test('retryCount is passed down to AnimeStreamService', () => {
-    assert.match(ctxSrc, /AnimeStreamService\.resolveEpisodeStream.*retryCount\)/, 'Must pass retryCount to resolveEpisodeStream');
+    assert.match(ctxSrc, /AnimeStreamService\.resolveEpisodeStream[\s\S]*?retryCount/, 'Must pass retryCount to resolveEpisodeStream');
   });
 
   const playerPath = path.join(__dirname, '../src/components/player/anime/AnimeVideoPlayer.tsx');

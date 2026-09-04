@@ -65,6 +65,16 @@ interface PlaybackContextType {
   play: (id: number, type: PlaybackType, season?: number, episode?: number) => void;
   closePlayer: () => void;
   
+  // Provider & Mode Switching State
+  activeProviderId: string;
+  activeProviderName: string;
+  activeModeId: string;
+  isResolvingStream: boolean;
+  resolvingProviderId: string | null;
+  resolutionError: string | null;
+  switchProvider: (providerId: string) => Promise<boolean>;
+  switchMode: (modeId: string) => Promise<boolean>;
+
   // Handlers for players
   handlePrevEpisode: () => void;
   hasPrevEpisode: boolean;
@@ -121,6 +131,15 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
   const [drawerSeasonNumber, setDrawerSeasonNumber] = useState<number>(seasonNumber);
   const [drawerSeasonEpisodes, setDrawerSeasonEpisodes] = useState<Episode[]>([]);
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
+
+  // Provider & Mode switching state
+  const [activeProviderIdState, setActiveProviderIdState] = useState<string>(() => streamingManager.getActiveProviderId());
+  const [activeProviderNameState, setActiveProviderNameState] = useState<string>(() => streamingManager.getActiveProviderName());
+  const [activeModeIdState, setActiveModeIdState] = useState<string>(() => streamingManager.getProviderMode('rive'));
+  const [isResolvingStream, setIsResolvingStream] = useState<boolean>(false);
+  const [resolvingProviderId, setResolvingProviderId] = useState<string | null>(null);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+
   useAppReadyWhen(!isLoading);
 
 
@@ -208,13 +227,27 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
           
           const [epsData, streamData] = await Promise.all([
             animeService.getEpisodes(String(mediaId)),
-            AnimeStreamService.resolveEpisodeStream(animeData.title, episodeNumber, animeLanguage, String(mediaId), retryCount)
+            AnimeStreamService.resolveEpisodeStream(
+              animeData.title,
+              episodeNumber,
+              animeLanguage,
+              String(mediaId),
+              retryCount,
+              animeData.malId
+            )
           ]);
           
           if (currentRequestId !== requestIdRef.current) return;
           
           setAnimeEpisodes(epsData);
           setAnimeStreamSource(streamData);
+          if (streamData) {
+            setActiveProviderIdState(streamData.providerId || 'vidlink');
+            setActiveProviderNameState(streamData.providerId === 'vidlink' ? 'VidLink Pro' : 'Anime SDK (Local Sidecar)');
+            setResolutionError(null);
+          } else {
+            setResolutionError('Anime stream unavailable across all eligible providers');
+          }
           logPlayback(`Anime Stream resolved: ${streamData ? 'yes' : 'no'}`);
         } else if (!isTV) {
           // Load Movie: Concurrently request TMDB metadata + multi-provider stream
@@ -236,8 +269,12 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
 
           if (streamData?.stream && streamData.available) {
             setStreamResult(streamData.stream);
+            setActiveProviderIdState(streamData.stream.providerId || 'vidsrc-me');
+            setActiveProviderNameState(streamData.stream.providerName || 'VidSrc Me');
+            setResolutionError(null);
           } else {
             setStreamResult(null);
+            setResolutionError('Content unavailable across all eligible streaming providers');
           }
         } else {
           // Load TV Show: Concurrently request TV Details, Season data & Episode stream
@@ -265,14 +302,19 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
 
           if (epStream?.stream && epStream.available) {
             setStreamResult(epStream.stream);
+            setActiveProviderIdState(epStream.stream.providerId || 'vidsrc-me');
+            setActiveProviderNameState(epStream.stream.providerName || 'VidSrc Me');
+            setResolutionError(null);
           } else {
             setStreamResult(null);
+            setResolutionError('Episode unavailable across all eligible streaming providers');
           }
         }
       } catch (err: any) {
         if (currentRequestId === requestIdRef.current) {
           logPlayback(`Provider resolution error: ${err?.message || err}`);
           setStreamResult(null);
+          setResolutionError(err?.message || 'Stream resolution error');
         }
       } finally {
         if (currentRequestId === requestIdRef.current) {
@@ -295,6 +337,9 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setMediaType(type);
     setStreamResult(null);
     setAnimeStreamSource(null);
+    setResolutionError(null);
+    setIsResolvingStream(false);
+    setResolvingProviderId(null);
     setSeasonNumber(season ?? 1);
     setEpisodeNumber(episode ?? 1);
     setPresentationMode('FULL');
@@ -307,6 +352,9 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
     setStreamResult(null);
     setAnimeStreamSource(null);
     setAnimeItem(null);
+    setResolutionError(null);
+    setIsResolvingStream(false);
+    setResolvingProviderId(null);
     await pipService.closePiPWindow();
     try {
       const win = getCurrentWindow();
@@ -314,6 +362,159 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
       await win.setFocus();
     } catch {}
   }, []);
+
+  const switchProvider = useCallback(async (providerId: string): Promise<boolean> => {
+    if (!mediaId) return false;
+
+    logPlayback(`Explicit provider switch requested: ${providerId} (isAnime: ${isAnime})`);
+    setIsResolvingStream(true);
+    setResolvingProviderId(providerId);
+    setResolutionError(null);
+
+    // CRITICAL: Immediately clear streamResult and animeStreamSource to instantly unmount player and prevent audio leakage!
+    setStreamResult(null);
+    setAnimeStreamSource(null);
+
+    // Increment request ID to cancel any in-flight resolutions
+    const currentRequestId = ++requestIdRef.current;
+
+    try {
+      streamingManager.setActiveProviderId(providerId);
+      setActiveProviderIdState(providerId);
+      setActiveProviderNameState(streamingManager.getActiveProviderName());
+
+      if (isAnime) {
+        const result = await streamingManager.getStreamFromProvider(
+          providerId,
+          mediaId,
+          'anime',
+          1,
+          episodeNumber,
+          animeItem?.malId,
+          animeLanguage === ContentLanguage.DUB ? 'dub' : 'sub',
+          animeItem?.title,
+          String(mediaId)
+        );
+
+        if (currentRequestId !== requestIdRef.current) return false;
+
+        if (result && result.available && result.stream) {
+          const s = result.stream;
+          const streamUrl = s.url;
+          if (!streamUrl) return false;
+          setAnimeStreamSource({
+            sourceUrl: streamUrl,
+            isHLS: s.type === 'hls',
+            isEmbed: s.isEmbed ?? s.type === 'embed',
+            quality: s.quality || 'Auto HD',
+            providerId: s.providerId || providerId,
+            language: animeLanguage,
+            subtitles: s.subtitles as any,
+            subtitlesAvailable: s.subtitlesAvailable ?? false,
+            videoAvailable: s.videoAvailable ?? true,
+            audioAvailable: s.audioAvailable ?? true,
+            qualities: [{ url: streamUrl, quality: s.quality || 'Auto HD', isHLS: s.type === 'hls' }],
+          });
+          setActiveProviderIdState(s.providerId || providerId);
+          setActiveProviderNameState(s.providerName || streamingManager.getActiveProviderName());
+          setResolutionError(null);
+          return true;
+        } else {
+          setAnimeStreamSource(null);
+          setResolutionError(`Failed to load anime stream from ${streamingManager.getActiveProviderName()}`);
+          return false;
+        }
+      }
+
+      const result = await streamingManager.getStreamFromProvider(
+        providerId,
+        mediaId,
+        isTV ? 'tv' : 'movie',
+        seasonNumber,
+        episodeNumber
+      );
+
+      if (currentRequestId !== requestIdRef.current) return false;
+
+      if (result && result.available && result.stream?.url) {
+        setStreamResult(result.stream);
+        setActiveProviderIdState(result.stream.providerId || providerId);
+        setActiveProviderNameState(result.stream.providerName || streamingManager.getActiveProviderName());
+        setResolutionError(null);
+        return true;
+      } else {
+        setStreamResult(null);
+        setResolutionError(`Failed to load stream from ${streamingManager.getActiveProviderName()}`);
+        return false;
+      }
+    } catch (err: any) {
+      if (currentRequestId === requestIdRef.current) {
+        const msg = err?.message || 'Stream resolution failed';
+        logPlayback(`Provider switch failed: ${msg}`);
+        setResolutionError(msg);
+        setStreamResult(null);
+        setAnimeStreamSource(null);
+      }
+      return false;
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setIsResolvingStream(false);
+        setResolvingProviderId(null);
+      }
+    }
+  }, [isAnime, mediaId, isTV, seasonNumber, episodeNumber, animeItem, animeLanguage]);
+
+  const switchMode = useCallback(async (modeId: string): Promise<boolean> => {
+    if (isAnime || !mediaId) return false;
+
+    logPlayback(`Explicit mode switch requested: ${modeId}`);
+    setIsResolvingStream(true);
+    setResolvingProviderId(activeProviderIdState);
+    setResolutionError(null);
+
+    // CRITICAL: Immediately clear streamResult to instantly unmount iframe and prevent audio leakage!
+    setStreamResult(null);
+
+    const currentRequestId = ++requestIdRef.current;
+
+    try {
+      streamingManager.setProviderMode(activeProviderIdState, modeId);
+      setActiveModeIdState(modeId);
+
+      const result = await streamingManager.getStreamFromProvider(
+        activeProviderIdState,
+        mediaId,
+        isTV ? 'tv' : 'movie',
+        seasonNumber,
+        episodeNumber
+      );
+
+      if (currentRequestId !== requestIdRef.current) return false;
+
+      if (result && result.available && result.stream?.url) {
+        setStreamResult(result.stream);
+        setResolutionError(null);
+        return true;
+      } else {
+        setStreamResult(null);
+        setResolutionError(`Failed to load stream with mode "${modeId}"`);
+        return false;
+      }
+    } catch (err: any) {
+      if (currentRequestId === requestIdRef.current) {
+        const msg = err?.message || 'Mode switch failed';
+        logPlayback(`Mode switch failed: ${msg}`);
+        setResolutionError(msg);
+        setStreamResult(null);
+      }
+      return false;
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setIsResolvingStream(false);
+        setResolvingProviderId(null);
+      }
+    }
+  }, [isAnime, mediaId, isTV, seasonNumber, episodeNumber, activeProviderIdState]);
 
   useEffect(() => {
     const unsubscribe = pipService.subscribe(async (msg) => {
@@ -514,13 +715,18 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
       
       if (nextStream?.stream && nextStream.available) {
         setStreamResult(nextStream.stream);
+        setActiveProviderIdState(nextStream.stream.providerId || 'vidsrc-me');
+        setActiveProviderNameState(nextStream.stream.providerName || 'VidSrc Me');
+        setResolutionError(null);
       } else {
         setStreamResult(null);
+        setResolutionError('All fallback providers failed to deliver a stream');
       }
     } catch (e: any) {
       if (currentRequestId === requestIdRef.current) {
         logPlayback(`Fallback failed: ${e?.message || e}`);
         setStreamResult(null);
+        setResolutionError(e?.message || 'Fallback failed');
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
@@ -544,6 +750,14 @@ export const PlaybackProvider: React.FC<{children: ReactNode}> = ({ children }) 
       drawerSeasonNumber, setDrawerSeasonNumber,
       drawerSeasonEpisodes, isDrawerLoading,
       play, closePlayer,
+      activeProviderId: activeProviderIdState,
+      activeProviderName: activeProviderNameState,
+      activeModeId: activeModeIdState,
+      isResolvingStream,
+      resolvingProviderId,
+      resolutionError,
+      switchProvider,
+      switchMode,
       handlePrevEpisode, hasPrevEpisode, handleNextEpisode, hasNextEpisode, handleTryNextProvider,
       onSelectEpisode, onSelectRelated, triggerRetry
     }}>

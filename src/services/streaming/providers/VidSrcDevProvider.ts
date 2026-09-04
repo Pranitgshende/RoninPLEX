@@ -1,10 +1,11 @@
 import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy } from '../types';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy, ProviderCapabilities, ProviderState } from '../types';
 
 export class VidSrcDevProvider implements StreamingProvider {
   private readonly id = 'vidsrc-dev';
   private readonly name = 'VidSrc Dev (vidsrc.dev)';
   private readonly baseUrl = 'https://vidsrc.dev';
+  private state: ProviderState = 'parked';
 
   getName(): string {
     return this.name;
@@ -12,6 +13,37 @@ export class VidSrcDevProvider implements StreamingProvider {
 
   getId(): string {
     return this.id;
+  }
+
+  getState(): ProviderState {
+    return this.state;
+  }
+
+  isVerified(): boolean {
+    return false;
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      playback: {
+        embed: true,
+        directStream: false,
+      },
+      content: {
+        movie: true,
+        tv: true,
+        anime: false,
+      },
+      subtitles: {
+        supported: false,
+      },
+      download: {
+        supported: false,
+        requiresResolver: false,
+        directDownload: false,
+        resumable: false,
+      },
+    };
   }
 
   getEmbedPolicy(): EmbedPolicy {

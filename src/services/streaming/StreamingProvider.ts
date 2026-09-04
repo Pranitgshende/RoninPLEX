@@ -32,6 +32,11 @@ export interface StreamingProvider {
   getTVEpisode(tmdbId: number, season: number, episode: number): Promise<StreamingEpisode | null>;
 
   /**
+   * Optional resolution for anime episodes by MAL ID, episode number, and sub/dub preference
+   */
+  getAnimeEpisode?(malId: number, episodeNumber: number, language?: 'sub' | 'dub'): Promise<StreamingEpisode | null>;
+
+  /**
    * Optional search for movies available on this provider
    */
   searchMovies?(query: string): Promise<StreamingMovie[]>;
@@ -46,4 +51,20 @@ export interface StreamingProvider {
    * Defines sandbox tokens, feature policy permissions, and referrer policy.
    */
   getEmbedPolicy?(): import('./types').EmbedPolicy;
+
+  /**
+   * Optional capability descriptor detailing supported media types, playback modes,
+   * subtitle support, download mechanisms, and available servers.
+   */
+  getCapabilities?(): import('./types').ProviderCapabilities;
+
+  /**
+   * Optional provider lifecycle state.
+   */
+  getState?(): import('./types').ProviderState;
+
+  /**
+   * Whether the provider has been verified against live production endpoints.
+   */
+  isVerified?(): boolean;
 }

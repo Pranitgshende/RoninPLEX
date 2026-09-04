@@ -1,5 +1,7 @@
 use std::path::Path;
 
+pub mod download;
+
 #[tauri::command]
 fn log_runtime_event(tag: String, message: String) {
     let line = format!("[{}] {}", tag, message);
@@ -115,6 +117,8 @@ pub fn run() {
                 child: child_holder_setup.clone(),
             });
 
+            app.manage(download::DownloadState::new());
+
             // Run anime-server sidecar
             match app.shell().sidecar("anime-server") {
                 Ok(cmd) => {
@@ -147,7 +151,17 @@ pub fn run() {
             remove_tmdb_credential,
             get_tmdb_credential,
             exit_application,
-            open_in_browser
+            open_in_browser,
+            download::start_download,
+            download::pause_download,
+            download::resume_download,
+            download::cancel_download,
+            download::delete_download,
+            download::get_downloads,
+            download::get_download_settings,
+            download::update_download_settings,
+            download::open_download_folder,
+            download::open_download_file
         ])
         .build(tauri::generate_context!())
         .expect("error while building RoninPLEX application");
@@ -185,5 +199,15 @@ mod tests {
     #[test]
     fn test_runtime_logging() {
         log_runtime_event("TEST".to_string(), "Test event logging verification".to_string());
+    }
+
+    #[test]
+    fn test_download_state_init() {
+        let state = download::DownloadState::new();
+        let items = state.items.lock().unwrap();
+        let _ = items.len();
+        let settings = state.settings.lock().unwrap();
+        assert!(settings.max_concurrent_downloads > 0);
+        assert!(!settings.download_dir.is_empty());
     }
 }

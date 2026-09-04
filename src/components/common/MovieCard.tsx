@@ -173,15 +173,45 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const isVisualReady = hasValidPoster ? (imageLoaded && !imageError) : true;
   const isShowingFallback = imageError || !hasValidPoster;
 
+  const {
+    enableGlassCards = true,
+    cardGlassOpacity = 35,
+    cardBlurStrength = 'md',
+    cardBorderVisibility = true,
+    cardBorderOpacity = 12,
+    cardGlow = true,
+    cardCornerRadius = 'rounded-xl',
+    cardElevation = 'lg',
+    cardHoverIntensity = 'normal',
+    cardBadgeStyle = 'glass',
+    cardBadgeVisibility = true,
+  } = preferences || {};
+
+  const blurMap: Record<string, string> = { none: '0px', sm: '8px', md: '16px', lg: '24px' };
+  const elevationMap: Record<string, string> = { none: 'shadow-none', sm: 'shadow-sm', md: 'shadow-md', lg: 'shadow-xl', '2xl': 'shadow-2xl' };
+  const hoverLiftMap: Record<string, string> = { subtle: 'hover:-translate-y-0.5', normal: 'hover:-translate-y-1', lifted: 'hover:-translate-y-2' };
+
+  const badgeClass = cardBadgeStyle === 'solid'
+    ? 'bg-black/95 text-white border border-white/20'
+    : cardBadgeStyle === 'minimal'
+    ? 'bg-black/40 text-slate-200 border border-white/5'
+    : 'bg-black/70 backdrop-blur-md text-slate-200 border border-white/10';
+
   return (
     <>
       <div
         ref={cardRef as any}
-        className="group relative flex flex-col h-full rounded-xl overflow-hidden glass-card hover:border-brand-500/50 transition-all duration-300 transform hover:-translate-y-1 p-2"
+        style={enableGlassCards ? {
+          ['--card-glass-opacity' as any]: `${cardGlassOpacity / 100}`,
+          ['--card-blur-strength' as any]: blurMap[cardBlurStrength] || '16px',
+          ['--card-border-opacity' as any]: cardBorderVisibility ? `${cardBorderOpacity / 100}` : '0',
+          ['--card-shadow-opacity' as any]: '0.4',
+        } : undefined}
+        className={`group relative flex flex-col h-full overflow-hidden transition-all duration-300 transform p-2 ${cardCornerRadius} ${elevationMap[cardElevation] || 'shadow-lg'} ${hoverLiftMap[cardHoverIntensity] || 'hover:-translate-y-1'} ${enableGlassCards ? 'glass-card' : 'glass-card-solid'} ${cardGlow ? 'glass-card-glow' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <Link to={detailsUrl} className="block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0">
+        <Link to={detailsUrl} className={`block aspect-[2/3] relative rounded-lg overflow-hidden bg-surface-300/50 shrink-0`}>
           {!isVisualReady && !isShowingFallback && (
             <GlassSkeleton className="absolute inset-0 w-full h-full rounded-lg z-10" />
           )}
@@ -231,13 +261,14 @@ export const MovieCard: React.FC<MovieCardProps> = ({
           ) : null}
 
           {/* Type Badge (Top Left) */}
-          <div className={`absolute top-2 left-2 flex items-center justify-between z-20 pointer-events-none transition-opacity duration-300 ${
-            isVisualReady ? 'opacity-100' : 'opacity-0'
-          }`}>
-            {showTypeBadge && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-md text-slate-200 border border-white/10 shadow-md">
-                {(normalized.media_type as string) === 'anime' ? (
-                  <>
+          {cardBadgeVisibility && (
+            <div className={`absolute top-2 left-2 flex items-center justify-between z-20 pointer-events-none transition-opacity duration-300 ${
+              isVisualReady ? 'opacity-100' : 'opacity-0'
+            }`}>
+              {showTypeBadge && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-md ${badgeClass}`}>
+                  {(normalized.media_type as string) === 'anime' ? (
+                    <>
                     <Sparkles className="w-3 h-3 text-rose-400" />
                     Anime
                   </>
@@ -255,16 +286,19 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               </span>
             )}
           </div>
+        )}
           
           {/* Rating/Adult Badges (Top Right) */}
-          <div className={`absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none z-20 transition-opacity duration-300 ${
-            isVisualReady ? 'opacity-100' : 'opacity-0'
-          }`}>
-            {(('adult' in item && Boolean((item as any).adult)) || ('adult' in normalized && Boolean((normalized as any).adult))) && (
-              <AdultBadge size="sm" />
-            )}
-            <RatingBadge rating={normalized.vote_average} size="sm" />
-          </div>
+          {cardBadgeVisibility && (
+            <div className={`absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none z-20 transition-opacity duration-300 ${
+              isVisualReady ? 'opacity-100' : 'opacity-0'
+            }`}>
+              {(('adult' in item && Boolean((item as any).adult)) || ('adult' in normalized && Boolean((normalized as any).adult))) && (
+                <AdultBadge size="sm" />
+              )}
+              <RatingBadge rating={normalized.vote_average} size="sm" />
+            </div>
+          )}
 
           {/* Hover Overlay */}
           <div

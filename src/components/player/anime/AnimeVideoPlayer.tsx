@@ -21,6 +21,8 @@ import {
   X,
   Search,
   PictureInPicture,
+  Terminal,
+  Server,
 } from 'lucide-react';
 import { AnimeItem, AnimeEpisode, AnimeStreamSource, ContentLanguage } from '../../../services/anime/AnimeTypes';
 import { usePlaybackSession } from '../usePlaybackSession';
@@ -29,6 +31,9 @@ import { AnimeSubtitleManager } from './AnimeSubtitleManager';
 import { AnimeEpisodeController } from './AnimeEpisodeController';
 import { useUser } from '../../../context/UserContext';
 import { storage } from '../../../services/storage';
+import { ProviderMenu } from '../ProviderMenu';
+import { DiagnosticsModal } from '../DiagnosticsModal';
+import { streamingManager } from '../../../services/streaming/StreamingManager';
 
 interface AnimeVideoPlayerProps {
   anime: AnimeItem;
@@ -116,6 +121,8 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
   const [activeLanguage, setActiveLanguage] = useState<ContentLanguage>(stream?.language || ContentLanguage.SUB);
   const [activeQuality, setActiveQuality] = useState<string>(stream?.quality || 'auto');
   const [activeMenu, setActiveMenu] = useState<'none' | 'quality' | 'subtitle' | 'audio'>('none');
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [isProviderMenuOpen, setIsProviderMenuOpen] = useState(false);
 
   const handleQualityChange = (q: string) => {
     setActiveQuality(q);
@@ -482,6 +489,10 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           e.preventDefault();
           handlePrevEpisode();
           break;
+        case 'd':
+          e.preventDefault();
+          setShowDiagnostics(prev => !prev);
+          break;
       }
     };
 
@@ -512,7 +523,7 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
       className="relative w-full h-screen bg-black overflow-hidden flex flex-col justify-center items-center select-none"
     >
       {/* Video Element or Embed Fallback */}
-      {stream?.isHLS || stream?.sourceUrl.endsWith('.mp4') ? (
+      {!stream?.isEmbed && (stream?.isHLS || stream?.sourceUrl.endsWith('.mp4')) ? (
         <video
           key={stream.sourceUrl}
           ref={videoRef}
@@ -539,10 +550,12 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
         </video>
       ) : stream?.sourceUrl ? (
         <iframe
+          key={stream.sourceUrl}
           src={stream.sourceUrl}
           className="w-full h-full border-0"
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
         />
       ) : null}
 
@@ -647,6 +660,40 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
 
         {/* Action Pills */}
         <div className="flex items-center gap-2 bg-black/85 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl shrink-0">
+          <div className="relative">
+            <button
+              onClick={() => setIsProviderMenuOpen(prev => !prev)}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              title="Select Streaming Provider"
+            >
+              <Server className="w-4 h-4 text-rose-400" />
+              <span className="hidden sm:inline">{playbackContext.activeProviderName || (stream?.isEmbed ? 'VidLink Anime' : 'Anime SDK')}</span>
+            </button>
+            {isProviderMenuOpen && (
+              <ProviderMenu
+                activeProviderId={playbackContext.activeProviderId || (stream?.isEmbed ? 'vidlink' : 'anime-sdk')}
+                activeProviderName={playbackContext.activeProviderName || (stream?.isEmbed ? 'VidLink Anime' : 'Anime SDK')}
+                mediaType="anime"
+                onSelectProvider={async (pId) => {
+                  setIsProviderMenuOpen(false);
+                  await playbackContext.switchProvider(pId);
+                }}
+                isResolving={playbackContext.isResolvingStream}
+                resolvingProviderId={playbackContext.resolvingProviderId}
+                resolutionError={playbackContext.resolutionError}
+                onClose={() => setIsProviderMenuOpen(false)}
+                align="right"
+              />
+            )}
+          </div>
+          <button
+            onClick={() => setShowDiagnostics(true)}
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Stream Diagnostics (D)"
+          >
+            <Terminal className="w-4 h-4 text-emerald-400" />
+            <span className="hidden sm:inline">Diagnostics</span>
+          </button>
           <button
             onClick={() => setIsDrawerOpen(true)}
             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
@@ -986,6 +1033,33 @@ export const AnimeVideoPlayer: React.FC<AnimeVideoPlayerProps> = ({
           </div>
         </div>
       )}
+      {/* Diagnostics Modal */}
+      <DiagnosticsModal
+        isOpen={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+        streamType={stream?.isEmbed ? 'embed' : (stream?.isHLS ? 'hls' : 'mp4')}
+        providerName={playbackContext.activeProviderName || (stream?.isEmbed ? 'VidLink Anime' : 'Anime SDK')}
+        providerId={playbackContext.activeProviderId || (stream?.isEmbed ? 'vidlink' : 'anime-sdk')}
+        streamUrl={stream?.sourceUrl}
+        videoDimensions={videoRef.current ? { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight } : null}
+        currentTime={videoRef.current?.currentTime ?? currentTime}
+        duration={videoRef.current?.duration ?? duration}
+        bufferedSeconds={videoRef.current && videoRef.current.buffered.length > 0 ? (videoRef.current.buffered.end(videoRef.current.buffered.length - 1) - videoRef.current.currentTime) : null}
+        playbackState={isBuffering ? 'buffering' : (isPlaying ? 'playing' : 'paused')}
+        playbackRate={videoRef.current?.playbackRate ?? 1}
+        volume={videoRef.current?.volume ?? volume}
+        isMuted={isMuted}
+        subtitlesAvailable={stream?.subtitlesAvailable ?? (subtitleManager.getTracks().length > 0)}
+        subtitleInspectionStatus={stream?.subtitleInspectionStatus}
+        subtitleNote={stream?.subtitleNote}
+        activeSubtitleTrack={activeSubtitle}
+        subtitleCount={subtitleManager.getTracks().length}
+        isIframeLoading={isLoading}
+        sandboxPolicy="allow-scripts allow-same-origin allow-forms allow-presentation"
+        allowPolicy="autoplay; encrypted-media; fullscreen"
+        error={hasError ? 'Stream playback error' : null}
+        onReloadStream={onRetry}
+      />
     </div>
   );
 };

@@ -103,7 +103,7 @@ export const TMDBOnboardingModal: React.FC = () => {
             You can connect your own TMDB API key for your personal API access. Your key stays on this device and is never shown in diagnostics or the app interface.
           </p>
           <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-            You can also continue using RoninPLEX with its built-in fallback connection.
+            You can also continue using RoninPLEX with default application configuration.
           </p>
         </div>
 

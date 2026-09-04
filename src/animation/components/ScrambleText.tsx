@@ -61,7 +61,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
       onUpdate: () => {
         if (!elRef.current) return;
         frameCount++;
-        // Update character buffer every 3 frames (~20fps cadence) for deliberate cinematic motion
+        // Rapid character shimmer for crisp cyberpunk glyphs
         const shouldMutate = frameCount % 3 === 0;
         const solvedCount = Math.floor(obj.p * originalLength);
 
@@ -82,6 +82,7 @@ export const ScrambleText = forwardRef<ScrambleTextRef, ScrambleTextProps>(({
       },
       onComplete: () => {
         if (elRef.current) elRef.current.innerText = text;
+        tweenRef.current = null;
         onComplete?.();
       }
     });

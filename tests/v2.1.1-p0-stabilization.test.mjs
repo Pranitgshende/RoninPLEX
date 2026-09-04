@@ -345,7 +345,7 @@ describe('RoninPLEX v2.1.1 P0 Desktop & PiP Stabilization Suite', () => {
     const trailCode = fs.readFileSync('src/components/common/TrailerModal.tsx', 'utf8');
     assert.match(trailCode, /<PremiumGlowBorder/, 'TrailerModal must use PremiumGlowBorder');
 
-    const playerCode = fs.readFileSync('src/components/player/VideoPlayer.tsx', 'utf8');
+    const playerCode = fs.readFileSync('src/components/player/VideoPlayer.tsx', 'utf8') + (fs.existsSync('src/components/player/DiagnosticsModal.tsx') ? fs.readFileSync('src/components/player/DiagnosticsModal.tsx', 'utf8') : '');
     assert.match(playerCode, /<PremiumGlowBorder[^>]*intensity="medium"/, 'VideoPlayer diagnostics modal must use PremiumGlowBorder');
   });
 

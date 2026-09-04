@@ -1,10 +1,11 @@
-﻿import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy } from '../types';
+import { StreamingProvider } from '../StreamingProvider';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, EmbedPolicy, ProviderCapabilities, ProviderState } from '../types';
 
 export class TwoEmbedProvider implements StreamingProvider {
   private readonly id = '2embed';
   private readonly name = '2Embed (2embed.cc)';
   private readonly baseUrl = 'https://www.2embed.cc';
+  private state: ProviderState = 'healthy';
 
   getName(): string {
     return this.name;
@@ -12,6 +13,37 @@ export class TwoEmbedProvider implements StreamingProvider {
 
   getId(): string {
     return this.id;
+  }
+
+  getState(): ProviderState {
+    return this.state;
+  }
+
+  isVerified(): boolean {
+    return true;
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      playback: {
+        embed: true,
+        directStream: false,
+      },
+      content: {
+        movie: true,
+        tv: true,
+        anime: false,
+      },
+      subtitles: {
+        supported: false,
+      },
+      download: {
+        supported: false,
+        requiresResolver: false,
+        directDownload: false,
+        resumable: false,
+      },
+    };
   }
 
   getEmbedPolicy(): EmbedPolicy {

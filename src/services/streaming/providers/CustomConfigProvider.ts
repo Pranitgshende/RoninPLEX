@@ -1,6 +1,23 @@
 import { StreamingProvider } from '../StreamingProvider';
-import { StreamingMovie, StreamingTVShow, StreamingEpisode, ProviderConfig } from '../types';
+import { StreamingMovie, StreamingTVShow, StreamingEpisode, ProviderConfig, ProviderCapabilities, ProviderState } from '../types';
 import { streamingHttpClient } from '../StreamingHttpClient';
+
+export function validateCustomProviderUrl(urlTemplate: string): { valid: boolean; error?: string } {
+  if (!urlTemplate || typeof urlTemplate !== 'string') {
+    return { valid: false, error: 'URL template cannot be empty.' };
+  }
+  const trimmed = urlTemplate.trim();
+  if (!trimmed.startsWith('https://')) {
+    return { valid: false, error: 'Only secure HTTPS URLs are permitted.' };
+  }
+  if (!trimmed.includes('{tmdbId}')) {
+    return { valid: false, error: 'URL template must contain the {tmdbId} placeholder.' };
+  }
+  if (/[\s"'<>\r\n]|javascript:|data:|file:/i.test(trimmed)) {
+    return { valid: false, error: 'URL contains disallowed characters, spaces, or unsafe protocols.' };
+  }
+  return { valid: true };
+}
 
 export class CustomConfigProvider implements StreamingProvider {
   private config: ProviderConfig;
@@ -15,6 +32,38 @@ export class CustomConfigProvider implements StreamingProvider {
 
   getId(): string {
     return 'custom';
+  }
+
+  getState(): ProviderState {
+    return this.config.baseUrl ? 'verified' : 'registered';
+  }
+
+  isVerified(): boolean {
+    return Boolean(this.config.baseUrl);
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      playback: {
+        embed: true,
+        directStream: true,
+      },
+      content: {
+        movie: true,
+        tv: true,
+        anime: false,
+      },
+      subtitles: {
+        supported: true,
+        externalTracks: true,
+      },
+      download: {
+        supported: false,
+        requiresResolver: false,
+        directDownload: false,
+        resumable: false,
+      },
+    };
   }
 
   updateConfig(newConfig: ProviderConfig): void {

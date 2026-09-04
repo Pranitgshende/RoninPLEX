@@ -1,5 +1,6 @@
 import { AnimeStreamSource, ContentLanguage } from './AnimeTypes';
 import { logPlayback } from '../../utils/logger';
+import { vidLinkProProvider } from '../streaming/providers/VidLinkProProvider';
 
 const API_BASE = 'http://127.0.0.1:4173';
 const PROVIDERS = ['animeparadise', 'gogoanime', 'allmanga'];
@@ -44,11 +45,57 @@ export class AnimeStreamService {
     episodeNumber: number,
     preferredLanguage: ContentLanguage = ContentLanguage.SUB,
     animeId?: string,
-    retryCount: number = 0
+    retryCount: number = 0,
+    malId?: number,
+    preferredProviderId?: string
   ): Promise<AnimeStreamSource | null> {
     try {
-      logPlayback(`[AnimeStreamService] Resolving stream for "${animeTitle}" (ID: ${animeId}) Episode ${episodeNumber}`);
+      logPlayback(`[AnimeStreamService] Resolving stream for "${animeTitle}" (ID: ${animeId}, MAL: ${malId}) Episode ${episodeNumber}`);
 
+      // 1. PRIMARY: VidLink Anime resolution when MAL ID is available and provider not locked to anime-sdk
+      const shouldTryVidLink = preferredProviderId === 'vidlink' || (!preferredProviderId && retryCount === 0);
+      if (shouldTryVidLink) {
+        if (malId && typeof malId === 'number' && malId > 0) {
+          try {
+            logPlayback(`[AnimeStreamService] Attempting VidLink Anime resolution (MAL ID: ${malId}, Ep: ${episodeNumber})`);
+            const vidLinkEp = await vidLinkProProvider.getAnimeEpisode(
+              malId,
+              episodeNumber,
+              preferredLanguage === ContentLanguage.DUB ? 'dub' : 'sub'
+            );
+            if (vidLinkEp && vidLinkEp.available && vidLinkEp.stream?.url) {
+              logPlayback(`[AnimeStreamService] VidLink Anime resolution successful: ${vidLinkEp.stream.url}`);
+              return {
+                sourceUrl: vidLinkEp.stream.url,
+                isHLS: false,
+                isEmbed: true,
+                quality: 'Auto HD',
+                providerId: 'vidlink',
+                language: preferredLanguage,
+                subtitles: [],
+                subtitlesAvailable: preferredLanguage === ContentLanguage.SUB,
+                subtitleInspectionStatus: 'managed_by_embed',
+                subtitleNote: preferredLanguage === ContentLanguage.SUB
+                  ? 'Subtitles are rendered internally by the VidLink player. Direct track inspection is restricted by Same-Origin Policy (SOP).'
+                  : 'Dubbed audio selected; subtitles disabled.',
+                videoAvailable: true,
+                audioAvailable: true,
+                qualities: [{ url: vidLinkEp.stream.url, quality: 'Auto HD', isHLS: false }],
+              };
+            }
+          } catch (vidLinkErr: any) {
+            logPlayback(`[AnimeStreamService] VidLink Anime resolution failed: ${vidLinkErr?.message}`);
+          }
+        } else {
+          logPlayback(`[AnimeStreamService] No valid MAL ID available for "${animeTitle}". Cannot resolve via VidLink.`);
+          if (preferredProviderId === 'vidlink') {
+            logPlayback(`[AnimeStreamService] VidLink explicitly requested without MAL ID. Truthful failure.`);
+            return null;
+          }
+        }
+      }
+
+      // 2. FALLBACK: Anime SDK local sidecar
       const shiftedProviders = [...PROVIDERS];
       if (shiftedProviders.length > 0) {
         const shiftBy = retryCount % shiftedProviders.length;
@@ -58,7 +105,7 @@ export class AnimeStreamService {
       }
 
       for (const provider of shiftedProviders) {
-        logPlayback(`[AnimeStreamService] Trying provider: ${provider}`);
+        logPlayback(`[AnimeStreamService] Trying fallback sidecar provider: ${provider}`);
         try {
           let sourcesData: any = null;
           
@@ -139,14 +186,19 @@ export class AnimeStreamService {
             };
           });
           
+          const subs = Array.isArray(sourcesData.subtitles) ? sourcesData.subtitles : [];
           return {
             sourceUrl: validSource.sourceUrl,
             isHLS: validSource.isHLS || validSource.sourceUrl.includes('.m3u8') || validSource.sourceUrl.includes('/proxy?'),
+            isEmbed: false,
             language: preferredLanguage,
             quality: validSource.quality || 'auto',
-            providerId: provider,
+            providerId: 'anime-sdk',
             qualities: qualities,
-            subtitles: sourcesData.subtitles || []
+            subtitles: subs,
+            subtitlesAvailable: subs.length > 0,
+            videoAvailable: true,
+            audioAvailable: true,
           };
         } catch (e: any) {
           logPlayback(`[AnimeStreamService] Error on ${provider}: ${e.message}`);
@@ -156,7 +208,7 @@ export class AnimeStreamService {
       
       if (preferredLanguage === ContentLanguage.DUB) {
         logPlayback(`[AnimeStreamService] DUB failed across all providers, falling back to SUB.`);
-        return AnimeStreamService.resolveEpisodeStream(animeTitle, episodeNumber, ContentLanguage.SUB, animeId, 0);
+        return AnimeStreamService.resolveEpisodeStream(animeTitle, episodeNumber, ContentLanguage.SUB, animeId, 0, malId, preferredProviderId);
       }
       throw new Error("All providers failed to resolve a playable stream.");
       

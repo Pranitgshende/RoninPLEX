@@ -83,7 +83,19 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionItem[] = [
   { id: 'top_rated_movies', label: 'Top Rated Masterpieces', enabled: true },
 ];
 
+export interface DeclarativeCustomProvider {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  movieUrlTemplate: string;
+  tvUrlTemplate: string;
+  supportedTypes: ('movie' | 'tv')[];
+  mode: 'embed';
+}
+
 export interface UserPreferences {
+  preferencesSchemaVersion?: number;
   favoriteGenreIds: number[];
   favoriteActors: string[];
   favoriteDirectors: string[];
@@ -102,9 +114,61 @@ export interface UserPreferences {
   autoNextCountdown: number; // in seconds, default 10
   defaultPlaybackSpeed: number;
   defaultVolume: number;
+
+  // General UI Customization
+  accentColor: 'purple' | 'cyan' | 'rose' | 'amber' | 'emerald';
+  uiDensity: 'compact' | 'comfortable' | 'spacious';
+  cornerRadius: 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  enableGlassUI: boolean;
+  glassOpacity: number;
+  blurAmount: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  borderIntensity: 'subtle' | 'medium' | 'prominent' | 'none';
+  glowIntensity: 'subtle' | 'medium' | 'vibrant' | 'none';
+
+  // Card Styling Tokens
+  enableGlassCards: boolean;
+  cardGlassOpacity: number;
+  cardBlurStrength: 'none' | 'sm' | 'md' | 'lg';
+  cardBorderVisibility: boolean;
+  cardBorderOpacity: number;
+  cardGlow: boolean;
+  cardCornerRadius: 'rounded-lg' | 'rounded-xl' | 'rounded-2xl';
+  cardElevation: 'none' | 'sm' | 'md' | 'lg' | '2xl';
+  cardHoverIntensity: 'subtle' | 'normal' | 'lifted';
+  cardBadgeStyle: 'glass' | 'solid' | 'minimal';
+  cardBadgeVisibility: boolean;
+  cardAnimationIntensity: 'subtle' | 'normal' | 'cinematic';
+  cardMetadataDensity: 'compact' | 'normal' | 'detailed';
+
+  // Animation Tokens
+  globalAnimationIntensity: 'off' | 'reduced' | 'normal' | 'cinematic';
+  scrambleAnimationIntensity: 'off' | 'fast' | 'cinematic';
+  pageTransitionIntensity: 'instant' | 'subtle' | 'normal';
+  hoverAnimations: boolean;
+  glowAnimations: boolean;
+  respectPrefersReducedMotion: boolean;
+
+  // Player & Provider Configuration
+  defaultProvider: string;
+  defaultServer: string;
+  autoProviderFallback: boolean;
+  autoServerFallback: boolean;
+  rememberLastProvider: boolean;
+  rememberLastServer: boolean;
+  playerHudStyle: 'glass-pill' | 'solid' | 'minimal';
+  playerTitleVisibility: boolean;
+  playerControlAutoHideTiming: number;
+
+  // Layout Tokens
+  contentDensity: 'compact' | 'comfortable' | 'spacious';
+  shelfCardSize: 'compact' | 'normal' | 'large';
+
+  // Custom User Providers
+  customProviders: DeclarativeCustomProvider[];
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
+  preferencesSchemaVersion: 2,
   favoriteGenreIds: [28, 878, 53], // Action, Sci-Fi, Thriller by default
   favoriteActors: [],
   favoriteDirectors: [],
@@ -122,4 +186,56 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   autoNextCountdown: 10,
   defaultPlaybackSpeed: 1,
   defaultVolume: 1,
+
+  // General UI Defaults
+  accentColor: 'purple',
+  uiDensity: 'comfortable',
+  cornerRadius: 'xl',
+  enableGlassUI: true,
+  glassOpacity: 45,
+  blurAmount: 'md',
+  borderIntensity: 'subtle',
+  glowIntensity: 'subtle',
+
+  // Card Styling Defaults
+  enableGlassCards: true,
+  cardGlassOpacity: 35,
+  cardBlurStrength: 'md',
+  cardBorderVisibility: true,
+  cardBorderOpacity: 12,
+  cardGlow: true,
+  cardCornerRadius: 'rounded-xl',
+  cardElevation: 'lg',
+  cardHoverIntensity: 'normal',
+  cardBadgeStyle: 'glass',
+  cardBadgeVisibility: true,
+  cardAnimationIntensity: 'normal',
+  cardMetadataDensity: 'normal',
+
+  // Animation Defaults
+  globalAnimationIntensity: 'normal',
+  scrambleAnimationIntensity: 'cinematic',
+  pageTransitionIntensity: 'normal',
+  hoverAnimations: true,
+  glowAnimations: true,
+  respectPrefersReducedMotion: true,
+
+  // Player & Provider Defaults
+  defaultProvider: 'vidsrc-me',
+  defaultServer: 'standard',
+  autoProviderFallback: true,
+  autoServerFallback: true,
+  rememberLastProvider: true,
+  rememberLastServer: true,
+  playerHudStyle: 'glass-pill',
+  playerTitleVisibility: true,
+  playerControlAutoHideTiming: 3.0,
+
+  // Layout Defaults
+  contentDensity: 'comfortable',
+  shelfCardSize: 'normal',
+
+  // Custom Providers
+  customProviders: [],
 };
+
